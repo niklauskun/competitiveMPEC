@@ -36,6 +36,7 @@ def export_results(instance, results, results_directory, debug_mode):
     # Sort the sets to return a predictable format of results files
     timepoints_set = sorted(instance.TIMEPOINTS)
     generators_set = instance.GENERATORS #don't sort these so order is preserved for future cases
+    transmission_lines_set = instance.TRANSMISSION_LINE
     zones_set = sorted(instance.ZONES)
     generatorsegment_set = sorted(instance.GENERATORSEGMENTS)
     
@@ -54,7 +55,14 @@ def export_results(instance, results, results_directory, debug_mode):
     except Exception as err:
         msg = "ERROR exporting segmented generator dispatch! Check export_generator_segment_dispatch()."
         handle_exception(msg, debug_mode)
-        
+    
+    #export tx lines
+    try:
+        export_lines(instance, timepoints_set, transmission_lines_set, results_directory)
+    except Exception as err:
+        msg = "ERROR exporting transmission lines! Check export_lines()."
+        handle_exception(msg, debug_mode)
+    
     #export zonal prices
     try:
         export_zonal_price(instance, timepoints_set, zones_set, results_directory)
@@ -130,11 +138,11 @@ def export_generator_dispatch(instance, timepoints_set, generators_set, zones_se
 
     results_dispatch = []
     index_name = []
-    for z in zones_set:   
-        for g in generators_set:
-            index_name.append(z+"-"+str(g))
-            for t in timepoints_set:
-                results_dispatch.append(format_2f(instance.dispatch[t,g,z].value))
+    #for z in zones_set:   
+    for g in generators_set:
+        index_name.append(str(g))#z+"-"+
+        for t in timepoints_set:
+            results_dispatch.append(format_2f(instance.dispatch[t,g]()))
     results_dispatch_np = np.reshape(results_dispatch, (int(len(results_dispatch)/len(timepoints_set)), int(len(timepoints_set))))
     df = pd.DataFrame(results_dispatch_np, index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"generator_dispatch.csv"))
@@ -159,14 +167,16 @@ def export_zonal_price(instance, timepoints_set, zones_set, results_directory):
     results_prices = []
     index_name = []
     timepoints_list = []
+    voltage_angle_list = []
     for z in zones_set:
         for t in timepoints_set:
             index_name.append(z)
             results_prices.append(format_2f(instance.dual[instance.LoadConstraint[t,z]]))
             timepoints_list.append(t)        
+            voltage_angle_list.append(format_2f(instance.voltage_angle[t,z].value))
     
-    col_names = ['hour','LMP']
-    df = pd.DataFrame(data=np.column_stack((np.asarray(timepoints_list), np.asarray(results_prices))),
+    col_names = ['hour','LMP','VoltageAngle']
+    df = pd.DataFrame(data=np.column_stack((np.asarray(timepoints_list), np.asarray(results_prices),np.asarray(voltage_angle_list))),
                        columns=col_names,
                        index=pd.Index(index_name))
     
@@ -176,6 +186,7 @@ def export_lines(instance, timepoints_set, transmission_lines_set, results_direc
     
     transmission_duals = []
     results_transmission_line_flow = []
+    dc_opf_dual = []
     index_name = []
     for line in transmission_lines_set:
         for t in timepoints_set:
@@ -183,8 +194,9 @@ def export_lines(instance, timepoints_set, transmission_lines_set, results_direc
             transmission_duals.append(format_2f(instance.dual[instance.TxFromConstraint[t,line]] +\
                                       instance.dual[instance.TxToConstraint[t,line]]))
             results_transmission_line_flow.append(format_2f(instance.transmit_power_MW[t,line].value))
-    col_names = ['congestion price ($/MW)','flow (MW)']
-    df = pd.DataFrame(data=np.column_stack((np.asarray(transmission_duals),np.asarray(results_transmission_line_flow))),
+            dc_opf_dual.append(format_2f(instance.dual[instance.DCOPFConstraint[t,line]]))
+    col_names = ['congestion price ($/MW)','flow (MW)', 'OPF Dual']
+    df = pd.DataFrame(data=np.column_stack((np.asarray(transmission_duals),np.asarray(results_transmission_line_flow),np.asarray(dc_opf_dual))),
                       columns=col_names,index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"tx_flows.csv"))
     

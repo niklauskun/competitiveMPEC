@@ -20,7 +20,6 @@ from pyutilib.services import TempfileManager
 from pyomo.environ import *
 from pyomo.mpec import *
 from pyomo.gdp import bigm
-#from pyomo.bilevel import *
 from pyomo.opt import SolverFactory
 import matplotlib.pyplot as plt
 
@@ -34,8 +33,8 @@ from plotting_competitive import diag_plots
 start_time = time.time()
 cwd = os.getcwd()
 
-case_folder = "Oct_19_25_2017_TEST"
-scenario_list = [("10.19.2017",False,"")]
+case_folder = "PJM_5_Bus"
+scenario_list = [("5bus",False,"")]
 
 # Allow user to specify solver path if needed (default assumes solver on path)
 executable=""
@@ -106,13 +105,13 @@ def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_
     instance = model.create_instance(data)
     print ("...instance created.")
     
-    print("Converting model to MPEC...")
+    #print("Converting model to MPEC...")
     #transformed = model.transform("mpec.simple_nonlinear")
-    xfrm = TransformationFactory('mpec.simple_disjunction')
-    xfrm.apply_to(instance)
-    xfrm2 = TransformationFactory('gdp.bigm')
-    xfrm2.apply_to(instance)
-    print("...converted")
+    #xfrm = TransformationFactory('mpec.simple_disjunction')
+    #xfrm.apply_to(instance)
+    #xfrm2 = TransformationFactory('gdp.bigm')
+    #xfrm2.apply_to(instance)
+    #print("...converted")
 
     return instance
 
@@ -130,7 +129,7 @@ def solve(instance, case_type):
         instance.TotalCost2.activate()
         instance.TotalCost.deactivate() #switch objective to exclude start-up and no-load costs
         instance.GeneratorProfit.deactivate()
-        instance.PminConstraint.deactivate()
+        #instance.PminConstraint.deactivate()
     # ### Solve ### #
     if executable != "":
         solver = SolverFactory("cplex", executable=executable)
@@ -197,7 +196,7 @@ def run_scenario(directory_structure, load_init):
     # Create a 'dual' suffix component on the instance, so the solver plugin will know which suffixes to collect
     instance.dual = Suffix(direction=Suffix.IMPORT)
     
-    solution = solve(instance,"MIP") #solve MIP with commitment
+    solution = solve(instance,"LP") #solve MIP with commitment
     
     '''
     print ("Done running MIP, relaxing to LP to obtain duals...")
@@ -213,7 +212,7 @@ def run_scenario(directory_structure, load_init):
     ###
 
     # export results to csv
-    #write_results_competitive.export_results(instance, solution, scenario_results_directory, debug_mode=1)
+    write_results_competitive.export_results(instance, solution, scenario_results_directory, debug_mode=1)
     
     # THE REST OF THIS LOOP IS ONLY NEEDED FOR PLOTTING RESULTS
     #load up the instance that was just solved
@@ -242,11 +241,11 @@ def run_scenario(directory_structure, load_init):
             results_wind.append(instance.windgen[t,z].value)
             results_solar.append(instance.solargen[t,z].value)
             results_curtailment.append(instance.curtailment[t,z].value)
-            #price_duals.append(instance.dual[instance.LoadConstraint[t,z]])
-            price_duals.append(instance.zonalprice[t,z].value)
+            price_duals.append(instance.dual[instance.LoadConstraint[t,z]])
+            #price_duals.append(instance.zonalprice[t,z].value)
             
             for g in instance.GENERATORS:
-                results_dispatch.append(instance.dispatch[t,g,z].value)
+                results_dispatch.append(instance.dispatch[t,g]())
                 #for gs in instance.GENERATORSEGMENTS:
                     #if t==1:
                         #print('offer')

@@ -41,6 +41,9 @@ dispatch_model.GENERATORS = Set(ordered=True)
 #zones
 dispatch_model.ZONES = Set(doc="study zones", ordered=True)
 
+#lines
+dispatch_model.TRANSMISSION_LINE = Set(doc="tx lines", ordered=True)
+
 #generator bid segments (creates piecewise heat rate curve)
 dispatch_model.GENERATORSEGMENTS = Set(ordered=True)
 
@@ -56,11 +59,13 @@ dispatch_model.windcf = Param(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, w
 dispatch_model.solarcf = Param(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=NonNegativeReals)
 
 #timepoint-dependent params
-dispatch_model.temperature = Param(dispatch_model.TIMEPOINTS, within=Reals)
+dispatch_model.reference_bus = Param(dispatch_model.TIMEPOINTS, within=dispatch_model.ZONES)
 
 #zone-dependent params
 dispatch_model.windcap = Param(dispatch_model.ZONES, within=NonNegativeReals)
 dispatch_model.solarcap = Param(dispatch_model.ZONES, within=NonNegativeReals)
+dispatch_model.voltage_angle_max = Param(dispatch_model.ZONES, within=NonNegativeReals)
+dispatch_model.voltage_angle_min = Param(dispatch_model.ZONES, within=Reals)
 
 #dispatch_model.sub.windcap = Param(dispatch_model.sub.ZONES, within=NonNegativeReals)
 #dispatch_model.sub.solarcap = Param(dispatch_model.sub.ZONES, within=NonNegativeReals)
@@ -88,6 +93,16 @@ dispatch_model.capacity = Param(dispatch_model.GENERATORS, dispatch_model.ZONES,
 dispatch_model.ramp = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #rate is assumed to be equal up and down
 dispatch_model.rampstartuplimit = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #special component of the ramping constraint on the startup hour
 dispatch_model.rampshutdownlimit = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #special component of the ramping constraint on the shutdown hour ---- NEW
+
+#transmission line only depedent params
+dispatch_model.susceptance = Param(dispatch_model.TRANSMISSION_LINE, within=NonNegativeReals)
+
+#time and transmission line-dependent params
+dispatch_model.transmission_from = Param(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=dispatch_model.ZONES)
+dispatch_model.transmission_to = Param(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=dispatch_model.ZONES)
+dispatch_model.transmission_from_capacity = Param(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=Reals)
+dispatch_model.transmission_to_capacity = Param(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=Reals)
+dispatch_model.hurdle_rate = Param(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=NonNegativeReals)
 
 #generator segment params
 dispatch_model.generatorsegmentlength = Param(dispatch_model.GENERATORSEGMENTS, within=PercentFraction)
@@ -118,9 +133,6 @@ dispatch_model.STORAGE = Set(within=dispatch_model.GENERATORS, initialize=storag
 
 #Vars will be lower case
 
-dispatch_model.dispatch = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES,
-                              within = NonNegativeReals, initialize=0)
-
 dispatch_model.segmentdispatch = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                      dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals, initialize=0, bounds=(0,5000))
@@ -133,6 +145,12 @@ dispatch_model.solargen = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
 
 dispatch_model.curtailment = Var(dispatch_model.TIMEPOINTS,  dispatch_model.ZONES,
                                  within = NonNegativeReals, initialize=0)
+
+dispatch_model.transmit_power_MW = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
+                                       within = Reals, initialize=0)
+
+dispatch_model.voltage_angle = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
+                                       within = Reals, initialize=0)
 
 #resource specific vars
 
@@ -185,10 +203,22 @@ dispatch_model.curtailmentdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.Z
 dispatch_model.winddual = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                               within=NonNegativeReals, initialize=0)
 
-#offer variables
+#offer-related variables (since generators no longer just offer at marginal cost)
 dispatch_model.gensegmentoffer = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                      dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals)
+
+
+###########################
+# ##### EXPRESSIONS ##### #
+###########################
+#build additional variables we'd like to record based on other variable values
+
+def GeneratorDispatchRule(model,t,g):
+    return sum(sum(model.segmentdispatch[t,g,z,gs] for gs in model.GENERATORSEGMENTS) for z in model.ZONES)
+
+dispatch_model.dispatch = Expression(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
+                                                        rule=GeneratorDispatchRule)
 
 ###########################
 # ##### CONSTRAINTS ##### #
@@ -231,16 +261,66 @@ def SOCMaxRule(model,t,s,z):
     return model.SOCMax[t,s,z] >= model.soc[t,s,z]
 #dispatch_model.SOCMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, dispatch_model.ZONES, rule=SOCMaxRule)
     
-def BindInitSOCRule(model,s,z)
+# def BindInitSOCRule(model,s,z)
 
+
+## TRANSMISSION LINES ##
+
+#flow rules, simple for now but could eventually include line ramp limits or etc.
+#do want to try to implement dc opf
+
+def TxFromRule(model, t, line):
+    return (model.transmit_power_MW[t,line] >= model.transmission_from_capacity[t, line])
+dispatch_model.TxFromConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxFromRule)
+
+def TxToRule(model, t, line):
+    return (model.transmission_to_capacity[t, line] >= model.transmit_power_MW[t,line])
+dispatch_model.TxToConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxToRule)
+
+#dcopf rules, first, bound voltage angle above and below
+
+def VoltageAngleMaxRule(model,t,z):
+    return model.voltage_angle_max[z] >= model.voltage_angle[t,z]
+dispatch_model.VoltageAngleMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=VoltageAngleMaxRule)
+
+def VoltageAngleMinRule(model,t,z):
+    return model.voltage_angle[t,z] >= model.voltage_angle_min[z]
+dispatch_model.VoltageAngleMinConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=VoltageAngleMinRule)
+
+#then set the reference bus
+def SetReferenceBusRule(model,t,z):
+    if z==model.reference_bus[t]:
+        return model.voltage_angle[t,z]==0
+    else:
+        return Constraint.Skip
+dispatch_model.SetReferenceBusConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=SetReferenceBusRule)
+
+#then, bind transmission flows between lines based on voltage angle
+
+def DCOPFRule(model,t,line):
+    zone_to = model.transmission_to[t,line]
+    zone_from = model.transmission_from[t,line]
+    return model.transmit_power_MW[t,line] == model.susceptance[line]*(model.voltage_angle[t,zone_to]-model.voltage_angle[t,zone_from])
+
+dispatch_model.DCOPFConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=DCOPFRule)
 
 ## LOAD BALANCE ##
 
 #load/gen balance
 def LoadRule(model, t, z):
-    #full constraint, no tx flow
+    #implement total tx flow
+    imports_exports = 0
+    for line in model.TRANSMISSION_LINE:
+        if model.transmission_to[t, line] == z or model.transmission_from[t, line] == z:
+            if model.transmission_to[t, line] == z:
+                imports_exports += model.transmit_power_MW[t, line]
+            elif model.transmission_from[t, line] == z:
+                imports_exports -= model.transmit_power_MW[t, line]
+            #add additional note to dec import/exports by line losses
+            #no, this will just be done as a hurdle rate 
+    #full constraint, with tx flow now
     return (sum(sum(model.segmentdispatch[t,g,z,gs] for gs in model.GENERATORSEGMENTS) for g in model.GENERATORS)+\
-            model.windgen[t,z] + model.solargen[t,z] == model.GrossLoad[t,z])
+            model.windgen[t,z] + model.solargen[t,z] + imports_exports == model.GrossLoad[t,z])
 dispatch_model.LoadConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=LoadRule)
 
 
@@ -260,17 +340,15 @@ def PminRule(model,t,g,z):
 
 #max on segment
 def GeneratorSegmentDispatchMax(model, t, g, z, gs):
-    return ((model.generatorsegmentlength[gs]*model.capacity[g,z]*model.scheduledavailable[t,g]) >= model.segmentdispatch[t,g,z,gs])
+    try:
+        return ((model.generatorsegmentlength[gs]*model.capacity[g,z]*model.scheduledavailable[t,g]) >= model.segmentdispatch[t,g,z,gs])
+    except ValueError:
+        return 0==model.segmentdispatch[t,g,z,gs] #non-existent must be zero
 dispatch_model.GeneratorSegmentMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                                        dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS
                                                        ,rule=GeneratorSegmentDispatchMax)
 
-def GeneratorSegmentDispatchMin(model,t,g,z,gs):
-    return model.segmentdispatch[t,g,z,gs]>=0
-#dispatch_model.GeneratorSegmentMinConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-#                                                       dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS
-#                                                       ,rule=GeneratorSegmentDispatchMin)
-
+'''
 ### DUAL CONSTRAINTS ###
 def BindOfferDual(model,t,g,z,gs):
     return model.gensegmentoffer[t,g,z,gs]+model.gensegmentmaxdual[t,g,z,gs]-model.gensegmentmindual[t,g,z,gs]-model.zonalprice[t,z]==0
@@ -333,7 +411,9 @@ def GeneratorRampDownRule(model,t,g,z): ### NEW
         return (model.dispatch[t,g,z] >= model.dispatch[t-1,g,z] - model.ramp[g,z]*model.commitment[t-1,g] + model.shutdown[t,g]*model.rampshutdownlimit[g,z])
 #dispatch_model.GeneratorRampDownConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=GeneratorRampDownRule)
 
-'''
+
+#CUT
+
 ## GENERATOR STARTUP/SHUTDOWN ##
 
 #startups

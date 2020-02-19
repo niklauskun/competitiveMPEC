@@ -57,13 +57,15 @@ def scenario_inputs(inputs_directory):
               
     data.load(filename=os.path.join(inputs_directory, "timepoints_index.csv"),
               index=model_competitive.dispatch_model.TIMEPOINTS,
-              param=(model_competitive.dispatch_model.temperature)
+              param=(model_competitive.dispatch_model.reference_bus)
               )
 
     data.load(filename=os.path.join(inputs_directory, "zones.csv"),
               index=model_competitive.dispatch_model.ZONES,
               param=(model_competitive.dispatch_model.windcap,
-                     model_competitive.dispatch_model.solarcap)
+                     model_competitive.dispatch_model.solarcap,
+                     model_competitive.dispatch_model.voltage_angle_max,
+                     model_competitive.dispatch_model.voltage_angle_min)
               )
 
     data.load(filename=os.path.join(inputs_directory, "timepoints_zonal.csv"),
@@ -71,6 +73,19 @@ def scenario_inputs(inputs_directory):
                      model_competitive.dispatch_model.windcf,
                      model_competitive.dispatch_model.solarcf)
               ) 
+              
+    data.load(filename=os.path.join(inputs_directory, "transmission_lines.csv"),
+              index=model_competitive.dispatch_model.TRANSMISSION_LINE,
+              param=(model_competitive.dispatch_model.susceptance)
+              )
+    
+    data.load(filename=os.path.join(inputs_directory, "transmission_lines_hourly.csv"),
+              param=(model_competitive.dispatch_model.transmission_from,
+                     model_competitive.dispatch_model.transmission_to,
+                     model_competitive.dispatch_model.transmission_from_capacity,
+                     model_competitive.dispatch_model.transmission_to_capacity,
+                     model_competitive.dispatch_model.hurdle_rate)
+              )
 
     data.load(filename=os.path.join(inputs_directory,"generator_segments.csv"),
               index=model_competitive.dispatch_model.GENERATORSEGMENTS,

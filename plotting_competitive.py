@@ -73,7 +73,7 @@ def diag_plots(scenario_results, dir_str):
     # Your x and y axis
     x=range(1,int(scenario_results[1])+1)
     #y is made above
-    
+    '''
     # Basic stacked area chart by zone
     for z in range(len(zones['zone'])):
         
@@ -145,10 +145,10 @@ def diag_plots(scenario_results, dir_str):
     plt.xlabel('Hour')
     plt.legend()
     plt.show()
-
+    '''
 
     #and finally, plot the energy LMP dual
-    lmp_palette = ['r']
+    lmp_palette = ['r','b','m','k','g']
     legend_label = []
     for z in range(len(zones['zone'])):
         plt.plot(x, lmp_duals_np[:,z], color=lmp_palette[z])
