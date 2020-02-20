@@ -35,6 +35,7 @@ cwd = os.getcwd()
 
 case_folder = "PJM_5_Bus"
 scenario_list = [("5bus",False,"")]
+MPEC = True
 
 # Allow user to specify solver path if needed (default assumes solver on path)
 executable=""
@@ -82,7 +83,7 @@ class Logger(object):
         self.log_file.flush()
 
             
-def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_directory):
+def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_directory, is_MPEC):
     """
     Load model formulation and data, and create problem instance.
     """
@@ -105,13 +106,14 @@ def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_
     instance = model.create_instance(data)
     print ("...instance created.")
     
-    #print("Converting model to MPEC...")
-    #transformed = model.transform("mpec.simple_nonlinear")
-    #xfrm = TransformationFactory('mpec.simple_disjunction')
-    #xfrm.apply_to(instance)
-    #xfrm2 = TransformationFactory('gdp.bigm')
-    #xfrm2.apply_to(instance)
-    #print("...converted")
+    if is_MPEC:
+        print("Converting model to MPEC...")
+        #transformed = model.transform("mpec.simple_nonlinear")
+        xfrm = TransformationFactory('mpec.simple_disjunction')
+        xfrm.apply_to(instance)
+        xfrm2 = TransformationFactory('gdp.bigm')
+        xfrm2.apply_to(instance)
+        print("...converted")
 
     return instance
 
@@ -124,11 +126,14 @@ def solve(instance, case_type):
     if case_type == "MIP":
         instance.TotalCost.deactivate() #deactivates the simple objective
         instance.TotalCost2.deactivate()
-        #instance.GeneratorProfit.deactivate()
+        instance.GeneratorProfit.deactivate()
+        instance.GeneratorProfitDual.activate()
+        
     elif case_type == "LP":
         instance.TotalCost2.activate()
         instance.TotalCost.deactivate() #switch objective to exclude start-up and no-load costs
         instance.GeneratorProfit.deactivate()
+        instance.GeneratorProfitDual.deactivate()
         #instance.PminConstraint.deactivate()
     # ### Solve ### #
     if executable != "":
@@ -172,7 +177,7 @@ def load_solution(instance, results):
     """
     instance.solutions.load_from(results)
 
-def run_scenario(directory_structure, load_init):
+def run_scenario(directory_structure, load_init, is_MPEC):
     """
     Run a scenario.
     """
@@ -189,14 +194,19 @@ def run_scenario(directory_structure, load_init):
     # Write logs to this directory
     TempfileManager.tempdir = scenario_logs_directory
 
+    #
     # Create problem instance
-    instance = create_problem_instance(scenario_inputs_directory, load_init, scenario_createinputs_directory)
+    instance = create_problem_instance(scenario_inputs_directory, load_init, scenario_createinputs_directory, is_MPEC)
             
     
     # Create a 'dual' suffix component on the instance, so the solver plugin will know which suffixes to collect
     instance.dual = Suffix(direction=Suffix.IMPORT)
     
-    solution = solve(instance,"LP") #solve MIP with commitment
+    if is_MPEC:
+        solution_type="MIP"
+    else:
+        solution_type = "LP" 
+    solution = solve(instance,solution_type) #solve MIP with commitment
     
     '''
     print ("Done running MIP, relaxing to LP to obtain duals...")
@@ -212,7 +222,7 @@ def run_scenario(directory_structure, load_init):
     ###
 
     # export results to csv
-    write_results_competitive.export_results(instance, solution, scenario_results_directory, debug_mode=1)
+    write_results_competitive.export_results(instance, solution, scenario_inputs_directory, scenario_results_directory, is_MPEC, debug_mode=1)
     
     # THE REST OF THIS LOOP IS ONLY NEEDED FOR PLOTTING RESULTS
     #load up the instance that was just solved
@@ -241,8 +251,10 @@ def run_scenario(directory_structure, load_init):
             results_wind.append(instance.windgen[t,z].value)
             results_solar.append(instance.solargen[t,z].value)
             results_curtailment.append(instance.curtailment[t,z].value)
-            price_duals.append(instance.dual[instance.LoadConstraint[t,z]])
-            #price_duals.append(instance.zonalprice[t,z].value)
+            if solution_type == "LP":
+                price_duals.append(instance.dual[instance.LoadConstraint[t,z]])
+            else:
+                price_duals.append(instance.zonalprice[t,z].value)
             
             for g in instance.GENERATORS:
                 results_dispatch.append(instance.dispatch[t,g]())
@@ -300,7 +312,7 @@ for s in scenario_list:
     stdout = sys.stdout
     sys.stdout = logger
     
-    scenario_results = run_scenario(dir_str, load_init)
+    scenario_results = run_scenario(dir_str, load_init, MPEC)
     
     sys.stdout = stdout #return to original
         

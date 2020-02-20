@@ -27,7 +27,8 @@ def scenario_inputs(inputs_directory):
     
     data.load(filename=os.path.join(inputs_directory, "PJM_generators.csv"),
               index=model_competitive.dispatch_model.GENERATORS,
-              param=(model_competitive.dispatch_model.fuelcost,
+              param=(model_competitive.dispatch_model.capacity,
+                     model_competitive.dispatch_model.fuelcost,
                      model_competitive.dispatch_model.pmin,
                      model_competitive.dispatch_model.startcost,
                      model_competitive.dispatch_model.canspin,
@@ -48,10 +49,10 @@ def scenario_inputs(inputs_directory):
               )
     
     data.load(filename=os.path.join(inputs_directory, "PJM_generators_zone.csv"),
-              param=(model_competitive.dispatch_model.capacity,
-                     model_competitive.dispatch_model.ramp,
+              param=(model_competitive.dispatch_model.ramp,
                      model_competitive.dispatch_model.rampstartuplimit,
-                     model_competitive.dispatch_model.rampshutdownlimit)
+                     model_competitive.dispatch_model.rampshutdownlimit,
+                     model_competitive.dispatch_model.zonebool)
               )
         
               

@@ -13,7 +13,7 @@ import pdb
 import pandas as pd
 import numpy as np
 
-def export_results(instance, results, results_directory, debug_mode):
+def export_results(instance, results, inputs_directory, results_directory, is_MPEC, debug_mode):
     """
     Retrieves the relevant sets over which it will loop, then call functions to export different result categories.
     If an exception is encountered, log the error traceback. If not in debug mode, exit. If in debug mode,
@@ -21,6 +21,7 @@ def export_results(instance, results, results_directory, debug_mode):
     problem; quitting the interactive session will resume running the next export function, not exit.
     :param instance: the problem instance
     :param results: the results
+    :param inputs_directory: directory of case inputs
     :param results_directory: directory to export results files to
     :param prod_cost_inputs_directory: directory that contains production cost model inputs
     :param debug_mode:
@@ -40,6 +41,10 @@ def export_results(instance, results, results_directory, debug_mode):
     zones_set = sorted(instance.ZONES)
     generatorsegment_set = sorted(instance.GENERATORSEGMENTS)
     
+    #load in data from inputs that I want to write to outputs as well
+    zonal_gens = pd.read_csv(join(inputs_directory, 'PJM_generators_zone.csv'))
+    zone_list = list(zonal_gens['zone'])
+    
     # Call various export functions, throw debug errors if problem and desired
     
     # Export generator dispatch
@@ -56,16 +61,22 @@ def export_results(instance, results, results_directory, debug_mode):
         msg = "ERROR exporting segmented generator dispatch! Check export_generator_segment_dispatch()."
         handle_exception(msg, debug_mode)
     
+    try:
+        export_generator_segment_offer(instance, timepoints_set, generators_set, zones_set, generatorsegment_set, zone_list, results_directory, is_MPEC)
+    except Exception as err:
+        msg = "ERROR exporting segmented generator offers! Check export_generator_segment_offer()."
+        handle_exception(msg, debug_mode)
+    
     #export tx lines
     try:
-        export_lines(instance, timepoints_set, transmission_lines_set, results_directory)
+        export_lines(instance, timepoints_set, transmission_lines_set, results_directory, is_MPEC)
     except Exception as err:
         msg = "ERROR exporting transmission lines! Check export_lines()."
         handle_exception(msg, debug_mode)
     
     #export zonal prices
     try:
-        export_zonal_price(instance, timepoints_set, zones_set, results_directory)
+        export_zonal_price(instance, timepoints_set, zones_set, results_directory, is_MPEC)
     except Exception as err:
         msg = "ERROR exporting zonal prices! Check export_zonal_price()."
         handle_exception(msg, debug_mode)
@@ -161,8 +172,48 @@ def export_generator_segment_dispatch(instance, timepoints_set, generators_set, 
     df = pd.DataFrame(results_dispatch_np, index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"generator_segment_dispatch.csv"))
     
+def export_generator_segment_offer(instance,timepoints_set,generators_set,zones_set,generatorsegment_set,zone_list,results_directory,is_MPEC):
     
-def export_zonal_price(instance, timepoints_set, zones_set, results_directory):
+    results_offer = []
+    index_name = []
+    timepoints_list = []
+    total_dispatch = []
+    max_dual = []
+    min_dual = []
+    zone_names = []
+    lmp = []
+    marginal_cost = []
+    
+    for t in timepoints_set:
+        for g in generators_set:
+            for gs in generatorsegment_set:
+                timepoints_list.append(t)
+                index_name.append(str(g)+"-" +str(gs))
+                results_offer.append(format_2f(instance.gensegmentoffer[t,g,gs].value))
+                total_dispatch.append(format_2f(instance.totalsegmentdispatch[t,g,gs]()))
+                max_dual.append(format_2f(instance.gensegmentmaxdual[t,g,gs].value))
+                min_dual.append(format_2f(instance.gensegmentmindual[t,g,gs].value))
+                marginal_cost.append(format_2f(instance.generatormarginalcost[g,gs]))
+        for z in zone_list:
+            for gs in generatorsegment_set:
+                zone_names.append(z)
+                if is_MPEC:
+                    lmp.append(format_2f(instance.zonalprice[t,z].value))
+                else:
+                    lmp.append(format_2f(instance.dual[instance.LoadConstraint[t,z]]))
+    #results_dispatch_np = np.reshape(results_dispatch, (int(len(results_dispatch)/len(timepoints_set)), int(len(timepoints_set))))
+    profit = [(float(a_i) - float(b_i))*float(c_i) for a_i, b_i, c_i in zip(lmp, marginal_cost, total_dispatch)]
+    col_names = ['hour','SegmentOffer','SegmentDispatch','MaxDual','MinDual','Zone','LMP','MarginalCost','Profit']
+    df = pd.DataFrame(data = np.column_stack((np.asarray(timepoints_list),np.asarray(results_offer),
+                                              np.asarray(total_dispatch),np.asarray(max_dual),
+                                              np.asarray(min_dual),np.asarray(zone_names),
+                                              np.asarray(lmp),np.asarray(marginal_cost),
+                                              np.asarray(profit))),
+                      columns=col_names,
+                      index=pd.Index(index_name))
+    df.to_csv(os.path.join(results_directory,"generator_segment_offer.csv"))
+    
+def export_zonal_price(instance, timepoints_set, zones_set, results_directory, is_MPEC):
     
     results_prices = []
     index_name = []
@@ -171,7 +222,11 @@ def export_zonal_price(instance, timepoints_set, zones_set, results_directory):
     for z in zones_set:
         for t in timepoints_set:
             index_name.append(z)
-            results_prices.append(format_2f(instance.dual[instance.LoadConstraint[t,z]]))
+            if is_MPEC:
+                results_prices.append(format_2f(instance.zonalprice[t,z].value))
+            else:
+                results_prices.append(format_2f(instance.dual[instance.LoadConstraint[t,z]]))
+            
             timepoints_list.append(t)        
             voltage_angle_list.append(format_2f(instance.voltage_angle[t,z].value))
     
@@ -182,7 +237,7 @@ def export_zonal_price(instance, timepoints_set, zones_set, results_directory):
     
     df.to_csv(os.path.join(results_directory,"zonal_prices.csv"))
     
-def export_lines(instance, timepoints_set, transmission_lines_set, results_directory):
+def export_lines(instance, timepoints_set, transmission_lines_set, results_directory, is_MPEC):
     
     transmission_duals = []
     results_transmission_line_flow = []
@@ -191,12 +246,19 @@ def export_lines(instance, timepoints_set, transmission_lines_set, results_direc
     for line in transmission_lines_set:
         for t in timepoints_set:
             index_name.append(line+"-"+str(t))
-            transmission_duals.append(format_2f(instance.dual[instance.TxFromConstraint[t,line]] +\
+            if is_MPEC:
+                transmission_duals.append(0)
+                #transmission_duals.append(format_2f(instance.dual[instance.TxFromConstraint[t,line]] +\
+                #                      instance.dual[instance.TxToConstraint[t,line]]))
+            else:
+                transmission_duals.append(format_2f(instance.dual[instance.TxFromConstraint[t,line]] +\
                                       instance.dual[instance.TxToConstraint[t,line]]))
             results_transmission_line_flow.append(format_2f(instance.transmit_power_MW[t,line].value))
-            dc_opf_dual.append(format_2f(instance.dual[instance.DCOPFConstraint[t,line]]))
-    col_names = ['congestion price ($/MW)','flow (MW)', 'OPF Dual']
-    df = pd.DataFrame(data=np.column_stack((np.asarray(transmission_duals),np.asarray(results_transmission_line_flow),np.asarray(dc_opf_dual))),
+            #dc_opf_dual.append(format_2f(instance.dual[instance.DCOPFConstraint[t,line]]))
+    col_names = ['flow (MW)','congestion price ($/MW)']#['congestion price ($/MW)','flow (MW)', 'OPF Dual']
+    #df = pd.DataFrame(data=np.column_stack((np.asarray(transmission_duals),np.asarray(results_transmission_line_flow),np.asarray(dc_opf_dual))),
+    #                  columns=col_names,index=pd.Index(index_name))
+    df = pd.DataFrame(data=np.column_stack((np.asarray(results_transmission_line_flow),np.asarray(transmission_duals))),
                       columns=col_names,index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"tx_flows.csv"))
     

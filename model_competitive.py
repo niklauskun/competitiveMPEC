@@ -71,6 +71,7 @@ dispatch_model.voltage_angle_min = Param(dispatch_model.ZONES, within=Reals)
 #dispatch_model.sub.solarcap = Param(dispatch_model.sub.ZONES, within=NonNegativeReals)
 
 #generator-dependent params
+dispatch_model.capacity = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.fuelcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.pmin = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.startcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
@@ -89,10 +90,11 @@ dispatch_model.downinit = Param(dispatch_model.GENERATORS, within=NonNegativeInt
 dispatch_model.scheduledavailable = Param(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, within=PercentFraction)
 
 #generator and zone-dependent params
-dispatch_model.capacity = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals)
+
 dispatch_model.ramp = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #rate is assumed to be equal up and down
 dispatch_model.rampstartuplimit = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #special component of the ramping constraint on the startup hour
 dispatch_model.rampshutdownlimit = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=NonNegativeReals) #special component of the ramping constraint on the shutdown hour ---- NEW
+dispatch_model.zonebool = Param(dispatch_model.GENERATORS, dispatch_model.ZONES, within=Binary) 
 
 #transmission line only depedent params
 dispatch_model.susceptance = Param(dispatch_model.TRANSMISSION_LINE, within=NonNegativeReals)
@@ -125,7 +127,6 @@ def storage_init(model):
     return storage_resources
 
 dispatch_model.STORAGE = Set(within=dispatch_model.GENERATORS, initialize=storage_init)
-
 
 ###########################
 # ######## VARS ######### #
@@ -181,12 +182,10 @@ dispatch_model.shutdown = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATO
 dispatch_model.zonalprice = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                                 within=NonNegativeReals, initialize=0) #this is zonal load balance dual
 
-dispatch_model.gensegmentmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                     dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+dispatch_model.gensegmentmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
-dispatch_model.gensegmentmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                     dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+dispatch_model.gensegmentmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.rampmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
@@ -205,7 +204,7 @@ dispatch_model.winddual = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
 
 #offer-related variables (since generators no longer just offer at marginal cost)
 dispatch_model.gensegmentoffer = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                     dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+                                     dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals)
 
 
@@ -219,6 +218,12 @@ def GeneratorDispatchRule(model,t,g):
 
 dispatch_model.dispatch = Expression(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                                         rule=GeneratorDispatchRule)
+
+def GeneratorTotalSegmentDispatchRule(model,t,g,gs):
+    return sum(model.segmentdispatch[t,g,z,gs] for z in model.ZONES)
+
+dispatch_model.totalsegmentdispatch = Expression(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.GENERATORSEGMENTS,
+                                                        rule=GeneratorTotalSegmentDispatchRule)
 
 ###########################
 # ##### CONSTRAINTS ##### #
@@ -328,12 +333,12 @@ dispatch_model.LoadConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_m
 
 #gen capacity with scheduled outage factored in
 def CapacityMaxRule(model, t, g, z):
-    return (model.capacity[g,z]*model.commitment[t,g]*model.scheduledavailable[t,g] >= model.dispatch[t,g,z])
+    return (model.capacity[g]*model.commitment[t,g]*model.scheduledavailable[t,g] >= model.dispatch[t,g,z])
 #dispatch_model.CapacityMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=CapacityMaxRule)
 
 #pmin: INACTIVE
 def PminRule(model,t,g,z):
-    return (model.dispatch[t,g,z] >= model.capacity[g,z]*model.commitment[t,g]*model.scheduledavailable[t,g]*model.pmin[g])
+    return (model.dispatch[t,g,z] >= model.capacity[g]*model.commitment[t,g]*model.scheduledavailable[t,g]*model.pmin[g])
 #dispatch_model.PminConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=PminRule)
 
 ### GENERATOR SEGMENT DISPATCH ###
@@ -341,59 +346,53 @@ def PminRule(model,t,g,z):
 #max on segment
 def GeneratorSegmentDispatchMax(model, t, g, z, gs):
     try:
-        return ((model.generatorsegmentlength[gs]*model.capacity[g,z]*model.scheduledavailable[t,g]) >= model.segmentdispatch[t,g,z,gs])
+        return ((model.zonebool[g,z]*model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g]) >= model.segmentdispatch[t,g,z,gs])
     except ValueError:
         return 0==model.segmentdispatch[t,g,z,gs] #non-existent must be zero
 dispatch_model.GeneratorSegmentMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                                        dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS
                                                        ,rule=GeneratorSegmentDispatchMax)
 
-'''
+
 ### DUAL CONSTRAINTS ###
 def BindOfferDual(model,t,g,z,gs):
-    return model.gensegmentoffer[t,g,z,gs]+model.gensegmentmaxdual[t,g,z,gs]-model.gensegmentmindual[t,g,z,gs]-model.zonalprice[t,z]==0
+    
+    try:
+        return model.zonebool[g,z]*model.gensegmentoffer[t,g,gs]+model.gensegmentmaxdual[t,g,gs]-model.gensegmentmindual[t,g,gs]-model.zonalprice[t,z]==0
+    except ValueError:
+        return Constraint.Skip
 dispatch_model.OfferDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                                        dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS
                                                        ,rule=BindOfferDual)
 
 ### COMPLEMENTARITY CONSTRAINTS ###
 
-def BindMaxDispatchComplementarity(model,t,g,z,gs):
-    return complements(model.generatorsegmentlength[gs]*model.capacity[g,z]*model.scheduledavailable[t,g]-model.segmentdispatch[t,g,z,gs]>=0, model.gensegmentmaxdual[t,g,z,gs]>=0)
-dispatch_model.MaxDispatchComplementarity = Complementarity(dispatch_model.TIMEPOINTS,dispatch_model.GENERATORS,
-                                                            dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+def BindMaxDispatchComplementarity(model,t,g,gs):
+    return complements(model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g]-model.totalsegmentdispatch[t,g,gs]>=0, model.gensegmentmaxdual[t,g,gs]>=0)
+
+dispatch_model.MaxDispatchComplementarity = Complementarity(dispatch_model.TIMEPOINTS,dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
                                                             rule=BindMaxDispatchComplementarity)
 
-def BindMinDispatchComplementarity(model,t,g,z,gs):
-    return complements(model.segmentdispatch[t,g,z,gs]>=0, model.gensegmentmindual[t,g,z,gs]>=0)
-dispatch_model.MinDispatchComplementarity = Complementarity(dispatch_model.TIMEPOINTS,dispatch_model.GENERATORS,
-                                                            dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+def BindMinDispatchComplementarity(model,t,g,gs):
+    return complements(model.totalsegmentdispatch[t,g,gs]>=0, model.gensegmentmindual[t,g,gs]>=0)
+dispatch_model.MinDispatchComplementarity = Complementarity(dispatch_model.TIMEPOINTS,dispatch_model.GENERATORS, dispatch_model.GENERATORSEGMENTS,
                                                             rule=BindMinDispatchComplementarity)
 
 ### MARKET-BASED CONSTRAINTS ###
-def OfferCap(model,t,g,z,gs):
-    return model.generatormarginalcost[g,gs]*2>=model.gensegmentoffer[t,g,z,gs]
-dispatch_model.OfferCapConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                                       dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+def OfferCap(model,t,g,gs):
+    return model.generatormarginalcost[g,gs]*2>=model.gensegmentoffer[t,g,gs] #caps offer at 2x cost for now
+dispatch_model.OfferCapConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
                                                        rule=OfferCap)
 
-def OfferMin(model,t,g,z,gs):
-    return model.gensegmentoffer[t,g,z,gs]>=model.generatormarginalcost[g,gs]
-dispatch_model.OfferMinConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                                       dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS,
+def OfferMin(model,t,g,gs):
+    return model.gensegmentoffer[t,g,gs]>=model.generatormarginalcost[g,gs] #must offer at least marginal cost
+dispatch_model.OfferMinConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.GENERATORSEGMENTS,
                                                        rule=OfferMin)
 
 def MarketPriceCap(model,t,z):
-    return 2000>=model.zonalprice[t,z]
+    return 80>=model.zonalprice[t,z]
 dispatch_model.ZonalPriceConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=MarketPriceCap)
 
-#sum of generator segment dispatch equivalent to total generator dispatch
-#we are implicitly assuming the first segment will be the most efficient
-#which is generally true when bids are constrained to be monotonic
-def GeneratorSegmentDispatchSegmentSummation(model,t,g,z):
-    return model.dispatch[t,g,z] == sum(model.segmentdispatch[t,g,z,gs] for gs in model.GENERATORSEGMENTS)
-dispatch_model.GeneratorSegmentSumConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-                                                       dispatch_model.ZONES,rule=GeneratorSegmentDispatchSegmentSummation)
 
 ## GENERATOR RAMP ##
 
@@ -411,7 +410,7 @@ def GeneratorRampDownRule(model,t,g,z): ### NEW
         return (model.dispatch[t,g,z] >= model.dispatch[t-1,g,z] - model.ramp[g,z]*model.commitment[t-1,g] + model.shutdown[t,g]*model.rampshutdownlimit[g,z])
 #dispatch_model.GeneratorRampDownConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=GeneratorRampDownRule)
 
-
+'''
 #CUT
 
 ## GENERATOR STARTUP/SHUTDOWN ##
@@ -518,3 +517,10 @@ def objective_profit(model):
            sum(sum(sum(sum(model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)
 dispatch_model.GeneratorProfit = Objective(rule=objective_profit,sense=maximize)
 
+def objective_profit_dual(model):
+    return sum(sum(sum((model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g])*model.gensegmentmaxdual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
+           sum(sum(sum(sum(model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)             
+#sum(sum(sum((model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g])*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
+#sum(sum(sum(model.totalsegmentdispatch[t,g,gs]*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)
+#sum(sum(sum(sum(model.gensegmentoffer[t,g,gs]*model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)
+dispatch_model.GeneratorProfitDual = Objective(rule=objective_profit_dual,sense=maximize)
