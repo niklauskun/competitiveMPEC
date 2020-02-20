@@ -222,7 +222,7 @@ def run_scenario(directory_structure, load_init, is_MPEC):
     ###
 
     # export results to csv
-    write_results_competitive.export_results(instance, solution, scenario_inputs_directory, scenario_results_directory, is_MPEC, debug_mode=1)
+    write_results_competitive.export_results(instance, solution, scenario_results_directory, is_MPEC, debug_mode=1)
     
     # THE REST OF THIS LOOP IS ONLY NEEDED FOR PLOTTING RESULTS
     #load up the instance that was just solved

@@ -80,6 +80,7 @@ dispatch_model.cannonspin = Param(dispatch_model.GENERATORS, within=Binary)
 dispatch_model.minup = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
 dispatch_model.mindown = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
 dispatch_model.noloadcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
+dispatch_model.zonelabel = Param(dispatch_model.GENERATORS, within=dispatch_model.ZONES)
 
 #generator-dependent initialization parameters
 dispatch_model.commitinit = Param(dispatch_model.GENERATORS, within=Binary)
@@ -148,7 +149,7 @@ dispatch_model.curtailment = Var(dispatch_model.TIMEPOINTS,  dispatch_model.ZONE
                                  within = NonNegativeReals, initialize=0)
 
 dispatch_model.transmit_power_MW = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
-                                       within = Reals, initialize=0)
+                                       within = Reals, initialize=0, bounds=(-5000,5000))
 
 dispatch_model.voltage_angle = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                                        within = Reals, initialize=0)
@@ -186,6 +187,12 @@ dispatch_model.gensegmentmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model
                                      within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.gensegmentmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+
+dispatch_model.transmissionmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+
+dispatch_model.transmissionmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
                                      within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.rampmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
@@ -365,6 +372,32 @@ dispatch_model.OfferDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispa
                                                        dispatch_model.ZONES, dispatch_model.GENERATORSEGMENTS
                                                        ,rule=BindOfferDual)
 
+def BindFlowDual(model,t,z):
+    maxdual = 0
+    mindual = 0
+    lmp_delta = 0
+    for line in model.TRANSMISSION_LINE:
+        
+        if model.transmission_to[t, line] == z:
+            sink_zone = model.transmission_from[t,line]
+            
+            maxdual += model.susceptance[line]*model.transmissionmaxdual[t,line]
+            mindual += model.susceptance[line]*model.transmissionmindual[t,line]
+            lmp_delta += model.susceptance[line]*model.zonalprice[t,z]
+            lmp_delta -= model.susceptance[line]*model.zonalprice[t,sink_zone]
+            
+        elif model.transmission_from[t, line] == z:
+            sink_zone = model.transmission_to[t,line]
+            
+            maxdual -= model.susceptance[line]*model.transmissionmaxdual[t,line]
+            mindual -= model.susceptance[line]*model.transmissionmindual[t,line]
+            lmp_delta += model.susceptance[line]*model.zonalprice[t,z]
+            lmp_delta -= model.susceptance[line]*model.zonalprice[t,sink_zone]
+            
+    return maxdual-mindual==lmp_delta
+dispatch_model.FlowDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
+                                               rule=BindFlowDual)
+
 ### COMPLEMENTARITY CONSTRAINTS ###
 
 def BindMaxDispatchComplementarity(model,t,g,gs):
@@ -378,7 +411,29 @@ def BindMinDispatchComplementarity(model,t,g,gs):
 dispatch_model.MinDispatchComplementarity = Complementarity(dispatch_model.TIMEPOINTS,dispatch_model.GENERATORS, dispatch_model.GENERATORSEGMENTS,
                                                             rule=BindMinDispatchComplementarity)
 
+def BindMaxTransmissionComplementarity(model,t,line):
+    return complements(model.transmission_to_capacity[t, line]-model.transmit_power_MW[t,line]>=0,model.transmissionmaxdual[t,line]>=0)
+dispatch_model.MaxTransmissionComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
+                                                                rule=BindMaxTransmissionComplementarity)
+
+def BindMinTransmissionComplementarity(model,t,line):
+    return complements(-model.transmission_from_capacity[t, line]+model.transmit_power_MW[t,line]>=0,model.transmissionmindual[t,line]>=0)
+dispatch_model.MinTransmissionComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
+                                                                rule=BindMinTransmissionComplementarity)
+
+## OFFER CURVE INREASING ## 
+#it's just generally a market rule that offers of a single generator be increasing, due to heat rate curves and necessity of convexity
+
+def IncreasingOfferCurve(model,t,g,gs):
+    if gs==1:
+        return Constraint.Skip #offer whatever you want on the first segment of your offer curve
+    else:
+        return model.gensegmentoffer[t,g,gs]>=model.gensegmentoffer[t,g,gs-1]
+dispatch_model.IncreasingOfferCurveConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
+                                                           dispatch_model.GENERATORSEGMENTS, rule=IncreasingOfferCurve)
+
 ### MARKET-BASED CONSTRAINTS ###
+#only needed for now because genco owns all generators and could easily increase price to cap
 def OfferCap(model,t,g,gs):
     return model.generatormarginalcost[g,gs]*2>=model.gensegmentoffer[t,g,gs] #caps offer at 2x cost for now
 dispatch_model.OfferCapConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
@@ -519,7 +574,9 @@ dispatch_model.GeneratorProfit = Objective(rule=objective_profit,sense=maximize)
 
 def objective_profit_dual(model):
     return sum(sum(sum((model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g])*model.gensegmentmaxdual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
-           sum(sum(sum(sum(model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)             
+           sum(sum(sum(sum(model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)+\
+           sum(sum(model.transmission_to_capacity[t,line]*model.transmissionmaxdual[t,line] for t in model.TIMEPOINTS) for line in model.TRANSMISSION_LINE)+\
+           sum(sum(-model.transmission_from_capacity[t,line]*model.transmissionmindual[t,line] for t in model.TIMEPOINTS) for line in model.TRANSMISSION_LINE)
 #sum(sum(sum((model.generatorsegmentlength[gs]*model.capacity[g]*model.scheduledavailable[t,g])*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
 #sum(sum(sum(model.totalsegmentdispatch[t,g,gs]*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)
 #sum(sum(sum(sum(model.gensegmentoffer[t,g,gs]*model.segmentdispatch[t,g,z,gs] for z in model.ZONES) for t in model.TIMEPOINTS)*model.generatormarginalcost[g,gs] for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)

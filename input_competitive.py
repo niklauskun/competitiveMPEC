@@ -35,7 +35,8 @@ def scenario_inputs(inputs_directory):
                      model_competitive.dispatch_model.cannonspin,
                      model_competitive.dispatch_model.minup,
                      model_competitive.dispatch_model.mindown,
-                     model_competitive.dispatch_model.noloadcost)
+                     model_competitive.dispatch_model.noloadcost,
+                     model_competitive.dispatch_model.zonelabel)
               )
               
     data.load(filename=os.path.join(inputs_directory, "initialize_generators.csv"),
