@@ -36,7 +36,17 @@ def scenario_inputs(inputs_directory):
                      model_competitive.dispatch_model.minup,
                      model_competitive.dispatch_model.mindown,
                      model_competitive.dispatch_model.noloadcost,
-                     model_competitive.dispatch_model.zonelabel)
+                     model_competitive.dispatch_model.ramp,
+                     model_competitive.dispatch_model.zonelabel,
+                     model_competitive.dispatch_model.genco_index)
+              )
+    
+    data.load(filename=os.path.join(inputs_directory, "storage_resources.csv"),
+              index=model_competitive.dispatch_model.STORAGE,
+              param=(model_competitive.dispatch_model.discharge_max,
+                     model_competitive.dispatch_model.charge_max,
+                     model_competitive.dispatch_model.soc_max,
+                     model_competitive.dispatch_model.storage_zone_label)
               )
               
     data.load(filename=os.path.join(inputs_directory, "initialize_generators.csv"),
@@ -46,15 +56,17 @@ def scenario_inputs(inputs_directory):
               )
 
     data.load(filename=os.path.join(inputs_directory, "PJM_generators_scheduled_outage.csv"),
-              param=(model_competitive.dispatch_model.scheduledavailable)
+              param=(model_competitive.dispatch_model.scheduled_available,
+                     model_competitive.dispatch_model.capacity_time,
+                     model_competitive.dispatch_model.fuel_cost_time)
               )
     
-    data.load(filename=os.path.join(inputs_directory, "PJM_generators_zone.csv"),
-              param=(model_competitive.dispatch_model.ramp,
-                     model_competitive.dispatch_model.rampstartuplimit,
-                     model_competitive.dispatch_model.rampshutdownlimit,
-                     model_competitive.dispatch_model.zonebool)
-              )
+   # data.load(filename=os.path.join(inputs_directory, "PJM_generators_zone.csv"),
+   #           param=(model_competitive.dispatch_model.ramp,
+   #                  model_competitive.dispatch_model.rampstartuplimit,
+   #                  model_competitive.dispatch_model.rampshutdownlimit,
+   #                  model_competitive.dispatch_model.zonebool)
+   #           )
         
               
     data.load(filename=os.path.join(inputs_directory, "timepoints_index.csv"),
@@ -64,16 +76,16 @@ def scenario_inputs(inputs_directory):
 
     data.load(filename=os.path.join(inputs_directory, "zones.csv"),
               index=model_competitive.dispatch_model.ZONES,
-              param=(model_competitive.dispatch_model.windcap,
-                     model_competitive.dispatch_model.solarcap,
+              param=(model_competitive.dispatch_model.wind_cap,
+                     model_competitive.dispatch_model.solar_cap,
                      model_competitive.dispatch_model.voltage_angle_max,
                      model_competitive.dispatch_model.voltage_angle_min)
               )
 
     data.load(filename=os.path.join(inputs_directory, "timepoints_zonal.csv"),
-              param=(model_competitive.dispatch_model.GrossLoad,
-                     model_competitive.dispatch_model.windcf,
-                     model_competitive.dispatch_model.solarcf)
+              param=(model_competitive.dispatch_model.gross_load,
+                     model_competitive.dispatch_model.wind_cf,
+                     model_competitive.dispatch_model.solar_cf)
               ) 
               
     data.load(filename=os.path.join(inputs_directory, "transmission_lines.csv"),
@@ -91,11 +103,11 @@ def scenario_inputs(inputs_directory):
 
     data.load(filename=os.path.join(inputs_directory,"generator_segments.csv"),
               index=model_competitive.dispatch_model.GENERATORSEGMENTS,
-              param=(model_competitive.dispatch_model.generatorsegmentlength)
+              param=(model_competitive.dispatch_model.generator_segment_length)
               )
     
     data.load(filename=os.path.join(inputs_directory,"generator_segment_marginalcost.csv"),
-              param=(model_competitive.dispatch_model.generatormarginalcost)
+              param=(model_competitive.dispatch_model.generator_marginal_cost)
               )
               
     return data

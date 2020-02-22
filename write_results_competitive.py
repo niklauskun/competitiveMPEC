@@ -40,6 +40,7 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
     transmission_lines_set = instance.TRANSMISSION_LINE
     zones_set = sorted(instance.ZONES)
     generatorsegment_set = sorted(instance.GENERATORSEGMENTS)
+    storage_set = sorted(instance.STORAGE)
     
     # Call various export functions, throw debug errors if problem and desired
     
@@ -77,6 +78,12 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
         msg = "ERROR exporting zonal prices! Check export_zonal_price()."
         handle_exception(msg, debug_mode)
 
+    #export storage
+    try:
+        export_storage(instance, timepoints_set, storage_set, results_directory)
+    except Exception as err:
+        msg = "ERROR exporting storage! Check export_storage()."
+        handle_exception(msg, debug_mode)
     #export VRE
     try:
         export_VREs(instance, results_directory)
@@ -158,12 +165,12 @@ def export_generator_segment_dispatch(instance, timepoints_set, generators_set, 
     
     results_dispatch = []
     index_name = []
-    for z in zones_set:   
-        for g in generators_set:
-            for gs in generatorsegment_set:
-                index_name.append(z+"-"+str(g)+"-" +str(gs))
-                for t in timepoints_set:
-                    results_dispatch.append(format_2f(instance.segmentdispatch[t,g,z,gs].value))
+    
+    for g in generators_set:
+        for gs in generatorsegment_set:
+            index_name.append(str(g)+"-" +str(gs))
+            for t in timepoints_set:
+                    results_dispatch.append(format_2f(instance.segmentdispatch[t,g,gs].value))
     results_dispatch_np = np.reshape(results_dispatch, (int(len(results_dispatch)/len(timepoints_set)), int(len(timepoints_set))))
     df = pd.DataFrame(results_dispatch_np, index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"generator_segment_dispatch.csv"))
@@ -186,10 +193,10 @@ def export_generator_segment_offer(instance,timepoints_set,generators_set,zones_
                 timepoints_list.append(t)
                 index_name.append(str(g)+"-" +str(gs))
                 results_offer.append(format_2f(instance.gensegmentoffer[t,g,gs].value))
-                total_dispatch.append(format_2f(instance.totalsegmentdispatch[t,g,gs]()))
+                total_dispatch.append(format_2f(instance.segmentdispatch[t,g,gs]()))
                 max_dual.append(format_2f(instance.gensegmentmaxdual[t,g,gs].value))
                 min_dual.append(format_2f(instance.gensegmentmindual[t,g,gs].value))
-                marginal_cost.append(format_2f(instance.generatormarginalcost[g,gs]))
+                marginal_cost.append(format_2f(instance.generator_marginal_cost[t,g,gs]))
                 zone_names.append(instance.zonelabel[g])
                 if is_MPEC:
                     lmp.append(format_2f(instance.zonalprice[t,instance.zonelabel[g]].value))
@@ -232,7 +239,7 @@ def export_zonal_price(instance, timepoints_set, zones_set, results_directory, i
             
             timepoints_list.append(t)        
             voltage_angle_list.append(format_2f(instance.voltage_angle[t,z].value))
-            load.append(format_2f(instance.GrossLoad[t,z]))
+            load.append(format_2f(instance.gross_load[t,z]))
             
     load_payment = [float(a)*float(b) for a,b in zip(results_prices,load)]
     col_names = ['hour','LMP','VoltageAngle','Load','LoadPayment']
@@ -338,6 +345,44 @@ def export_reserve_segment_commits(instance, timepoints_set, ordc_segments_set, 
                                             np.asarray(results_secondary_segments))),
                       columns=col_names,index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"reserve_segment_commit.csv"))
+    
+def export_storage(instance, timepoints_set, storage_set, results_directory):
+    
+    index_name = []
+    results_time = []
+    storage_charge = []
+    storage_discharge = []
+    soc = []
+    storage_offer = []
+    storage_max_dual = []
+    storage_min_dual = []
+    node = []
+    lmp = []
+    
+    for t in timepoints_set:
+        for s in storage_set:
+            index_name.append(s)
+            results_time.append(t)
+            storage_charge.append(format_2f(instance.charge[t,s].value))
+            storage_discharge.append(format_2f(instance.discharge[t,s].value))
+            soc.append(format_2f(instance.soc[t,s].value))
+            storage_offer.append(format_2f(instance.storageoffer[t,s].value))
+            storage_max_dual.append(format_2f(instance.storagemaxdual[t,s].value))
+            storage_min_dual.append(format_2f(instance.storagemindual[t,s].value))
+            node.append(instance.storage_zone_label[s])
+            lmp.append(format_2f(instance.zonalprice[t,instance.storage_zone_label[s]].value))
+            
+                
+    profit = [(float(d)-float(c))*float(price) for d,c,price in zip(storage_discharge,storage_charge,lmp)]
+    col_names = ['time','charge','discharge','soc','offer','maxdual','mindual','node','lmp','profit']
+    df = pd.DataFrame(data=np.column_stack((np.asarray(results_time), np.asarray(storage_charge),
+                                            np.asarray(storage_discharge),np.asarray(soc),
+                                            np.asarray(storage_offer),np.asarray(storage_max_dual),
+                                            np.asarray(storage_min_dual), np.asarray(node),
+                                            np.asarray(lmp), np.asarray(profit))),
+                      columns=col_names,index=pd.Index(index_name))
+    
+    df.to_csv(os.path.join(results_directory,"storage_dispatch.csv"))
     
 def export_VREs(instance, results_directory):
     

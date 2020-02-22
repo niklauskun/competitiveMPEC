@@ -148,11 +148,11 @@ def diag_plots(scenario_results, dir_str):
     '''
 
     #and finally, plot the energy LMP dual
-    lmp_palette = ['r','b','m','k','g']
+    lmp_palette = ['r','b','m','k','g']*6
     legend_label = []
     for z in range(len(zones['zone'])):
         plt.plot(x, lmp_duals_np[:,z], color=lmp_palette[z])
-        legend_label.append('Zone ' + zones['zone'][z])
+        legend_label.append('Zone ' + str(zones['zone'][z]))
     plt.ylabel('Energy Price ($/MWh)')
     plt.xlabel('Hour')
     plt.legend(legend_label, loc='upper left')
