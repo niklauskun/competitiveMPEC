@@ -197,6 +197,9 @@ dispatch_model.soc = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
 
 dispatch_model.storagebool = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
                                  within=Boolean, initialize=0)
+
+dispatch_model.storagedispatch = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
+                                     within=Reals, bounds=(-5000,5000), initialize=0)
                             
                             
 #the following vars will make problem integer when implemented
@@ -299,18 +302,22 @@ def CurtailmentRule(model, t, z):
 ## STORAGE CONSTRAINTS ##
 
 def StorageDischargeRule(model,t,s):
-    return  model.discharge_max[s] >= model.discharge[t,s]
+    #return  model.discharge_max[s]*model.storagebool[t,s] >= model.discharge[t,s]
+    return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
 dispatch_model.StorageDischargeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,rule=StorageDischargeRule)
 
 def StorageChargeRule(model,t,s):
-    return model.charge_max[s] >= model.charge[t,s]
+    #return model.charge_max[s]*(1-model.storagebool[t,s]) >= model.charge[t,s]
+    return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
 dispatch_model.StorageChargeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageChargeRule)
 
 def SOCChangeRule(model,t,s):
     if t==1:
-        return model.soc[t,s] == model.soc_max[s]*0 + model.charge[t,s] - model.discharge[t,s] #start half charged?
+        #return model.soc[t,s] == model.soc_max[s]*0 + model.charge[t,s] - model.discharge[t,s] #start half charged?
+        return model.soc[t,s] == -model.storagedispatch[t,s]
     else:
-        return model.soc[t,s] == model.soc[t-1,s] + model.charge[t,s] - model.discharge[t,s]
+        #return model.soc[t,s] == model.soc[t-1,s] + model.charge[t,s] - model.discharge[t,s]
+        return model.soc[t,s] == model.soc[t-1,s] - model.storagedispatch[t,s]
 dispatch_model.SOCChangeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=SOCChangeRule)
 
 def SOCMaxRule(model,t,s):
@@ -381,9 +388,9 @@ def LoadRule(model, t, z):
             zonal_generation += sum(model.segmentdispatch[t,g,gs] for gs in model.GENERATORSEGMENTS)
     for s in model.STORAGE:
         if model.storage_zone_label[s] == z:
-            zonal_storage += model.discharge[t,s]
-            zonal_storage -= model.charge[t,s]
-            #zonal_storage += model.storagedispatch[t,s]
+            #zonal_storage += model.discharge[t,s]
+            #zonal_storage -= model.charge[t,s]
+            zonal_storage += model.storagedispatch[t,s]
     #full constraint, with tx flow now
     #(sum(sum(model.segmentdispatch[t,g,z,gs] for gs in model.GENERATORSEGMENTS) for g in model.GENERATORS)+\
     return zonal_generation + model.windgen[t,z] + model.solargen[t,z] + imports_exports + zonal_storage == model.gross_load[t,z]
@@ -477,12 +484,12 @@ dispatch_model.MinTransmissionComplementarity = Complementarity(dispatch_model.T
                                                                 rule=BindMinTransmissionComplementarity)
 
 def BindMaxStorageComplementarity(model,t,s):
-    return complements(model.discharge_max[s]-model.discharge[t,s]>=0, model.storagemaxdual[t,s]>=0)
+    return complements(model.discharge_max[s]*model.storagebool[t,s]-model.storagedispatch[t,s]>=0, model.storagemaxdual[t,s]>=0)
 dispatch_model.MaxStorageComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
                                                            rule=BindMaxStorageComplementarity)
 
 def BindMinStorageComplementarity(model,t,s):
-    return complements(model.charge_max[s]+model.charge[t,s]>=0, model.storagemindual[t,s]>=0)
+    return complements(model.charge_max[s]*(1-model.storagebool[t,s])+model.storagedispatch[t,s]>=0, model.storagemindual[t,s]>=0)
 dispatch_model.MinStorageComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
                                                            rule=BindMinStorageComplementarity)
 
@@ -647,7 +654,8 @@ def objective_profit_dual(model):
            sum(sum(sum(model.availablesegmentcapacity[t,g,gs]*model.gensegmentmaxdual[t,g,gs] for t in model.TIMEPOINTS) for g in model.NON_STRATEGIC_GENERATORS) for gs in model.GENERATORSEGMENTS)-\
            sum(sum(sum(model.segmentdispatch[t,g,gs] * model.generator_marginal_cost[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
            sum(sum(model.transmission_to_capacity[t,line]*model.transmissionmaxdual[t,line] for t in model.TIMEPOINTS) for line in model.TRANSMISSION_LINE)+\
-           sum(sum(model.transmission_from_capacity[t,line]*model.transmissionmindual[t,line] for t in model.TIMEPOINTS) for line in model.TRANSMISSION_LINE)
+           sum(sum(model.transmission_from_capacity[t,line]*model.transmissionmindual[t,line] for t in model.TIMEPOINTS) for line in model.TRANSMISSION_LINE)+\
+           sum(sum(model.gross_load[t,z]*model.zonalprice[t,z] for t in model.TIMEPOINTS) for z in model.ZONES)
 
 #sum(sum(sum((model.generator_segment_length[gs]*model.capacity[g]*model.scheduled_available[t,g])*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)-\
 #sum(sum(sum(model.totalsegmentdispatch[t,g,gs]*model.gensegmentmindual[t,g,gs] for t in model.TIMEPOINTS) for g in model.GENERATORS) for gs in model.GENERATORSEGMENTS)

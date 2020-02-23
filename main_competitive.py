@@ -35,7 +35,7 @@ cwd = os.getcwd()
 
 case_folder = "PJM_5_Bus"
 scenario_list = [("IEEE30bus",False,"")]
-MPEC = False
+MPEC = True
 
 # Allow user to specify solver path if needed (default assumes solver on path)
 executable=""
@@ -204,10 +204,12 @@ def run_scenario(directory_structure, load_init, is_MPEC):
     
     if is_MPEC:
         solution_type="MIP"
+        solution = solve(instance,solution_type)
     else:
         solution_type = "LP" 
-    solution = solve(instance,solution_type) #solve MIP with commitment
-    
+        solution = solve(instance,solution_type) #solve MIP with commitment
+        instance.storagebool.fix() #relaxes to lp after mip solve if needed
+        solution = solve(instance,solution_type)
     '''
     print ("Done running MIP, relaxing to LP to obtain duals...")
      

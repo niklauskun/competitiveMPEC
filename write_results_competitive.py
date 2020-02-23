@@ -80,7 +80,7 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
 
     #export storage
     try:
-        export_storage(instance, timepoints_set, storage_set, results_directory)
+        export_storage(instance, timepoints_set, storage_set, results_directory, is_MPEC)
     except Exception as err:
         msg = "ERROR exporting storage! Check export_storage()."
         handle_exception(msg, debug_mode)
@@ -346,12 +346,13 @@ def export_reserve_segment_commits(instance, timepoints_set, ordc_segments_set, 
                       columns=col_names,index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"reserve_segment_commit.csv"))
     
-def export_storage(instance, timepoints_set, storage_set, results_directory):
+def export_storage(instance, timepoints_set, storage_set, results_directory, is_MPEC):
     
     index_name = []
     results_time = []
-    storage_charge = []
-    storage_discharge = []
+    storage_dispatch = []
+    #storage_charge = []
+    #storage_discharge = []
     soc = []
     storage_offer = []
     storage_max_dual = []
@@ -363,20 +364,23 @@ def export_storage(instance, timepoints_set, storage_set, results_directory):
         for s in storage_set:
             index_name.append(s)
             results_time.append(t)
-            storage_charge.append(format_2f(instance.charge[t,s].value))
-            storage_discharge.append(format_2f(instance.discharge[t,s].value))
+            #storage_charge.append(format_2f(instance.charge[t,s].value))
+            #storage_discharge.append(format_2f(instance.discharge[t,s].value))
+            storage_dispatch.append(format_2f(instance.storagedispatch[t,s].value))
             soc.append(format_2f(instance.soc[t,s].value))
             storage_offer.append(format_2f(instance.storageoffer[t,s].value))
             storage_max_dual.append(format_2f(instance.storagemaxdual[t,s].value))
             storage_min_dual.append(format_2f(instance.storagemindual[t,s].value))
             node.append(instance.storage_zone_label[s])
-            lmp.append(format_2f(instance.zonalprice[t,instance.storage_zone_label[s]].value))
-            
+            if is_MPEC:
+                lmp.append(format_2f(instance.zonalprice[t,instance.storage_zone_label[s]].value))
+            else:
+                lmp.append(format_2f(instance.dual[instance.LoadConstraint[t,instance.storage_zone_label[s]]]))
                 
-    profit = [(float(d)-float(c))*float(price) for d,c,price in zip(storage_discharge,storage_charge,lmp)]
-    col_names = ['time','charge','discharge','soc','offer','maxdual','mindual','node','lmp','profit']
-    df = pd.DataFrame(data=np.column_stack((np.asarray(results_time), np.asarray(storage_charge),
-                                            np.asarray(storage_discharge),np.asarray(soc),
+    profit = [float(c)*float(price) for c,price in zip(storage_dispatch,lmp)]
+    col_names = ['time','dispatch','soc','offer','maxdual','mindual','node','lmp','profit']
+    df = pd.DataFrame(data=np.column_stack((np.asarray(results_time), np.asarray(storage_dispatch),
+                                            np.asarray(soc),
                                             np.asarray(storage_offer),np.asarray(storage_max_dual),
                                             np.asarray(storage_min_dual), np.asarray(node),
                                             np.asarray(lmp), np.asarray(profit))),
