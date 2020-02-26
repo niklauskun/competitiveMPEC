@@ -91,6 +91,8 @@ dispatch_model.genco_index = Param(dispatch_model.GENERATORS, within=NonNegative
 dispatch_model.discharge_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
 dispatch_model.charge_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
 dispatch_model.soc_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
+dispatch_model.discharge_eff = Param(dispatch_model.STORAGE, within=NonNegativeReals)
+dispatch_model.charge_eff = Param(dispatch_model.STORAGE, within=NonNegativeReals)
 dispatch_model.storage_zone_label = Param(dispatch_model.STORAGE, within=dispatch_model.ZONES)
 
 #generator-dependent initialization parameters
@@ -219,10 +221,10 @@ dispatch_model.zonalprice = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                                 within=NonNegativeReals, initialize=0) #this is zonal load balance dual
 
 dispatch_model.gensegmentmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.gensegmentmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.transmissionmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
                                      within=NonNegativeReals, initialize=0, bounds=(0,1000))
@@ -231,10 +233,10 @@ dispatch_model.transmissionmindual = Var(dispatch_model.TIMEPOINTS, dispatch_mod
                                      within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.storagemaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.storagemindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
 
 dispatch_model.rampmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                      within=NonNegativeReals, initialize=0)
@@ -302,22 +304,26 @@ def CurtailmentRule(model, t, z):
 ## STORAGE CONSTRAINTS ##
 
 def StorageDischargeRule(model,t,s):
-    #return  model.discharge_max[s]*model.storagebool[t,s] >= model.discharge[t,s]
-    return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
+    return  model.discharge_max[s]*model.storagebool[t,s] >= model.discharge[t,s]
+    #return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
 dispatch_model.StorageDischargeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,rule=StorageDischargeRule)
 
 def StorageChargeRule(model,t,s):
-    #return model.charge_max[s]*(1-model.storagebool[t,s]) >= model.charge[t,s]
-    return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
+    return model.charge_max[s]*(1-model.storagebool[t,s]) >= model.charge[t,s]
+    #return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
 dispatch_model.StorageChargeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageChargeRule)
+
+def StorageDispatchRule(model,t,s):
+    return model.storagedispatch[t,s] == model.discharge[t,s]-model.charge[t,s]
+dispatch_model.StorageDispatchConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageDispatchRule)
 
 def SOCChangeRule(model,t,s):
     if t==1:
-        #return model.soc[t,s] == model.soc_max[s]*0 + model.charge[t,s] - model.discharge[t,s] #start half charged?
-        return model.soc[t,s] == -model.storagedispatch[t,s]
+        return model.soc[t,s] == model.charge[t,s]*model.charge_eff[s] - model.discharge[t,s]*model.discharge_eff[s] #start half charged?
+        #return model.soc[t,s] == -model.storagedispatch[t,s]
     else:
-        #return model.soc[t,s] == model.soc[t-1,s] + model.charge[t,s] - model.discharge[t,s]
-        return model.soc[t,s] == model.soc[t-1,s] - model.storagedispatch[t,s]
+        return model.soc[t,s] == model.soc[t-1,s] + model.charge[t,s]*model.charge_eff[s] - model.discharge[t,s]*model.discharge_eff[s]
+        #return model.soc[t,s] == model.soc[t-1,s] - model.storagedispatch[t,s]
 dispatch_model.SOCChangeConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=SOCChangeRule)
 
 def SOCMaxRule(model,t,s):

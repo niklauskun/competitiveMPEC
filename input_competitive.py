@@ -46,6 +46,8 @@ def scenario_inputs(inputs_directory):
               param=(model_competitive.dispatch_model.discharge_max,
                      model_competitive.dispatch_model.charge_max,
                      model_competitive.dispatch_model.soc_max,
+                     model_competitive.dispatch_model.discharge_eff,
+                     model_competitive.dispatch_model.charge_eff,
                      model_competitive.dispatch_model.storage_zone_label)
               )
               

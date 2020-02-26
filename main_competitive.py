@@ -34,7 +34,7 @@ start_time = time.time()
 cwd = os.getcwd()
 
 case_folder = "PJM_5_Bus"
-scenario_list = [("IEEE30bus",False,"")]
+scenario_list = [("1bus",False,"")]
 MPEC = True
 
 # Allow user to specify solver path if needed (default assumes solver on path)
