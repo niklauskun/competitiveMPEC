@@ -219,22 +219,22 @@ dispatch_model.zonalprice = Var(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                                 within=NonNegativeReals, initialize=0) #this is zonal load balance dual
 
 dispatch_model.gensegmentmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.gensegmentmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,dispatch_model.GENERATORSEGMENTS,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.transmissionmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.transmissionmindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.storagemaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.storagemindual = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
-                                     within=NonNegativeReals, initialize=0, bounds=(0,5000))
+                                     within=NonNegativeReals, initialize=0, bounds=(0,1000))
 
 dispatch_model.rampmaxdual = Var(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
                                      within=NonNegativeReals, initialize=0)
@@ -253,7 +253,7 @@ dispatch_model.gensegmentoffer = Var(dispatch_model.TIMEPOINTS, dispatch_model.G
                                      dispatch_model.GENERATORSEGMENTS,
                                      within=NonNegativeReals)
 
-dispatch_model.storageoffer = Var(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
+dispatch_model.storageoffer = Var(dispatch_model.TIMEPOINTS,dispatch_model.STORAGE,
                                   within=NonNegativeReals)
 
 
@@ -434,6 +434,7 @@ def BindStorageOfferDual(model,t,s):
 dispatch_model.StorageOfferDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.STORAGE,
                                                        rule=BindStorageOfferDual)
 
+
 def BindFlowDual(model,t,z):
     maxdual = 0
     mindual = 0
@@ -442,7 +443,8 @@ def BindFlowDual(model,t,z):
         
         if model.transmission_to[t, line] == z:
             sink_zone = model.transmission_from[t,line]
-            
+            #if t==1:
+            #    print(sink_zone)
             maxdual += model.susceptance[line]*model.transmissionmaxdual[t,line]
             mindual += model.susceptance[line]*model.transmissionmindual[t,line]
             lmp_delta += model.susceptance[line]*model.zonalprice[t,z]
@@ -450,12 +452,14 @@ def BindFlowDual(model,t,z):
             
         elif model.transmission_from[t, line] == z:
             sink_zone = model.transmission_to[t,line]
-            
+            #if t==1:
+            #    print(sink_zone)
             maxdual -= model.susceptance[line]*model.transmissionmaxdual[t,line]
             mindual -= model.susceptance[line]*model.transmissionmindual[t,line]
             lmp_delta += model.susceptance[line]*model.zonalprice[t,z]
             lmp_delta -= model.susceptance[line]*model.zonalprice[t,sink_zone]
-            
+    #if t==8 and z==1:
+    #    print(maxdual,mindual,lmp_delta)
     return maxdual-mindual==lmp_delta
 dispatch_model.FlowDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.ZONES,
                                                rule=BindFlowDual)
@@ -474,12 +478,12 @@ dispatch_model.MinDispatchComplementarity = Complementarity(dispatch_model.TIMEP
                                                             rule=BindMinDispatchComplementarity)
 
 def BindMaxTransmissionComplementarity(model,t,line):
-    return complements(model.transmission_to_capacity[t, line]-model.transmit_power_MW[t,line]>=0,model.transmissionmaxdual[t,line]>=0)
+    return complements(model.transmission_to_capacity[t,line]-model.transmit_power_MW[t,line]>=0,model.transmissionmaxdual[t,line]>=0)
 dispatch_model.MaxTransmissionComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
                                                                 rule=BindMaxTransmissionComplementarity)
 
 def BindMinTransmissionComplementarity(model,t,line):
-    return complements(-model.transmission_from_capacity[t, line]+model.transmit_power_MW[t,line]>=0,model.transmissionmindual[t,line]>=0)
+    return complements(-model.transmission_from_capacity[t,line]+model.transmit_power_MW[t,line]>=0,model.transmissionmindual[t,line]>=0)
 dispatch_model.MinTransmissionComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE,
                                                                 rule=BindMinTransmissionComplementarity)
 
@@ -512,7 +516,7 @@ dispatch_model.OfferCapConstraint = Constraint(dispatch_model.TIMEPOINTS, dispat
                                                        rule=OfferCap)
 
 def OfferCap2(model,t,g,gs):
-    return model.generator_marginal_cost[t,g,gs]>=model.gensegmentoffer[t,g,gs] #caps offer at 2x cost for now
+    return model.generator_marginal_cost[t,g,gs]>=model.gensegmentoffer[t,g,gs] #caps offer at cost to make it param
 dispatch_model.OfferCap2Constraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.NON_STRATEGIC_GENERATORS,dispatch_model.GENERATORSEGMENTS,
                                                        rule=OfferCap2)
 
