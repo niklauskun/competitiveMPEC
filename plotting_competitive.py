@@ -53,7 +53,25 @@ def diag_plots(scenario_results, dir_str):
     solar_power = []
     curtail_power = []
             
-    
+    #print(len(scenario_results[0]))
+    #print(type(scenario_results[0]))
+    #print(len(*(int(scenario_results[1]))))
+    plot_df = pd.DataFrame({'Dispatch':scenario_results[0],
+                            'FuelID':list(gens['Category'].values)*(int(scenario_results[1])),
+                            'Hours':[i for i in list(range(1,int(scenario_results[1])+1)) for z in range(len(list(gens['Category'].values)))]})
+    plot_df_grouped = plot_df.groupby(['FuelID','Hours']).sum().reset_index().set_index('Hours')
+    fig, ax = plt.subplots()#figsize=(9, 6)
+    df_pivot = plot_df_grouped.pivot(columns='FuelID', values='Dispatch')
+    column_names = ['Nuclear','Hydro','Coal', 'Gas CC', 'Gas CT', 'Oil CT',
+       'Oil ST','Wind','CSP', 'Solar PV', 'Solar RTPV', 'Storage', 'Sync_Cond']
+    df_pivot = df_pivot.reindex(columns=column_names)
+    df_pivot = df_pivot.abs() #get rid of below zero rounding errors
+    #print(df_pivot)
+    #df_pivot.to_csv('checkpivot.csv')
+    color_palette = ['purple','blue','k','orange','sienna','g','g',
+                             'cyan','red','yellow','yellow','slategray','k']
+    df_pivot.plot.area(ax=ax,color=color_palette)
+    plt.show()
     
     for g in gens['Category'].unique():
         #print(g) #placeholder for now
@@ -66,9 +84,9 @@ def diag_plots(scenario_results, dir_str):
         wind_power.append(wind_results_np[:,z])
         solar_power.append(solar_results_np[:,z])
         curtail_power.append(curtailment_results_np[:,z])
-        for g in gens['Category'].unique():
-            gen_type = (gens['Category']==g)
-            y.append(np.dot(scenario_results_np[:,z*len(gen_type):(z+1)*len(gen_type)],np.array(gen_type)))
+        #for g in gens['Category'].unique():
+        #    gen_type = (gens['Category']==g)
+        #    y.append(np.dot(scenario_results_np[:,z*len(gen_type):(z+1)*len(gen_type)],np.array(gen_type)))
 
     # Your x and y axis
     x=range(1,int(scenario_results[1])+1)
@@ -148,13 +166,13 @@ def diag_plots(scenario_results, dir_str):
     '''
 
     #and finally, plot the energy LMP dual
-    lmp_palette = ['r','b','m','k','g']*6
+    lmp_palette = ['r','b','m','k','g','y']*16
     legend_label = []
     for z in range(len(zones['zone'])):
         plt.plot(x, lmp_duals_np[:,z], color=lmp_palette[z])
         legend_label.append('Zone ' + str(zones['zone'][z]))
-    plt.ylabel('Energy Price ($/MWh)')
+    plt.ylabel('LMP ($/MWh)')
     plt.xlabel('Hour')
-    plt.legend(legend_label, loc='upper left')
+    #plt.legend(legend_label, loc='upper left')
     plt.show()
     

@@ -95,7 +95,7 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
     return None
 
 # formatting functions
-# return value rounded to two decimal places
+# return value rounded to six decimal places
 def format_2f(input_data):
     """
     :param input_data: The data to format
@@ -104,7 +104,7 @@ def format_2f(input_data):
     if input_data is None:
         formatted_data = None
     else:
-        formatted_data = '{:0.2f}'.format(input_data)
+        formatted_data = '{:0.6f}'.format(input_data)
         # if formatted_data is negative but rounds to zero, it will be printed as a negative zero
         # this gets rid of the negative zero
         if formatted_data == '0.00' or formatted_data == '-0.00':
@@ -181,11 +181,13 @@ def export_generator_segment_offer(instance,timepoints_set,generators_set,zones_
     index_name = []
     timepoints_list = []
     total_dispatch = []
+    total_emissions = []
     max_dual = []
     min_dual = []
     zone_names = []
     lmp = []
     marginal_cost = []
+    previous_offer = []
     
     for t in timepoints_set:
         for g in generators_set:
@@ -194,9 +196,11 @@ def export_generator_segment_offer(instance,timepoints_set,generators_set,zones_
                 index_name.append(str(g)+"-" +str(gs))
                 results_offer.append(format_2f(instance.gensegmentoffer[t,g,gs].value))
                 total_dispatch.append(format_2f(instance.segmentdispatch[t,g,gs]()))
+                total_emissions.append(format_2f(instance.CO2_emissions[t,g,gs]()))
                 max_dual.append(format_2f(instance.gensegmentmaxdual[t,g,gs].value))
                 min_dual.append(format_2f(instance.gensegmentmindual[t,g,gs].value))
                 marginal_cost.append(format_2f(instance.generator_marginal_cost[t,g,gs]))
+                previous_offer.append(format_2f(instance.previous_offer[t,g,gs]))
                 zone_names.append(instance.zonelabel[g])
                 if is_MPEC:
                     lmp.append(format_2f(instance.zonalprice[t,instance.zonelabel[g]].value))
@@ -211,12 +215,14 @@ def export_generator_segment_offer(instance,timepoints_set,generators_set,zones_
         #            lmp.append(format_2f(instance.dual[instance.LoadConstraint[t,z]]))
     #results_dispatch_np = np.reshape(results_dispatch, (int(len(results_dispatch)/len(timepoints_set)), int(len(timepoints_set))))
     profit = [(float(a_i) - float(b_i))*float(c_i) for a_i, b_i, c_i in zip(lmp, marginal_cost, total_dispatch)]
-    col_names = ['hour','SegmentOffer','SegmentDispatch','MaxDual','MinDual','Zone','LMP','MarginalCost','Profit']
+    col_names = ['hour','SegmentOffer','SegmentDispatch','SegmentEmissions',
+                 'MaxDual','MinDual','Zone','LMP','MarginalCost','Profit','PreviousOffer']
     df = pd.DataFrame(data = np.column_stack((np.asarray(timepoints_list),np.asarray(results_offer),
-                                              np.asarray(total_dispatch),np.asarray(max_dual),
+                                              np.asarray(total_dispatch),np.asarray(total_emissions),
+                                              np.asarray(max_dual),
                                               np.asarray(min_dual),np.asarray(zone_names),
                                               np.asarray(lmp),np.asarray(marginal_cost),
-                                              np.asarray(profit))),
+                                              np.asarray(profit),np.asarray(previous_offer))),
                       columns=col_names,
                       index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory,"generator_segment_offer.csv"))

@@ -37,6 +37,9 @@ def scenario_inputs(inputs_directory):
                      model_competitive.dispatch_model.mindown,
                      model_competitive.dispatch_model.noloadcost,
                      model_competitive.dispatch_model.ramp,
+                     model_competitive.dispatch_model.tonneCO2perMWh,
+                     model_competitive.dispatch_model.CO2price,
+                     model_competitive.dispatch_model.CO2dollarsperMWh,
                      model_competitive.dispatch_model.zonelabel,
                      model_competitive.dispatch_model.genco_index)
               )
@@ -48,7 +51,8 @@ def scenario_inputs(inputs_directory):
                      model_competitive.dispatch_model.soc_max,
                      model_competitive.dispatch_model.discharge_eff,
                      model_competitive.dispatch_model.charge_eff,
-                     model_competitive.dispatch_model.storage_zone_label)
+                     model_competitive.dispatch_model.storage_zone_label,
+                     model_competitive.dispatch_model.storage_index)
               )
               
     data.load(filename=os.path.join(inputs_directory, "initialize_generators.csv"),
@@ -73,7 +77,11 @@ def scenario_inputs(inputs_directory):
               
     data.load(filename=os.path.join(inputs_directory, "timepoints_index.csv"),
               index=model_competitive.dispatch_model.TIMEPOINTS,
-              param=(model_competitive.dispatch_model.reference_bus)
+              param=(model_competitive.dispatch_model.reference_bus,
+                     model_competitive.dispatch_model.reg_up_mw,
+                     model_competitive.dispatch_model.reg_down_mw,
+                     model_competitive.dispatch_model.flex_up_mw,
+                     model_competitive.dispatch_model.flex_down_mw)
               )
 
     data.load(filename=os.path.join(inputs_directory, "zones.csv"),
@@ -105,11 +113,20 @@ def scenario_inputs(inputs_directory):
 
     data.load(filename=os.path.join(inputs_directory,"generator_segments.csv"),
               index=model_competitive.dispatch_model.GENERATORSEGMENTS,
-              param=(model_competitive.dispatch_model.generator_segment_length)
+              param=(model_competitive.dispatch_model.base_generator_segment_length)
               )
     
     data.load(filename=os.path.join(inputs_directory,"generator_segment_marginalcost.csv"),
-              param=(model_competitive.dispatch_model.generator_marginal_cost)
+              param=(model_competitive.dispatch_model.generator_segment_length,
+                      model_competitive.dispatch_model.generator_marginal_cost,
+                     model_competitive.dispatch_model.previous_offer,
+                     model_competitive.dispatch_model.marginal_CO2,
+                     model_competitive.dispatch_model.CO2_damage)
+              )
+
+    data.load(filename=os.path.join(inputs_directory,"case_index.csv"),
+              index=model_competitive.dispatch_model.CASE,
+              param=(model_competitive.dispatch_model.genco)
               )
               
     return data

@@ -33,9 +33,25 @@ from plotting_competitive import diag_plots
 start_time = time.time()
 cwd = os.getcwd()
 
-case_folder = "PJM_5_Bus"
-scenario_list = [("1bus",False,"")]
+case_folder = "RTSCompetitiveCase"#
+#scenario_list = [("5bus",False,"",1),("5bus",False,"",2),("5bus",False,"",3),("5bus",False,"",4),("5bus",False,"",5)] #("5bus",False,"",1),
+
+#create scenario list from dates to match folder naming convention
+
+start = datetime.datetime.strptime("01-03-2019", "%m-%d-%Y")
+end = datetime.datetime.strptime("01-22-2019", "%m-%d-%Y")
+date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
+date_folders = [date.strftime("%m.%d.%Y") for date in date_generated]
+scenario_list = [(d,False,"",1) for d in date_folders]
+
+#("1.3.2019.1",False,"",1),
+#scenario_list = [("1.3.2019.3",False,"",1)]
 MPEC = True
+EPEC = False
+iters = 9 #limit number of EPEC iters
+
+#if not EPEC and MPEC:
+#    assert(len(scenario_list)==1) #do this bc mpec will only solve for a single case anyway
 
 # Allow user to specify solver path if needed (default assumes solver on path)
 executable=""
@@ -83,7 +99,7 @@ class Logger(object):
         self.log_file.flush()
 
             
-def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_directory, is_MPEC):
+def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_directory, is_MPEC, genco_index):
     """
     Load model formulation and data, and create problem instance.
     """
@@ -96,7 +112,11 @@ def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_
         print("Creating initial conditions data file...")
         create_init.create_init_file(scenario_from_directory, scenario_inputs_directory, 24)
         print("...initial conditions created.")
-    
+        
+    print("creating competitive generators file...")
+    pd.DataFrame(data=[genco_index], columns=["genco"],index=pd.Index(['index'])).to_csv(os.path.join(scenario_inputs_directory,"case_index.csv"))
+    print("...competitive generators recorded.")
+
     print ("Loading data...")
     data = input_competitive.scenario_inputs(scenario_inputs_directory)
     print ("..data read.")
@@ -105,6 +125,8 @@ def create_problem_instance(scenario_inputs_directory, load_init, scenario_from_
     print ("Compiling instance...")
     instance = model.create_instance(data)
     print ("...instance created.")
+    
+    
     
     if is_MPEC:
         print("Converting model to MPEC...")
@@ -123,6 +145,9 @@ def solve(instance, case_type):
     Run instance of model
     """
     #Choose active/inactive objective
+    #set_names
+    #print(instance.get_num())#LoadConstraint.set_names('LoadConstraint')
+    #print(instance.LoadConstraint.pprint())
     if case_type == "MIP":
         instance.TotalCost.deactivate() #deactivates the simple objective
         instance.TotalCost2.deactivate()
@@ -134,6 +159,8 @@ def solve(instance, case_type):
         instance.TotalCost.deactivate() #switch objective to exclude start-up and no-load costs
         instance.GeneratorProfit.deactivate()
         instance.GeneratorProfitDual.deactivate()
+        
+        
         #instance.PminConstraint.deactivate()
     # ### Solve ### #
     if executable != "":
@@ -149,8 +176,18 @@ def solve(instance, case_type):
         #solver.options['optimalitytarget']=3
         #solver.options['mip_tolerances_mipgap'] = 0.0005
         #solver.options['parallel'] = -1 #opportunistic
-        #solver.options['dettimelimit'] = 1000000
-        
+        #solver.options['conflict_algorithm']=6#conflict_display=2
+        #solver.options['set_results_stream']=1
+        #solver.options['feasopt_tolerance']=10000000
+        #solver.options['feasopt_mode']=1
+        #solver.options['set_results_stream']=1
+        #solver.options['preprocessing_presolve']='n'
+        #solver.options['conflict_algorithm']=6
+        #solver.options['conflict_display']=2
+        #solver.options['simplex_tolerances_feasibility']=.00000001
+        #solver.options['lpmethod']=1
+    #print('feasopt...')
+    #instance.feasopt.all_constraints()
     print ("Solving...")
     
     # to keep human-readable files for debugging, set keepfiles = True
@@ -177,7 +214,7 @@ def load_solution(instance, results):
     """
     instance.solutions.load_from(results)
 
-def run_scenario(directory_structure, load_init, is_MPEC):
+def run_scenario(directory_structure, load_init, is_MPEC, genco_index, overwritten_offers):
     """
     Run a scenario.
     """
@@ -196,7 +233,7 @@ def run_scenario(directory_structure, load_init, is_MPEC):
 
     #
     # Create problem instance
-    instance = create_problem_instance(scenario_inputs_directory, load_init, scenario_createinputs_directory, is_MPEC)
+    instance = create_problem_instance(scenario_inputs_directory, load_init, scenario_createinputs_directory, is_MPEC, genco_index)
             
     
     # Create a 'dual' suffix component on the instance, so the solver plugin will know which suffixes to collect
@@ -226,14 +263,34 @@ def run_scenario(directory_structure, load_init, is_MPEC):
     # export results to csv
     write_results_competitive.export_results(instance, solution, scenario_results_directory, is_MPEC, debug_mode=1)
     
-    # THE REST OF THIS LOOP IS ONLY NEEDED FOR PLOTTING RESULTS
+    
     #load up the instance that was just solved
     load_solution(instance, solution)
+    
+    #this first part does the overwrite of iterated generator offers for the EPEC
+    #overwritten_offers = []
+    counter = 0
+    #print(genco_index)
+    for t in instance.TIMEPOINTS:
+        for gs in instance.GENERATORSEGMENTS:
+            for g in instance.GENERATORS:    
+                if abs(instance.gensegmentoffer[t,g,gs].value - overwritten_offers[counter]) > .1 and genco_index==instance.genco_index[g] and instance.dispatch[t,g]()>0.1:
+                    #overwritten_offers.append(instance.gensegmentoffer[t,g,gs].value)
+                    #print(genco_index, instance.genco_index[g])
+                    #print(abs(instance.gensegmentoffer[t,g,gs].value - overwritten_offers[counter]))
+                    overwritten_offers[counter] = instance.gensegmentoffer[t,g,gs].value
+                elif overwritten_offers[counter] < instance.generator_marginal_cost[t,g,gs]:
+                    overwritten_offers[counter] = instance.generator_marginal_cost[t,g,gs]
+                counter+=1
+                #else:
+                #    overwritten_offers.append(instance.previous_offer[t,g,gs])
+    
     #instance.solutions.load_from(solution)
     #write it to an array
     #eventually this should be converted to real results writing, 
     #but for not it's just a single result
     #so OK to do this
+    # THE REST OF THIS LOOP IS ONLY NEEDED FOR PLOTTING RESULTS
     results_dispatch = []
     results_starts = []
     results_shuts = []
@@ -258,8 +315,8 @@ def run_scenario(directory_structure, load_init, is_MPEC):
             else:
                 price_duals.append(instance.zonalprice[t,z].value)
             
-            for g in instance.GENERATORS:
-                results_dispatch.append(instance.dispatch[t,g]())
+            #for g in instance.GENERATORS:
+                #results_dispatch.append(instance.dispatch[t,g]())
                 #for gs in instance.GENERATORSEGMENTS:
                     #if t==1:
                         #print('offer')
@@ -278,6 +335,7 @@ def run_scenario(directory_structure, load_init, is_MPEC):
         for g in instance.GENERATORS:
             results_starts.append(instance.startup[t,g].value)
             results_shuts.append(instance.shutdown[t,g].value)
+            results_dispatch.append(instance.dispatch[t,g]())
             
     zones = pd.read_csv(join(dir_str.INPUTS_DIRECTORY, 'zones.csv'))
     for z in zones['zone']:
@@ -292,34 +350,103 @@ def run_scenario(directory_structure, load_init, is_MPEC):
     ### ###
     
     return (results_dispatch, len(tmps), results_wind, results_solar, results_curtailment, results_starts,\
-            results_shuts, price_duals)
+            results_shuts, price_duals, overwritten_offers)
 
 ### RUN MODEL ###
-count_case = 0
-for s in scenario_list:
-    count_case+=1
-    #initialize scenario data in the tuple
-    scenario_name = s[0] #for now
-    load_init = s[1]
-    load_dir = s[2]
-    
-    #run the case, as usual
-    code_directory = cwd
-    dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-    dir_str.make_directories()
-    logger = Logger(dir_str)
-    log_file = logger.log_file_path
-    print("Running scenario " + str(count_case) + " of " + str(len(scenario_list)) + "...")
-    print ("Running scenario " + str(scenario_name) + "...")
-    stdout = sys.stdout
-    sys.stdout = logger
-    
-    scenario_results = run_scenario(dir_str, load_init, MPEC)
-    
-    sys.stdout = stdout #return to original
-        
-    # run diagnostic plots
-    diag_plots(scenario_results, dir_str)
 
-    end_time = time.time() - start_time
-    print ("time elapsed during run is " + str(end_time) + " seconds")
+count_iters = 0
+if EPEC:
+    for i in range(iters):
+        count_iters+=1
+        print("Running EPEC iter " + str(count_iters) + " of " + str(iters) + "...")
+        #reformulate previous offer of generators for non-initial iters
+        if count_iters>1:
+            
+            df = pd.read_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'))
+            break_flag = True
+            for v in range(len(scenario_results[-1])):
+                if abs(scenario_results[-1][v]-df.prev_offer[v])>0.1:
+                    break_flag=False
+            if break_flag:
+                print('reached equilibrium, exiting run with solution in hand...')
+                df.prev_offer = scenario_results[-1]
+                #do comparison, eventually, that could cause loop to terminate
+                df.to_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'),index=False) #overwrite
+                break
+            df.prev_offer = scenario_results[-1]
+            #do comparison, eventually, that could cause loop to terminate
+            df.to_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'),index=False) #overwrite
+            #overwritten_offers = scenario_results[-1]
+            
+        else: #initialization always sets prev offer to mcos
+            df = pd.read_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'))
+            df.prev_offer = df.marginal_cost
+            df.to_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'),index=False) #overwrite
+            overwritten_offers = [0]*len(df.prev_offer)
+            #do overwrite
+        
+        count_case = 0
+        for s in scenario_list:
+            count_case+=1
+            #initialize scenario data in the tuple
+            scenario_name = s[0] #for now
+            load_init = s[1]
+            load_dir = s[2]
+            genco_index = s[3]
+            
+            #run the case, as usual
+            code_directory = cwd
+            dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+            dir_str.make_directories()
+            logger = Logger(dir_str)
+            log_file = logger.log_file_path
+            print("Running scenario " + str(count_case) + " of " + str(len(scenario_list)) + "...")
+            print ("Running scenario " + str(scenario_name) + "...")
+            stdout = sys.stdout
+            sys.stdout = logger
+            
+            scenario_results = run_scenario(dir_str, load_init, MPEC, genco_index, overwritten_offers)
+            overwritten_offers = scenario_results[-1]
+            
+            sys.stdout = stdout #return to original
+                
+            # run diagnostic plots
+            diag_plots(scenario_results, dir_str)
+        
+            end_time = time.time() - start_time
+            print ("time elapsed during run is " + str(end_time) + " seconds")
+else:
+    count_case = 0
+    for s in scenario_list:
+        count_case+=1
+        #initialize scenario data in the tuple
+        scenario_name = s[0] #for now
+        load_init = s[1]
+        load_dir = s[2]
+        genco_index = s[3]
+        
+        #run the case, as usual
+        code_directory = cwd
+        dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+        dir_str.make_directories()
+        logger = Logger(dir_str)
+        log_file = logger.log_file_path
+        print("Running scenario " + str(count_case) + " of " + str(len(scenario_list)) + "...")
+        print ("Running scenario " + str(scenario_name) + "...")
+        stdout = sys.stdout
+        sys.stdout = logger
+        
+        df = pd.read_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'))
+        df.prev_offer = df.marginal_cost
+        df.to_csv(join(dir_str.INPUTS_DIRECTORY, 'generator_segment_marginalcost.csv'),index=False) #overwrite
+        overwritten_offers = [0]*len(df.prev_offer)
+        
+        scenario_results = run_scenario(dir_str, load_init, MPEC, genco_index, overwritten_offers)
+        
+        sys.stdout = stdout #return to original
+        
+        # run diagnostic plots
+        diag_plots(scenario_results, dir_str)
+    
+        end_time = time.time() - start_time
+        print ("time elapsed during run is " + str(end_time) + " seconds")
