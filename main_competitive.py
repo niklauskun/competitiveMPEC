@@ -33,19 +33,19 @@ from plotting_competitive import diag_plots
 start_time = time.time()
 cwd = os.getcwd()
 
-case_folder = "RTSCompetitiveCase"#
+case_folder = "all3"#
 #scenario_list = [("5bus",False,"",1),("5bus",False,"",2),("5bus",False,"",3),("5bus",False,"",4),("5bus",False,"",5)] #("5bus",False,"",1),
 
 #create scenario list from dates to match folder naming convention
 
-start = datetime.datetime.strptime("01-03-2019", "%m-%d-%Y")
-end = datetime.datetime.strptime("01-22-2019", "%m-%d-%Y")
+start = datetime.datetime.strptime("07-04-2019", "%m-%d-%Y")
+end = datetime.datetime.strptime("08-01-2019", "%m-%d-%Y")
 date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
 date_folders = [date.strftime("%m.%d.%Y") for date in date_generated]
 scenario_list = [(d,False,"",1) for d in date_folders]
 
 #("1.3.2019.1",False,"",1),
-#scenario_list = [("1.3.2019.3",False,"",1)]
+#scenario_list = [("01.10.2019",False,"",1)]
 MPEC = True
 EPEC = False
 iters = 9 #limit number of EPEC iters
