@@ -33,13 +33,13 @@ from plotting_competitive import diag_plots
 start_time = time.time()
 cwd = os.getcwd()
 
-case_folder = "all3"#
+case_folder = "CompetitiveStorageBus309andWind303"#"CompetitiveStorageBus303"#competitive300CCs#
 #scenario_list = [("5bus",False,"",1),("5bus",False,"",2),("5bus",False,"",3),("5bus",False,"",4),("5bus",False,"",5)] #("5bus",False,"",1),
 
 #create scenario list from dates to match folder naming convention
 
-start = datetime.datetime.strptime("07-04-2019", "%m-%d-%Y")
-end = datetime.datetime.strptime("08-01-2019", "%m-%d-%Y")
+start = datetime.datetime.strptime("06-06-2019", "%m-%d-%Y")
+end = datetime.datetime.strptime("06-08-2019", "%m-%d-%Y")
 date_generated = [start + datetime.timedelta(days=x) for x in range(0, (end-start).days)]
 date_folders = [date.strftime("%m.%d.%Y") for date in date_generated]
 scenario_list = [(d,False,"",1) for d in date_folders]
@@ -172,10 +172,12 @@ def solve(instance, case_type):
     else:
         solver = SolverFactory("cplex") 
         #solver = SolverFactory("gurobi")
-        #solver.options['mip_tolerances_absmipgap'] = 0.2
+        #solver.options['mip_tolerances_absmipgap'] = 0.1
         #solver.options['optimalitytarget']=3
-        #solver.options['mip_tolerances_mipgap'] = 0.0005
-        #solver.options['parallel'] = -1 #opportunistic
+        
+        solver.options['mip_tolerances_mipgap'] = 0.02#raise this to help solve faster
+        solver.options['parallel'] = -1 #opportunistic
+        
         #solver.options['conflict_algorithm']=6#conflict_display=2
         #solver.options['set_results_stream']=1
         #solver.options['feasopt_tolerance']=10000000
