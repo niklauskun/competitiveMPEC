@@ -32,10 +32,10 @@ start_time = time.time()
 cwd = os.getcwd()
 
 ### GENERAL INPUTS ###
-case_folder = "Desktop\\luke_mpec\\competitiveMPEC-master\\scripttest"  # andWind309
+case_folder = "Desktop\\competitiveMPEC\\test"  # andWind309
 
-start_date = "01-05-2019"  # use this string format
-end_date = "01-06-2019"  # end date is exclusive
+start_date = "01-01-2019"  # use this string format
+end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -47,7 +47,7 @@ solver_kwargs = {
     "mip_tolerances_mipgap": 0.01,
     "dettimelimit": 300000,
     "parallel": -1,
-    "warmstart_flag": False,
+    "warmstart_flag": True,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 
 ### OPTIONAL MODEL MODIFYING INPUTS ###
