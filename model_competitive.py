@@ -676,6 +676,15 @@ dispatch_model.BindFinalSOCConstraint = Constraint(
     dispatch_model.STORAGE, rule=BindFinalSOCRule
 )  # implements BindFinalSOCConstraint
 
+
+def OneCycleRule(model, s):
+    return model.soc_max[s] >= sum(model.discharge[t, s] for t in model.TIMEPOINTS)
+
+
+dispatch_model.OneCycleConstraint = Constraint(
+    dispatch_model.STORAGE, rule=OneCycleRule
+)  # implements BindFinalSOCConstraint
+
 ## TRANSMISSION LINES ##
 
 # flow rules, implemented as DCOPF
