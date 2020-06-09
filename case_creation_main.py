@@ -65,6 +65,7 @@ optional_args = {
     "storage_capacity_scalar": 1,
     "storage_duration_scalar": 1,
     "tx_capacity_scalar": 1,
+    "battery_roundtrip_efficiency": 0.85,
 }
 
 write_RTS_case(kw_dict, start, end, f, folder_out, **optional_args)

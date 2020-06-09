@@ -349,7 +349,9 @@ class CreateRTSCase(object):
 
         self.dict_to_csv(filename, d)
 
-    def storage(self, filename, capacity_scalar=1, duration_scalar=1, busID=313):
+    def storage(
+        self, filename, capacity_scalar=1, duration_scalar=1, busID=313, RTEff=1.0
+    ):
         storage_dict = {}
         index_list = [
             "Storage_Index",
@@ -382,8 +384,8 @@ class CreateRTSCase(object):
         storage_dict[index_list[3]] = (
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
         )
-        storage_dict[index_list[4]] = 1
-        storage_dict[index_list[5]] = 1
+        storage_dict[index_list[4]] = 1.0 / RTEff ** 0.5
+        storage_dict[index_list[5]] = RTEff ** 0.5
         if busID == 0:
             storage_dict[index_list[6]] = (
                 self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
@@ -864,6 +866,11 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
     except KeyError:
         print("NOTE: no scaling of transmission line capacity, default inputs used")
         flow_multiplier = 1
+    try:
+        RTEfficiency = kwargs["battery_roundtrip_efficiency"]
+    except KeyError:
+        print("NOTE: no roundtrip efficiency input for battery, default is RTE=1")
+        RTEfficiency = 1
     # loop creation of folder for each day between start and end
     for case_name, begin_hour in zip(
         date_folders,
@@ -892,6 +899,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             capacity_scalar=capacity_scalar,
             duration_scalar=duration_scalar,
             busID=storage_bus,
+            RTEff=RTEfficiency,
         )  # size_scalar=0
         case.init_gens("initialize_generators")
         case.scheduled_gens("generators_scheduled_availability")
