@@ -242,6 +242,7 @@ class CreateRTSCase(object):
             "CO2dollarsperMWh",
             "ZoneLabel",
             "GencoIndex",
+            "highCO2price",
         ]
         if retained_bus_list == []:
             pass  # print("default")
@@ -317,6 +318,9 @@ class CreateRTSCase(object):
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["Bus ID"].values
         self.generators_dict[index_list[15]] = [2] * len(
+            self.generators_dict[index_list[0]]
+        )
+        self.generators_dict[index_list[16]] = [60] * len(
             self.generators_dict[index_list[0]]
         )
         # for gen in owned_gen_list:
@@ -396,6 +400,17 @@ class CreateRTSCase(object):
         storage_dict[index_list[7]] = 2
 
         self.df_to_csv(filename, storage_dict)
+
+    def storage_two(
+        self, filename, capacity_scalar=1, duration_scalar=1, busID=313, RTEff=1.0
+    ):
+        storage_dict = {}
+        index_list = ["Storage_Two_Index", "DischargeTwo"]
+        # size_scalar*
+        storage_dict[index_list[0]] = ["one", "two"]
+        # print(storage_dict[index_list[0]])
+        storage_dict[index_list[1]] = [100, 200]
+        self.dict_to_csv(filename, storage_dict, index=["Storage_Two_Index"])
 
     def init_gens(self, filename):
         d = {}
@@ -900,6 +915,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             busID=storage_bus,
             RTEff=RTEfficiency,
         )  # size_scalar=0
+        case.storage_two("storage_two_resources")
         case.init_gens("initialize_generators")
         case.scheduled_gens("generators_scheduled_availability")
         case.timepoints("timepoints_index")
