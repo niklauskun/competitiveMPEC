@@ -533,6 +533,15 @@ dispatch_model.dispatch = Expression(
 )  # implement GeneratorDispatchRule
 
 
+def GeneratorPminRule(model, t, g):
+    return model.dispatch[t, g] * model.commitment[t, g] * model.pmin[g]
+
+
+# dispatch_model.gpmin = Expression(
+#    dispatch.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorPminRule
+# )
+
+
 def AvailableSegmentCapacityExpr(model, t, g, gs):
     return (
         model.generator_segment_length[t, g, gs]
