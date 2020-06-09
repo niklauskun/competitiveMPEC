@@ -266,10 +266,9 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[2]] = self.gen_data[
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["$/MWH"].values
-        # defaults for now
-        self.generators_dict[index_list[3]] = [0] * len(
-            self.generators_dict[index_list[0]]
-        )
+        self.generators_dict[index_list[3]] = self.gen_data[
+            self.gen_data["Unit Type"].isin(self.gentypes)
+        ]["PMin MW"].values
         self.generators_dict[index_list[4]] = [0] * len(
             self.generators_dict[index_list[0]]
         )

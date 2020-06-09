@@ -560,8 +560,8 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     index_name = []
     results_time = []
     storage_dispatch = []
-    # storage_charge = []
-    # storage_discharge = []
+    storage_charge = []
+    storage_discharge = []
     soc = []
     storage_offer = []
     storage_max_dual = []
@@ -573,8 +573,8 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         for s in storage_set:
             index_name.append(s)
             results_time.append(t)
-            # storage_charge.append(format_6f(instance.charge[t,s].value))
-            # storage_discharge.append(format_6f(instance.discharge[t,s].value))
+            storage_charge.append(format_6f(instance.charge[t, s].value))
+            storage_discharge.append(format_6f(instance.discharge[t, s].value))
             storage_dispatch.append(format_6f(instance.storagedispatch[t, s].value))
             soc.append(format_6f(instance.soc[t, s].value))
             storage_offer.append(format_6f(instance.storageoffer[t, s].value))
@@ -599,6 +599,8 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     profit = [float(c) * float(price) for c, price in zip(storage_dispatch, lmp)]
     col_names = [
         "time",
+        "charge",
+        "discharge",
         "dispatch",
         "soc",
         "offer",
@@ -612,6 +614,8 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         data=np.column_stack(
             (
                 np.asarray(results_time),
+                np.asarray(storage_charge),
+                np.asarray(storage_discharge),
                 np.asarray(storage_dispatch),
                 np.asarray(soc),
                 np.asarray(storage_offer),

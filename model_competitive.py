@@ -380,9 +380,10 @@ dispatch_model.soc = Var(
     initialize=0,
 )
 
-dispatch_model.storagebool = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Boolean, initialize=0
-)
+# should now be inactive because storage is linearized
+# dispatch_model.storagebool = Var(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Boolean, initialize=0
+# )
 
 dispatch_model.storagedispatch = Var(
     dispatch_model.TIMEPOINTS,
@@ -532,6 +533,15 @@ dispatch_model.dispatch = Expression(
 )  # implement GeneratorDispatchRule
 
 
+def GeneratorPminRule(model, t, g):
+    return model.dispatch[t, g] * model.commitment[t, g] * model.pmin[g]
+
+
+# dispatch_model.gpmin = Expression(
+#    dispatch.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorPminRule
+# )
+
+
 def AvailableSegmentCapacityExpr(model, t, g, gs):
     return (
         model.generator_segment_length[t, g, gs]
@@ -579,7 +589,7 @@ def StorageDischargeRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    return model.discharge_max[s] * model.storagebool[t, s] >= model.discharge[t, s]
+    return model.discharge_max[s] >= model.discharge[t, s]
     # return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
 
 
@@ -596,13 +606,26 @@ def StorageChargeRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    return model.charge_max[s] * (1 - model.storagebool[t, s]) >= model.charge[t, s]
+    return model.charge_max[s] >= model.charge[t, s]
     # return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
 
 
 dispatch_model.StorageChargeConstraint = Constraint(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageChargeRule
 )  # implements StorageChargeConstraint
+
+
+def StorageTightRule(model, t, s):
+    return (
+        model.charge_max[s] * model.discharge_max[s]
+        >= model.charge_max[s] * model.discharge[t, s]
+        + model.discharge_max[s] * model.charge[t, s]
+    )
+
+
+dispatch_model.StorageTightConstraint = Constraint(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageTightRule
+)
 
 
 def StorageDispatchRule(model, t, s):
@@ -1202,8 +1225,7 @@ def BindMaxStorageComplementarity(model, t, s):
         s {str} -- storage index
     """
     return complements(
-        model.discharge_max[s] * model.storagebool[t, s] - model.storagedispatch[t, s]
-        >= 0,
+        model.discharge_max[s] - model.storagedispatch[t, s] >= 0,
         model.storagemaxdual[t, s] >= 0,
     )
 
@@ -1226,9 +1248,7 @@ def BindMinStorageComplementarity(model, t, s):
         s {str} -- storage index
     """
     return complements(
-        model.charge_max[s] * (1 - model.storagebool[t, s])
-        + model.storagedispatch[t, s]
-        >= 0,
+        model.charge_max[s] + model.storagedispatch[t, s] >= 0,
         model.storagemindual[t, s] >= 0,
     )
 
