@@ -262,9 +262,11 @@ class CreateAndRunScenario(object):
 
         else:
             self.solution_type = "LP"
-            self.solution = self.solve(self.solution_type)  # solve MIP with commitment
-            self.instance.storagebool.fix()  # relaxes to lp after mip solve if needed
-            self.solution = self.solve(self.solution_type)
+            self.solution = self.solve(
+                self.solution_type
+            )  # solve LP, storage dispatch now linearized
+            # self.instance.storagebool.fix()  # relaxes to lp after mip solve if needed
+            # self.solution = self.solve(self.solution_type)
 
         # export results to csvs
         write_results_competitive.export_results(

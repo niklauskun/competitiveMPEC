@@ -69,9 +69,6 @@ dispatch_model.GENERATORSEGMENTS = Set(ordered=True)
 # storage resources
 dispatch_model.STORAGE = Set(ordered=True)
 
-# storage two resources
-dispatch_model.STORAGETWO = Set(ordered=True)
-
 # case indexing, needed for changing ownership index in EPEC
 dispatch_model.CASE = Set(ordered=True)
 
@@ -130,7 +127,6 @@ dispatch_model.zonelabel = Param(dispatch_model.GENERATORS, within=dispatch_mode
 dispatch_model.genco_index = Param(
     dispatch_model.GENERATORS, within=NonNegativeIntegers, mutable=True
 )
-dispatch_model.highCO2price = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 
 # storage-indexed params (will be subset from other generators)
 dispatch_model.discharge_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
@@ -142,9 +138,6 @@ dispatch_model.storage_zone_label = Param(
     dispatch_model.STORAGE, within=dispatch_model.ZONES
 )
 dispatch_model.storage_index = Param(dispatch_model.STORAGE, within=NonNegativeIntegers)
-
-#storage-two indexed params()
-dispatch_model.discharge_two = Param(dispatch_model.STORAGETWO, within=NonNegativeReals)
 
 # generator-indexed initialization params
 # shouldn't be needed for current cases, but I used them in an old model that had commitment to pass
@@ -380,9 +373,10 @@ dispatch_model.soc = Var(
     initialize=0,
 )
 
-dispatch_model.storagebool = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Boolean, initialize=0
-)
+# should now be inactive because storage is linearized
+# dispatch_model.storagebool = Var(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Boolean, initialize=0
+# )
 
 dispatch_model.storagedispatch = Var(
     dispatch_model.TIMEPOINTS,
@@ -579,7 +573,7 @@ def StorageDischargeRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    return model.discharge_max[s] * model.storagebool[t, s] >= model.discharge[t, s]
+    return model.discharge_max[s] >= model.discharge[t, s]
     # return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
 
 
@@ -596,13 +590,26 @@ def StorageChargeRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    return model.charge_max[s] * (1 - model.storagebool[t, s]) >= model.charge[t, s]
+    return model.charge_max[s] >= model.charge[t, s]
     # return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
 
 
 dispatch_model.StorageChargeConstraint = Constraint(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageChargeRule
 )  # implements StorageChargeConstraint
+
+
+def StorageTightRule(model, t, s):
+    return (
+        model.charge_max[s] * model.discharge_max[s]
+        >= model.charge_max[s] * model.discharge[t, s]
+        + model.discharge_max[s] * model.charge[t, s]
+    )
+
+
+dispatch_model.StorageTightConstraint = Constraint(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageTightRule
+)
 
 
 def StorageDispatchRule(model, t, s):
@@ -1202,8 +1209,7 @@ def BindMaxStorageComplementarity(model, t, s):
         s {str} -- storage index
     """
     return complements(
-        model.discharge_max[s] * model.storagebool[t, s] - model.storagedispatch[t, s]
-        >= 0,
+        model.discharge_max[s] - model.storagedispatch[t, s] >= 0,
         model.storagemaxdual[t, s] >= 0,
     )
 
@@ -1226,9 +1232,7 @@ def BindMinStorageComplementarity(model, t, s):
         s {str} -- storage index
     """
     return complements(
-        model.charge_max[s] * (1 - model.storagebool[t, s])
-        + model.storagedispatch[t, s]
-        >= 0,
+        model.charge_max[s] + model.storagedispatch[t, s] >= 0,
         model.storagemindual[t, s] >= 0,
     )
 
