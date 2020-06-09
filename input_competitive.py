@@ -41,6 +41,7 @@ def scenario_inputs(inputs_directory):
             model_competitive.dispatch_model.CO2dollarsperMWh,
             model_competitive.dispatch_model.zonelabel,
             model_competitive.dispatch_model.genco_index,
+            model_competitive.dispatch_model.highCO2price,
         ),
     )
 
@@ -56,6 +57,12 @@ def scenario_inputs(inputs_directory):
             model_competitive.dispatch_model.storage_zone_label,
             model_competitive.dispatch_model.storage_index,
         ),
+    )
+
+    data.load(
+        filename=os.path.join(inputs_directory, "storage_two_resources.csv"),
+        index=model_competitive.dispatch_model.STORAGETWO,
+        param=(model_competitive.dispatch_model.discharge_two),
     )
 
     data.load(
