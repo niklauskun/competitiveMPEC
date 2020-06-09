@@ -69,9 +69,6 @@ dispatch_model.GENERATORSEGMENTS = Set(ordered=True)
 # storage resources
 dispatch_model.STORAGE = Set(ordered=True)
 
-# storage two resources
-dispatch_model.STORAGETWO = Set(ordered=True)
-
 # case indexing, needed for changing ownership index in EPEC
 dispatch_model.CASE = Set(ordered=True)
 
@@ -130,7 +127,6 @@ dispatch_model.zonelabel = Param(dispatch_model.GENERATORS, within=dispatch_mode
 dispatch_model.genco_index = Param(
     dispatch_model.GENERATORS, within=NonNegativeIntegers, mutable=True
 )
-dispatch_model.highCO2price = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 
 # storage-indexed params (will be subset from other generators)
 dispatch_model.discharge_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
@@ -142,9 +138,6 @@ dispatch_model.storage_zone_label = Param(
     dispatch_model.STORAGE, within=dispatch_model.ZONES
 )
 dispatch_model.storage_index = Param(dispatch_model.STORAGE, within=NonNegativeIntegers)
-
-#storage-two indexed params()
-dispatch_model.discharge_two = Param(dispatch_model.STORAGETWO, within=NonNegativeReals)
 
 # generator-indexed initialization params
 # shouldn't be needed for current cases, but I used them in an old model that had commitment to pass
