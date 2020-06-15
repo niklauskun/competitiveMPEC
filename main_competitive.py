@@ -32,7 +32,7 @@ start_time = time.time()
 cwd = os.getcwd()
 
 ### GENERAL INPUTS ###
-case_folder = "Desktop\\competitiveMPEC\\test"  # andWind309
+case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-03-2019"  # end date is exclusive
