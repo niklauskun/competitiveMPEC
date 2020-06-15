@@ -1222,6 +1222,32 @@ dispatch_model.MinTransmissionComplementarity = Complementarity(
 )  # implements MinTransmissionComplementarity
 
 
+def BindMaxVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle_max[z] - model.voltage_angle[t, z] >= 0,
+        model.voltageanglemaxdual[t, z] >= 0,
+    )
+
+
+dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
+
+def BindMinVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle[t, z] - model.voltage_angle_min[z]>= 0,
+        model.voltageanglemindual[t, z] >= 0,
+    )
+
+
+dispatch_model.MinVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
+
 def BindMaxStorageComplementarity(model, t, s):
     """ Storage discharge is either (1) at its max, or (2) dual is zero (or both)
     Upshot: storagemaxdual can only be nonzero when storage discharge is at its max
