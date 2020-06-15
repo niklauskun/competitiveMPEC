@@ -73,6 +73,82 @@ dispatch_model.STORAGE = Set(ordered=True)
 dispatch_model.CASE = Set(ordered=True)
 
 ###########################
+# ###### SUBSETS ####### #
+###########################
+
+
+def strategic_gens_init(model):
+    """Subsets generators owned by strategic agent
+
+    Arguments:
+        model {Pyomo model} -- the Pyomo model instance
+
+    Returns:
+        the subset of generators owned by the strategic agent in the case
+    """
+    strategic_gens = list()
+    for c in model.CASE:
+        for g in model.GENERATORS:
+            if model.genco_index[g] == model.genco[c]:
+                strategic_gens.append(g)
+    return strategic_gens
+
+
+dispatch_model.STRATEGIC_GENERATORS = Set(
+    within=dispatch_model.GENERATORS, initialize=strategic_gens_init
+)  # implements strategic_gens_init()
+
+
+def non_strategic_gens_init(model):
+    """Subsets generators NOT owned by strategic agent
+
+    Arguments:
+        model {Pyomo model} -- the Pyomo model instance
+
+    Returns:
+        the subset of generators NOT owned by the strategic agent in the case
+    """
+    non_strategic_gens = list()
+    for c in model.CASE:
+        for g in model.GENERATORS:
+            if model.genco_index[g] != model.genco[c]:
+                non_strategic_gens.append(g)
+    return non_strategic_gens
+
+
+dispatch_model.NON_STRATEGIC_GENERATORS = Set(
+    within=dispatch_model.GENERATORS, initialize=non_strategic_gens_init
+)  # implements non_strategic_gens_init()
+
+
+def strategic_storage_init(model):
+    strategic_storage = list()
+    for c in model.CASE:
+        for s in model.STORAGE:
+            if model.storage_index[s] == model.genco[c]:
+                strategic_storage.append(s)
+    return strategic_storage
+
+
+dispatch_model.STRATEGIC_STORAGE = Set(
+    within=dispatch_model.STORAGE, initialize=strategic_storage_init
+)  # implements strategic_storage_init()
+
+
+def non_strategic_storage_init(model):
+    non_strategic_storage = list()
+    for c in model.CASE:
+        for s in model.STORAGE:
+            if model.storage_index[s] != model.genco[c]:
+                non_strategic_storage.append(s)
+    return non_strategic_storage
+
+
+dispatch_model.NON_STRATEGIC_STORAGE = Set(
+    within=dispatch_model.STORAGE, initialize=non_strategic_storage_init
+)  # implements non_strategic_storage_init()
+
+###########################
 # ####### PARAMS ######## #
 ###########################
 
@@ -83,21 +159,11 @@ dispatch_model.CASE = Set(ordered=True)
 dispatch_model.gross_load = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=NonNegativeReals
 )
-dispatch_model.wind_cf = Param(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=NonNegativeReals
-)
-dispatch_model.solar_cf = Param(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=NonNegativeReals
-)
 
 # timepoint-indexed params
 dispatch_model.reference_bus = Param(
     dispatch_model.TIMEPOINTS, within=dispatch_model.ZONES
 )
-dispatch_model.reg_up_mw = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
-dispatch_model.reg_down_mw = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
-dispatch_model.flex_up_mw = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
-dispatch_model.flex_down_mw = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
 
 # zone-indexed params
 dispatch_model.wind_cap = Param(dispatch_model.ZONES, within=NonNegativeReals)
@@ -222,83 +288,6 @@ dispatch_model.CO2_damage = Param(
 
 # genco integer for the case. Defines which generators are owned by agent and bid competitively.
 dispatch_model.genco = Param(dispatch_model.CASE, within=NonNegativeIntegers)
-
-###########################
-# ###### SUBSETS ####### #
-###########################
-
-
-def strategic_gens_init(model):
-    """Subsets generators owned by strategic agent
-
-    Arguments:
-        model {Pyomo model} -- the Pyomo model instance
-
-    Returns:
-        the subset of generators owned by the strategic agent in the case
-    """
-    strategic_gens = list()
-    for c in model.CASE:
-        for g in model.GENERATORS:
-            if model.genco_index[g] == model.genco[c]:
-                strategic_gens.append(g)
-    return strategic_gens
-
-
-dispatch_model.STRATEGIC_GENERATORS = Set(
-    within=dispatch_model.GENERATORS, initialize=strategic_gens_init
-)  # implements strategic_gens_init()
-
-
-def non_strategic_gens_init(model):
-    """Subsets generators NOT owned by strategic agent
-
-    Arguments:
-        model {Pyomo model} -- the Pyomo model instance
-
-    Returns:
-        the subset of generators NOT owned by the strategic agent in the case
-    """
-    non_strategic_gens = list()
-    for c in model.CASE:
-        for g in model.GENERATORS:
-            if model.genco_index[g] != model.genco[c]:
-                non_strategic_gens.append(g)
-    return non_strategic_gens
-
-
-dispatch_model.NON_STRATEGIC_GENERATORS = Set(
-    within=dispatch_model.GENERATORS, initialize=non_strategic_gens_init
-)  # implements non_strategic_gens_init()
-
-
-def strategic_storage_init(model):
-    strategic_storage = list()
-    for c in model.CASE:
-        for s in model.STORAGE:
-            if model.storage_index[s] == model.genco[c]:
-                strategic_storage.append(s)
-    return strategic_storage
-
-
-dispatch_model.STRATEGIC_STORAGE = Set(
-    within=dispatch_model.STORAGE, initialize=strategic_storage_init
-)  # implements strategic_storage_init()
-
-
-def non_strategic_storage_init(model):
-    non_strategic_storage = list()
-    for c in model.CASE:
-        for s in model.STORAGE:
-            if model.storage_index[s] != model.genco[c]:
-                non_strategic_storage.append(s)
-    return non_strategic_storage
-
-
-dispatch_model.NON_STRATEGIC_STORAGE = Set(
-    within=dispatch_model.STORAGE, initialize=non_strategic_storage_init
-)  # implements non_strategic_storage_init()
-
 
 ###########################
 # ######## VARS ######### #
