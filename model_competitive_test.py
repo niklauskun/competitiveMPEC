@@ -166,29 +166,17 @@ dispatch_model.reference_bus = Param(
 )
 
 # zone-indexed params
-dispatch_model.wind_cap = Param(dispatch_model.ZONES, within=NonNegativeReals)
-dispatch_model.solar_cap = Param(dispatch_model.ZONES, within=NonNegativeReals)
 dispatch_model.voltage_angle_max = Param(dispatch_model.ZONES, within=NonNegativeReals)
 dispatch_model.voltage_angle_min = Param(dispatch_model.ZONES, within=Reals)
 
 # generator-indexed params
 dispatch_model.capacity = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.fuelcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.pmin = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.startcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.canspin = Param(dispatch_model.GENERATORS, within=Binary)
-dispatch_model.cannonspin = Param(dispatch_model.GENERATORS, within=Binary)
-dispatch_model.minup = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
-dispatch_model.mindown = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
+#dispatch_model.minup = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
+#dispatch_model.mindown = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
 dispatch_model.noloadcost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.ramp = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.tonneCO2perMWh = Param(
-    dispatch_model.GENERATORS, within=NonNegativeReals
-)
-dispatch_model.CO2price = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.CO2dollarsperMWh = Param(
-    dispatch_model.GENERATORS, within=NonNegativeReals
-)
 dispatch_model.zonelabel = Param(dispatch_model.GENERATORS, within=dispatch_model.ZONES)
 dispatch_model.genco_index = Param(
     dispatch_model.GENERATORS, within=NonNegativeIntegers, mutable=True
@@ -204,13 +192,6 @@ dispatch_model.storage_zone_label = Param(
     dispatch_model.STORAGE, within=dispatch_model.ZONES
 )
 dispatch_model.storage_index = Param(dispatch_model.STORAGE, within=NonNegativeIntegers)
-
-# generator-indexed initialization params
-# shouldn't be needed for current cases, but I used them in an old model that had commitment to pass
-# previous day commitment decisions into case initialization
-dispatch_model.commitinit = Param(dispatch_model.GENERATORS, within=Binary)
-dispatch_model.upinit = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
-dispatch_model.downinit = Param(dispatch_model.GENERATORS, within=NonNegativeIntegers)
 
 # time and zone-indexed params
 dispatch_model.scheduled_available = Param(
@@ -245,9 +226,9 @@ dispatch_model.transmission_from_capacity = Param(
 dispatch_model.transmission_to_capacity = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=Reals
 )
-dispatch_model.hurdle_rate = Param(
-    dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=NonNegativeReals
-)
+#dispatch_model.hurdle_rate = Param(
+#    dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, within=NonNegativeReals
+#)
 
 # generator segment indexed params
 dispatch_model.base_generator_segment_length = Param(
@@ -273,18 +254,6 @@ dispatch_model.previous_offer = Param(
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
 )
-dispatch_model.marginal_CO2 = Param(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATORS,
-    dispatch_model.GENERATORSEGMENTS,
-    within=NonNegativeReals,
-)
-dispatch_model.CO2_damage = Param(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATORS,
-    dispatch_model.GENERATORSEGMENTS,
-    within=NonNegativeReals,
-)
 
 # genco integer for the case. Defines which generators are owned by agent and bid competitively.
 dispatch_model.genco = Param(dispatch_model.CASE, within=NonNegativeIntegers)
@@ -302,27 +271,6 @@ dispatch_model.segmentdispatch = Var(
     within=NonNegativeReals,
     initialize=0,
     bounds=(0, 1000),
-)
-
-dispatch_model.windgen = Var(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.ZONES,
-    within=NonNegativeReals,
-    initialize=0,
-)
-
-dispatch_model.solargen = Var(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.ZONES,
-    within=NonNegativeReals,
-    initialize=0,
-)
-
-dispatch_model.curtailment = Var(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.ZONES,
-    within=NonNegativeReals,
-    initialize=0,
 )
 
 dispatch_model.transmit_power_MW = Var(
@@ -462,28 +410,77 @@ dispatch_model.storagemindual = Var(
 dispatch_model.rampmaxdual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.GENERATORS,
-    within=NonNegativeReals,
+    within=(0, 1000),
     initialize=0,
 )
 
 dispatch_model.rampmindual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.GENERATORS,
-    within=NonNegativeReals,
+    within=(0, 1000),
     initialize=0,
 )
 
-dispatch_model.curtailmentdual = Var(
+dispatch_model.voltageanglemaxdual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    within=NonNegativeReals,
+    within=(0, 1000),
     initialize=0,
 )
 
-dispatch_model.winddual = Var(
+dispatch_model.voltageanglemindual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    within=NonNegativeReals,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.storagetightdual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.chargedual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.dischargedual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.onecycledual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.gendispatchmaxdual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.GENERATOR,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.gendispatchmindual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.GENERATOR,
+    within=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.startupshutdowndual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.GENERATOR,
+    within=(0, 1000),
     initialize=0,
 )
 
@@ -505,7 +502,6 @@ dispatch_model.storageoffer = Var(
 ###########################
 # build additional params or variables we'd like to record based on other param or variable values
 
-
 def GeneratorDispatchRule(model, t, g):
     return sum(model.segmentdispatch[t, g, gs] for gs in model.GENERATORSEGMENTS)
 
@@ -516,7 +512,7 @@ dispatch_model.dispatch = Expression(
 
 
 def GeneratorPminRule(model, t, g):
-    return model.dispatch[t, g] * model.commitment[t, g] * model.pmin[g]
+    return model.capacity_time[t, g] * model.commitment[t, g] * model.pmin[g] * model.scheduled_available[t, g]
 
 
 # dispatch_model.gpmin = Expression(
@@ -539,65 +535,25 @@ dispatch_model.availablesegmentcapacity = Expression(
     rule=AvailableSegmentCapacityExpr,
 )  # implement AvailableSegmentCapacityExpr()
 
-
-def CO2EmittedExpr(model, t, g, gs):
-    return model.segmentdispatch[t, g, gs] * model.marginal_CO2[t, g, gs]
-
-
-dispatch_model.CO2_emissions = Expression(
-    dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATORS,
-    dispatch_model.GENERATORSEGMENTS,
-    rule=CO2EmittedExpr,
-)  # implement CO2EmittedExpr
-
 ###########################
 # ##### CONSTRAINTS ##### #
 ###########################
 
 ## RENEWABLES CONSTRAINTS ##
-# No special renewables constraints anymore. They're implemented as generators.
-# This does mean unlike in the old model, curtailment isn't recorded
+# No special renewables constraints. They're implemented as generators.
 
 ## STORAGE CONSTRAINTS ##
 # additional constraints applied only to storage resources
 
 
-def StorageDischargeRule(model, t, s):
-    """If storage is discharging, amount must be less than max discharge capacity
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        s {str} -- storage resource index
-    """
-    return model.discharge_max[s] >= model.discharge[t, s]
-    # return model.discharge_max[s]*model.storagebool[t,s] >= model.storagedispatch[t,s]
-
-
-dispatch_model.StorageDischargeConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageDischargeRule
-)  # implements StorageDischargeConstraint
-
-
-def StorageChargeRule(model, t, s):
-    """If storage is charging, amount must be less than max charge capacity
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        s {str} -- storage resource index
-    """
-    return model.charge_max[s] >= model.charge[t, s]
-    # return model.storagedispatch[t,s] >= -model.charge_max[s]*(1-model.storagebool[t,s])
-
-
-dispatch_model.StorageChargeConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageChargeRule
-)  # implements StorageChargeConstraint
-
-
 def StorageTightRule(model, t, s):
+    """Combine storage charge and discharge capacity limits into one, limit the possibility of charge and discharge happens simutaneously.
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        s {str} -- storage resource index
+    """
     return (
         model.charge_max[s] * model.discharge_max[s]
         >= model.charge_max[s] * model.discharge[t, s]
@@ -608,22 +564,6 @@ def StorageTightRule(model, t, s):
 dispatch_model.StorageTightConstraint = Constraint(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageTightRule
 )
-
-
-def StorageDispatchRule(model, t, s):
-    """Storage must be either charging or discharging in dispatch, not both
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        s {str} -- storage resource index
-    """
-    return model.storagedispatch[t, s] == model.discharge[t, s] - model.charge[t, s]
-
-
-dispatch_model.StorageDispatchConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageDispatchRule
-)  # implements StorageDispatchConstraint
 
 
 def SOCChangeRule(model, t, s):
@@ -864,7 +804,7 @@ dispatch_model.LoadConstraint = Constraint(
 ## CONVENTIONAL GENERATORS CONSTRAINTS ##
 
 # gen capacity with scheduled outage factored in: INACTIVE
-def CapacityMaxRule(model, t, g, z):
+def CapacityMaxRule(model, t, g):
     """ Generator dispatch cannot exceed (available) capacity
     this is actually disabled by defaul right now since it's implement by bid segment
     update docstring if enabled
@@ -873,18 +813,17 @@ def CapacityMaxRule(model, t, g, z):
         model -- Pyomo model
         t {int} -- timepoint index
         g {str} -- generator index
-        z {int} -- bus index (z by convention holdover from old zonal model)
     """
     return (
-        model.capacity[g] * model.commitment[t, g] * model.scheduled_available[t, g]
-        >= model.dispatch[t, g, z]
+        model.capacity_time[t,g] * model.commitment[t, g] * model.scheduled_available[t, g]
+        >= model.dispatch[t, g]
     )
 
 
 # dispatch_model.CapacityMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=CapacityMaxRule)
 
 # pmin: INACTIVE
-def PminRule(model, t, g, z):
+def CapacityMinRule(model, t, g):
     """ Generator dispatch must be above minimum stable level if generator is dispatched
     this is actually disabled by default right now since I linearized this version of the model
     update docstring if enabled
@@ -893,18 +832,14 @@ def PminRule(model, t, g, z):
         model -- Pyomo model
         t {int} -- timepoint index
         g {str} -- generator index
-        z {int} -- bus index (z by convention holdover from old zonal model)
     """
     return (
-        model.dispatch[t, g, z]
-        >= model.capacity[g]
-        * model.commitment[t, g]
-        * model.scheduled_available[t, g]
-        * model.pmin[g]
+        model.dispatch[t, g]
+        >= model.gpmin[t,g]
     )
 
 
-# dispatch_model.PminConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=PminRule)
+# dispatch_model.PminConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, dispatch_model.ZONES, rule=CapacityMinRule)
 
 ### GENERATOR SEGMENT DISPATCH ###
 # basically I reimplemented most generator constraints segment-wise, below
@@ -948,8 +883,8 @@ def GeneratorRampUpRule(model, t, g):
         return Constraint.Skip
     else:
         return (
-            model.dispatch[t - 1, g] + model.ramp[g] * model.commitment[t - 1, g]
-            >= model.dispatch[t, g]
+            model.dispatch[t - 1, g] - model.gpmin[t - 1, g] + model.ramp[g] * model.commitment[t - 1, g]
+            >= model.dispatch[t, g] - model.gpmin[t, g]
         )
 
 
@@ -969,10 +904,27 @@ def GeneratorRampDownRule(model, t, g):
     if t == 1:
         return Constraint.Skip
     else:
-        return model.dispatch[t, g] >= model.dispatch[t - 1, g] - model.ramp[g]
+        return model.dispatch[t, g] - model.gpmin[t, g] >= model.dispatch[t - 1, g] - model.gpmin[t - 1, g] - model.ramp[g] * model.commitment[t, g]
 
 
 # dispatch_model.GeneratorRampDownConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorRampDownRule)
+
+
+## GENERATOR STARTUP/SHUTDOWN ##
+def GeneratorStartupShutdownRule(model, t, g):
+    """ Generator segment dispatch cannot exceed (available) capacity on segment
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        g {str} -- generator index
+        gs {int} -- generator segment index
+    """
+    return model.commitment[t, g] - model.commitment[t - 1, g] == model.startup[t, g] - model.shutdown[t, g]
+
+
+# dispatch_model.GeneratorSegmentMaxConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorStartupShutdownRule)
+
 
 
 ### DUAL CONSTRAINTS ###
@@ -993,6 +945,10 @@ def BindGeneratorOfferDual(model, t, g, gs):
         model.gensegmentoffer[t, g, gs]
         + model.gensegmentmaxdual[t, g, gs]
         - model.gensegmentmindual[t, g, gs]
+        + model.gendispatchmaxdual[t, g, gs]
+        - model.gendispatchmindual[t, g, gs]
+        + model.rampmaxdual[t, g]
+        - model.rampmindual[t, g]
         - model.zonalprice[t, model.zonelabel[g]]
         == 0
     )
@@ -1007,7 +963,7 @@ dispatch_model.GeneratorOfferDualConstraint = Constraint(
 )  # implements GeneratorOfferDualConstraint
 
 
-def BindStorageOfferDual(model, t, s):
+def BindStorageDischargeDual(model, t, s):
     """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
 
     Arguments:
@@ -1017,43 +973,68 @@ def BindStorageOfferDual(model, t, s):
     """
     return (
         model.storageoffer[t, s]
-        + model.storagemaxdual[t, s]
-        - model.storagemindual[t, s]
+        + model.charge_max[s] * model.storagetightdual[t, s]
+        - model.dischargedual[t, s]
+        - model.discharge_eff[s] * model.storagemaxdual[t, s]
+        + model.discharge_eff[s] * model.storagemindual[t, s]
+        + model.onecycledual[s]
         - model.zonalprice[t, model.storage_zone_label[s]]
         == 0
     )
 
 
-dispatch_model.StorageOfferDualConstraint = Constraint(
+dispatch_model.StorageDischargeDualConstraint = Constraint(
     dispatch_model.TIMEPOINTS,
     dispatch_model.STORAGE,
-    rule=BindStorageOfferDual,
-    name="StorageOfferDual",
-)  # implements StorageOfferDualConstraint
+    rule=BindStorageDischargeDual,
+    name="StorageDischargeDual",
+)  
 
-
-def BindRampOfferDual(model, t, g, gs):
-    """ Duals associated with generator ramp max, min, and load balance constraints equal offer
-    INACTIVE right now, since ramp constraints are left unimplemented. Update docstring if activated.
+def BindStorageChargeDual(model, t, s):
+    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
 
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
-        g {str} -- generator index
-        gs {int} -- generator segment index
+        s {str} -- storage index
     """
     return (
-        model.gensegmentoffer[t, g, gs]
-        + model.rampmaxdual[t, g]
-        - model.rampmindual[t, g]
-        - model.zonalprice[t, model.zonelabel[g]]
+        model.discharge_max[s] * model.storagetightdual[t, s]
+        - model.chargedual[t, s]
+        + model.charge_eff[s] * model.storagemaxdual[t, s]
+        - model.charge_eff[s] * model.storagemindual[t, s]
+        + model.zonalprice[t, model.storage_zone_label[s]]
         == 0
     )
 
 
-# dispatch_model.RampOfferDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
-#                                                    rule=BindRampOfferDual)
+dispatch_model.StorageChargeDualConstraint = Constraint(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=BindStorageChargeDual,
+    name="StorageChargeDual",
+)  
 
+
+def BindStartupDual(model, t, g):
+    return (
+        model.startcost[g] - model.startupshutdowndual[t, g]
+    )
+
+
+# dispatch_model.StartupDualConstraint = Constraint(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
+#                                                    rule=StartupDual)
+
+
+def BindComittmentDual(model,t,g):
+    return(
+        model.noloadcost[g] 
+        - model.scheduled_available[t, g] * model.capacity_time[t, g] * model. gendispatchmaxdual[t, g]
+        - model.scheduled_available[t, g] * model.capacity_time[t, g] * model. gendispatchmindual[t, g] * model.pmin[g]
+        - model.startupshutdowndual[t, g]
+        - (model.ramp[g] + model.pmin[g] * model.scheduled_available[t, g] * model.capacity_time[t, g]) * model.rampmaxdual[t, g]
+        - (model.ramp[g] - model.pmin[g] * model.scheduled_available[t, g] * model.capacity_time[t, g]) * model.rampmindual[t, g]
+    )
 
 def BindFlowDual(model, t, z):
     """ Duals associated with transmission min and max flows equals different between 
@@ -1073,8 +1054,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_from[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual += model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,model.transmission_to[t,line]]
+            mindual += model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,model.transmission_to[t,line]]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
 
@@ -1082,8 +1063,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_to[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual -= model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,model.transmission_from[t,line]]
+            mindual -= model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,model.transmission_from[t,line]]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
     # if t==8 and z==1:
@@ -1196,6 +1177,33 @@ dispatch_model.MinTransmissionComplementarity = Complementarity(
     rule=BindMinTransmissionComplementarity,
 )  # implements MinTransmissionComplementarity
 
+
+def BindMaxVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle_max[z] - model.voltage_angle[t, z] >= 0,
+        model.voltageanglemaxdual[t, z] >= 0,
+    )
+
+
+dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
+
+
+def BindMinVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle[t, z] - model.voltage_angle_min[z]>= 0,
+        model.voltageanglemindual[t, z] >= 0,
+    )
+
+
+dispatch_model.MinVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
 
 def BindMaxStorageComplementarity(model, t, s):
     """ Storage discharge is either (1) at its max, or (2) dual is zero (or both)
@@ -1397,13 +1405,6 @@ def MarketPriceCap(model, t, z):
 dispatch_model.ZonalPriceConstraint = Constraint(
     dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=MarketPriceCap
 )
-
-
-## GENERATOR STARTUP/SHUTDOWN ##
-
-# I had some old code here that implemented binary unit commitment for a previous project
-# but since we'll linearize anyway I just deleted it
-# let me know if it'd be useful to see it
 
 ###########################
 # ###### OBJECTIVES ##### #
