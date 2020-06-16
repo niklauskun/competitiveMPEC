@@ -498,6 +498,20 @@ dispatch_model.winddual = Var(
     initialize=0,
 )
 
+dispatch_model.voltageanglemaxdual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    within=NonNegativeReals,
+    initialize=0,
+)
+
+dispatch_model.voltageanglemindual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    within=NonNegativeReals,
+    initialize=0,
+)
+
 # offer-related variables (since generators no longer just offer at marginal cost)
 dispatch_model.gensegmentoffer = Var(
     dispatch_model.TIMEPOINTS,
@@ -1084,8 +1098,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_from[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual += model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual += model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
 
@@ -1093,8 +1107,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_to[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual -= model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual -= model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
     # if t==8 and z==1:
@@ -1207,6 +1221,32 @@ dispatch_model.MinTransmissionComplementarity = Complementarity(
     rule=BindMinTransmissionComplementarity,
 )  # implements MinTransmissionComplementarity
 
+
+def BindMaxVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle_max[z] - model.voltage_angle[t, z] >= 0,
+        model.voltageanglemaxdual[t, z] >= 0,
+    )
+
+
+dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
+
+def BindMinVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle[t, z] - model.voltage_angle_min[z]>= 0,
+        model.voltageanglemindual[t, z] >= 0,
+    )
+
+
+dispatch_model.MinVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxTransmissionComplementarity,
+) 
 
 def BindMaxStorageComplementarity(model, t, s):
     """ Storage discharge is either (1) at its max, or (2) dual is zero (or both)

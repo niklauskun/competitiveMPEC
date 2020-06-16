@@ -32,7 +32,7 @@ start_time = time.time()
 cwd = os.getcwd()
 
 ### GENERAL INPUTS ###
-case_folder = "Desktop\\competitiveMPEC\\test"  # andWind309
+case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-03-2019"  # end date is exclusive
@@ -41,7 +41,7 @@ EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 
 ### OPTIONAL SOLVER INPUTS ###
-executable_path = ""  # if you wish to specify cplex.exe path
+executable_path = "C:\\Program Files\\IBM\\ILOG\\CPLEX_Studio1210\\cplex\\bin\\x64_win64\\cplex.exe"  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "mip_tolerances_mipgap": 0.01,
