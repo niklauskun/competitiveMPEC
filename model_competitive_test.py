@@ -465,21 +465,21 @@ dispatch_model.onecycledual = Var(
 
 dispatch_model.gendispatchmaxdual = Var(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATOR,
+    dispatch_model.GENERATORS,
     within=(0, 1000),
     initialize=0,
 )
 
 dispatch_model.gendispatchmindual = Var(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATOR,
+    dispatch_model.GENERATORS,
     within=(0, 1000),
     initialize=0,
 )
 
 dispatch_model.startupshutdowndual = Var(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATOR,
+    dispatch_model.GENERATORS,
     within=(0, 1000),
     initialize=0,
 )
@@ -1049,13 +1049,13 @@ def BindFlowDual(model, t, z):
     mindual = 0
     lmp_delta = 0
     for line in model.TRANSMISSION_LINE:
-
+    
         if model.transmission_to[t, line] == z:
             sink_zone = model.transmission_from[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,model.transmission_to[t,line]]
-            mindual += model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,model.transmission_to[t,line]]
+            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual += model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
 
@@ -1063,8 +1063,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_to[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,model.transmission_from[t,line]]
-            mindual -= model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,model.transmission_from[t,line]]
+            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual -= model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
     # if t==8 and z==1:
@@ -1082,55 +1082,87 @@ dispatch_model.FlowDualConstraint = Constraint(
 # this ends up properly constraining the dual variables, though you may prefer to understand it in math
 
 
-def BindMaxDispatchComplementarity(model, t, g, gs):
-    """ Generator segment dispatch is either (1) at its max,
-    or (2) the dual variable associated with max segment dispatch is zero.
-    Or both can be equalities
-    Upshot: gensegmentmaxdual can only be nonzero when generator segment is dispatch to its max
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        g {str} -- generator index
-        gs {int} -- generator segment index
-    """
+def BindStorageTightComplementarity(model,t,s):
     return complements(
-        model.availablesegmentcapacity[t, g, gs] - model.segmentdispatch[t, g, gs] >= 0,
-        model.gensegmentmaxdual[t, g, gs] >= 0,
+        model.discharge_max[s] * model.charge_max[s] - model.discharge_max[s] * model.charge[t, s] - model.charge_max[s] * model.discharge[t,s] >= 0,
+        model.storagetightdual[t, s] >= 0,
     )
 
 
-dispatch_model.MaxDispatchComplementarity = Complementarity(
+dispatch_model.StorageTightComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATORS,
-    dispatch_model.GENERATORSEGMENTS,
-    rule=BindMaxDispatchComplementarity,
-)  # implements MaxDispatchComplementarity
+    dispatch_model.STORAGE,
+    rule=BindStorageTightComplementarity,
+)
 
 
-def BindMinDispatchComplementarity(model, t, g, gs):
-    """ Generator segment dispatch is either (1) at its min,
-    or (2) the dual variable associated with min segment dispatch is zero.
-    Or both can be equalities
-    Upshot: gensegmentmindual can only be nonzero when generator segment is dispatched to its min (i.e., 0)
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        g {str} -- generator index
-        gs {int} -- generator segment index
-    """
+def BindStorageChargeComplementarity(model, t, s):
     return complements(
-        model.segmentdispatch[t, g, gs] >= 0, model.gensegmentmindual[t, g, gs] >= 0
+        model.charge[t, s] >= 0,
+        model.chargedual[t, s] >= 0,
     )
 
 
-dispatch_model.MinDispatchComplementarity = Complementarity(
+dispatch_model.StorageChargeComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.GENERATORS,
-    dispatch_model.GENERATORSEGMENTS,
-    rule=BindMinDispatchComplementarity,
-)  # implements MinDispatchComplementarity
+    dispatch_model.STORAGE,
+    rule=BindStorageChargeComplementarity,
+)
+
+
+def BindStorageDischargeComplementarity(model, t, s):
+    return complements(
+        model.discharge[t, s] >= 0,
+        model.dischargedual[t, s] >= 0,
+    )
+
+
+dispatch_model.StorageDischargeComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=BindStorageDischargeComplementarity,
+)
+
+
+def BindMaxStorageComplementarity(model, t, s):
+    return complements(
+        model.soc_max[s] - model.soc[t, s] >= 0,
+        model.storagemaxdual[t, s] >= 0,
+    )
+
+
+dispatch_model.MaxStorageComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=BindMaxStorageComplementarity,
+) 
+
+
+def BindMinStorageComplementarity(model, t, s):
+    return complements(
+        model.soc[t, s] >= 0,
+        model.storagemindual[t, s] >= 0,
+    )
+
+
+dispatch_model.MinStorageComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=BindMinStorageComplementarity,
+) 
+
+
+def BindOneCycleComplementarity(model, s):
+    return complements(
+        model.soc_max[s] - sum(model.discharge[t,s] for t in model.TIMEPOINTS) >= 0,
+        model.onecycledual[s] >= 0,
+    )
+
+
+dispatch_model.OneCycleComplementarity = Complementarity(
+    dispatch_model.STORAGE,
+    rule=BindOneCycleComplementarity,
+) 
 
 
 def BindMaxTransmissionComplementarity(model, t, line):
@@ -1188,7 +1220,7 @@ def BindMaxVoltageAngleComplementarity(model, t, z):
 dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    rule=BindMaxTransmissionComplementarity,
+    rule=BindMaxVoltageAngleComplementarity,
 ) 
 
 
@@ -1202,52 +1234,59 @@ def BindMinVoltageAngleComplementarity(model, t, z):
 dispatch_model.MinVoltageAngleComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    rule=BindMaxTransmissionComplementarity,
+    rule=BindMinVoltageAngleComplementarity,
 ) 
 
-def BindMaxStorageComplementarity(model, t, s):
-    """ Storage discharge is either (1) at its max, or (2) dual is zero (or both)
-    Upshot: storagemaxdual can only be nonzero when storage discharge is at its max
+
+def BindMaxDispatchComplementarity(model, t, g, gs):
+    """ Generator segment dispatch is either (1) at its max,
+    or (2) the dual variable associated with max segment dispatch is zero.
+    Or both can be equalities
+    Upshot: gensegmentmaxdual can only be nonzero when generator segment is dispatch to its max
 
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
-        s {str} -- storage index
+        g {str} -- generator index
+        gs {int} -- generator segment index
     """
     return complements(
-        model.discharge_max[s] - model.storagedispatch[t, s] >= 0,
-        model.storagemaxdual[t, s] >= 0,
+        model.availablesegmentcapacity[t, g, gs] - model.segmentdispatch[t, g, gs] >= 0,
+        model.gensegmentmaxdual[t, g, gs] >= 0,
     )
 
 
-dispatch_model.MaxStorageComplementarity = Complementarity(
+dispatch_model.MaxDispatchComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.STORAGE,
-    rule=BindMaxStorageComplementarity,
-)  # implements MaxStorageComplementarity
+    dispatch_model.GENERATORS,
+    dispatch_model.GENERATORSEGMENTS,
+    rule=BindMaxDispatchComplementarity,
+)  # implements MaxDispatchComplementarity
 
 
-def BindMinStorageComplementarity(model, t, s):
-    """ Storage charge is either (1) at its max, or (2) dual is zero (or both)
-    (note charge is negative dispatch)
-    Upshot: storagemindual can only be nonzero when storage charge is at its max
+def BindMinDispatchComplementarity(model, t, g, gs):
+    """ Generator segment dispatch is either (1) at its min,
+    or (2) the dual variable associated with min segment dispatch is zero.
+    Or both can be equalities
+    Upshot: gensegmentmindual can only be nonzero when generator segment is dispatched to its min (i.e., 0)
 
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
-        s {str} -- storage index
+        g {str} -- generator index
+        gs {int} -- generator segment index
     """
     return complements(
-        model.charge_max[s] + model.storagedispatch[t, s] >= 0,
-        model.storagemindual[t, s] >= 0,
+        model.segmentdispatch[t, g, gs] >= 0, model.gensegmentmindual[t, g, gs] >= 0
     )
 
 
-dispatch_model.MinStorageComplementarity = Complementarity(
+dispatch_model.MinDispatchComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
-    dispatch_model.STORAGE,
-    rule=BindMinStorageComplementarity,
-)  # implements MinStorageComplementarity
+    dispatch_model.GENERATORS,
+    dispatch_model.GENERATORSEGMENTS,
+    rule=BindMinDispatchComplementarity,
+)  # implements MinDispatchComplementarity
 
 
 def BindMaxRampComplementarity(model, t, g):

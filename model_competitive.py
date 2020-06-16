@@ -501,14 +501,14 @@ dispatch_model.winddual = Var(
 dispatch_model.voltageanglemaxdual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    within=NonNegativeReals,
+    bounds=(0, 1000),
     initialize=0,
 )
 
 dispatch_model.voltageanglemindual = Var(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    within=NonNegativeReals,
+    bounds=(0, 1000),
     initialize=0,
 )
 
@@ -1232,7 +1232,7 @@ def BindMaxVoltageAngleComplementarity(model, t, z):
 dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    rule=BindMaxTransmissionComplementarity,
+    rule=BindMaxVoltageAngleComplementarity,
 ) 
 
 def BindMinVoltageAngleComplementarity(model, t, z):
@@ -1245,7 +1245,7 @@ def BindMinVoltageAngleComplementarity(model, t, z):
 dispatch_model.MinVoltageAngleComplementarity = Complementarity(
     dispatch_model.TIMEPOINTS,
     dispatch_model.ZONES,
-    rule=BindMaxTransmissionComplementarity,
+    rule=BindMinVoltageAngleComplementarity,
 ) 
 
 def BindMaxStorageComplementarity(model, t, s):

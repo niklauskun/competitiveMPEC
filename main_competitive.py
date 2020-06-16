@@ -16,8 +16,8 @@ import sys
 import datetime
 
 # import other scripts
-import input_competitive  # DataPortal for loading data from csvs into Pyomo model
-import model_competitive  # the actual Pyomo model formulation
+import input_competitive_test  # DataPortal for loading data from csvs into Pyomo model
+import model_competitive_test  # the actual Pyomo model formulation
 import write_results_competitive  # writes model outputs to csvs
 
 # import utility functions
