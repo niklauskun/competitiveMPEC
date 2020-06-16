@@ -345,7 +345,7 @@ dispatch_model.transmit_power_MW = Var(
 )
 
 dispatch_model.voltage_angle = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0
+    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0, bounds=(-1000, 1000),
 )
 
 # resource specific vars
