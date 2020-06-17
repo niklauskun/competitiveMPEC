@@ -1529,7 +1529,7 @@ def objective_rule2(model):
             for g in model.GENERATORS
         )
         for gs in model.GENERATORSEGMENTS
-    )
+    ) 
     # DESCRIPTION OF OBJECTIVE
     # (1) dispatch cost
 

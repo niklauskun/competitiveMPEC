@@ -22,11 +22,11 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyutilib.services import TempfileManager
 from pyomo.environ import Suffix, TransformationFactory
-from pyomo.gdp import bigm
+from pyomo.gdp import *
 from pyomo.opt import SolverFactory
 
-import input_competitive
-import model_competitive
+import input_competitive_test
+import model_competitive_test
 import write_results_competitive
 
 
@@ -113,7 +113,7 @@ class CreateAndRunScenario(object):
 
         # Get model, load data, and solve
         print("Reading model...")
-        self.model = model_competitive.dispatch_model
+        self.model = model_competitive_test.dispatch_model
         print("...model read.")
 
         print("creating competitive generators file...")
@@ -123,7 +123,7 @@ class CreateAndRunScenario(object):
         print("...competitive generators recorded.")
 
         print("Loading data...")
-        self.data = input_competitive.scenario_inputs(self.scenario_inputs_directory)
+        self.data = input_competitive_test.scenario_inputs(self.scenario_inputs_directory)
         print("..data read.")
 
         print("Compiling instance...")
