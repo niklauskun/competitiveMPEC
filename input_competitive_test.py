@@ -41,6 +41,7 @@ def scenario_inputs(inputs_directory):
             model_competitive_test.dispatch_model.CO2dollarsperMWh,
             model_competitive_test.dispatch_model.zonelabel,
             model_competitive_test.dispatch_model.genco_index,
+            model_competitive_test.dispatch_model.uc_index,
         ),
     )
 
@@ -147,7 +148,10 @@ def scenario_inputs(inputs_directory):
     data.load(
         filename=os.path.join(inputs_directory, "case_index.csv"),
         index=model_competitive_test.dispatch_model.CASE,
-        param=(model_competitive_test.dispatch_model.genco),
+        param=(
+            model_competitive_test.dispatch_model.genco,
+            model_competitive_test.dispatch_model.uc,
+            ),
     )
 
     return data

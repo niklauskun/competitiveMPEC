@@ -84,6 +84,7 @@ class CreateAndRunScenario(object):
         is_MPEC,
         genco_index,
         overwritten_offers,
+        uc_index,
         *args,
         **kwargs
     ):
@@ -94,8 +95,8 @@ class CreateAndRunScenario(object):
         self.load_init = load_init
         self.is_MPEC = is_MPEC
         self.genco_index = genco_index
+        self.uc_index = uc_index
         self.overwritten_offers = overwritten_offers
-
         self.args = args
         # unpack kwargs, which should be only CPLEX params and a warmstart_flag
         self.cplex_params = {}
@@ -118,7 +119,7 @@ class CreateAndRunScenario(object):
 
         print("creating competitive generators file...")
         pd.DataFrame(
-            data=[self.genco_index], columns=["genco"], index=pd.Index(["index"])
+            data=[self.genco_index, self.genco_index], columns=["genco", "ucgen"], index=pd.Index(["index", "index"])
         ).to_csv(os.path.join(self.scenario_inputs_directory, "case_index.csv"))
         print("...competitive generators recorded.")
 
