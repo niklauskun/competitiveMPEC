@@ -35,7 +35,7 @@ cwd = os.getcwd()
 case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
-end_date = "01-03-2019"  # end date is exclusive
+end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -118,11 +118,11 @@ for counter, s in enumerate(scenario_list):
     if EPEC:
         print("EPEC not currently enabled, so exiting")
         break
-    scenario_name, load_init, load_dir, genco_index = (
+    scenario_name, load_init, load_dir, genco_index= (
         s[0],
         s[1],  # this and the next one are only needed for initializing a case based on
         s[2],  # a previous day. Don't worry about this for now
-        s[3],  # this is only needed for EPEC
+        s[3],  # this is only needed for EPEC,
     )
 
     # run the case, as usual
@@ -152,6 +152,7 @@ for counter, s in enumerate(scenario_list):
         load_init,
         MPEC,
         genco_index,
+        uc_index,
         overwritten_offers,
         *deactivated_constraint_args,
         **solver_kwargs
