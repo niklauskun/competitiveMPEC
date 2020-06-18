@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jan 22 08:49:32 2020
-
 @author: Luke
 """
 
@@ -230,10 +229,8 @@ dispatch_model.genco = Param(dispatch_model.CASE, within=NonNegativeIntegers)
 
 def strategic_gens_init(model):
     """Subsets generators owned by strategic agent
-
     Arguments:
         model {Pyomo model} -- the Pyomo model instance
-
     Returns:
         the subset of generators owned by the strategic agent in the case
     """
@@ -252,10 +249,8 @@ dispatch_model.STRATEGIC_GENERATORS = Set(
 
 def non_strategic_gens_init(model):
     """Subsets generators NOT owned by strategic agent
-
     Arguments:
         model {Pyomo model} -- the Pyomo model instance
-
     Returns:
         the subset of generators NOT owned by the strategic agent in the case
     """
@@ -345,7 +340,7 @@ dispatch_model.transmit_power_MW = Var(
 )
 
 dispatch_model.voltage_angle = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0
+    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0, bounds=(-1000, 1000),
 )
 
 # resource specific vars
@@ -498,6 +493,20 @@ dispatch_model.winddual = Var(
     initialize=0,
 )
 
+dispatch_model.voltageanglemaxdual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    bounds=(0, 1000),
+    initialize=0,
+)
+
+dispatch_model.voltageanglemindual = Var(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    bounds=(0, 1000),
+    initialize=0,
+)
+
 # offer-related variables (since generators no longer just offer at marginal cost)
 dispatch_model.gensegmentoffer = Var(
     dispatch_model.TIMEPOINTS,
@@ -576,7 +585,6 @@ dispatch_model.CO2_emissions = Expression(
 
 def StorageDischargeRule(model, t, s):
     """If storage is discharging, amount must be less than max discharge capacity
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -593,7 +601,6 @@ dispatch_model.StorageDischargeConstraint = Constraint(
 
 def StorageChargeRule(model, t, s):
     """If storage is charging, amount must be less than max charge capacity
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -623,7 +630,6 @@ dispatch_model.StorageTightConstraint = Constraint(
 
 def StorageDispatchRule(model, t, s):
     """Storage must be either charging or discharging in dispatch, not both
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -640,7 +646,6 @@ dispatch_model.StorageDispatchConstraint = Constraint(
 def SOCChangeRule(model, t, s):
     """State of charge of storage changes based on dispatch
     this is where we should add roundtrip efficiency param when implemented
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -670,7 +675,6 @@ dispatch_model.SOCChangeConstraint = Constraint(
 
 def SOCMaxRule(model, t, s):
     """Storage state of charge cannot exceed its max state of charge
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -687,7 +691,6 @@ dispatch_model.SOCMaxConstraint = Constraint(
 def BindFinalSOCRule(model, s):
     """Storage state of charge in final timestep must be equal to user-defined final SOC value
     I've input this to be 0 for now. This will at least make each day symmetric (0 initial and final SOC)
-
     Arguments:
         model -- Pyomo model
         s {str} -- storage resource index
@@ -716,7 +719,6 @@ dispatch_model.OneCycleConstraint = Constraint(
 def TxFromRule(model, t, line):
     """Real power flow on line must be greater than from capacity
     (note from capacity is negative by convention in the model
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -733,7 +735,6 @@ dispatch_model.TxFromConstraint = Constraint(
 def TxToRule(model, t, line):
     """Real power flow on line must be less than to capacity
     (note to capacity is positive by convention in the model
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -752,7 +753,6 @@ dispatch_model.TxToConstraint = Constraint(
 
 def VoltageAngleMaxRule(model, t, z):
     """Bus voltage angle must be less than max bus voltage angle
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -768,7 +768,6 @@ dispatch_model.VoltageAngleMaxConstraint = Constraint(
 
 def VoltageAngleMinRule(model, t, z):
     """Bus voltage angle must be greater than min bus voltage angle
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -787,7 +786,6 @@ dispatch_model.VoltageAngleMinConstraint = Constraint(
 # then set the reference bus
 def SetReferenceBusRule(model, t, z):
     """Binds voltage angle of the system reference bus to be 0
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -811,7 +809,6 @@ dispatch_model.SetReferenceBusConstraint = Constraint(
 
 def DCOPFRule(model, t, line):
     """Power flow defined by angle between buses and line susceptance
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -879,7 +876,6 @@ def CapacityMaxRule(model, t, g, z):
     """ Generator dispatch cannot exceed (available) capacity
     this is actually disabled by defaul right now since it's implement by bid segment
     update docstring if enabled
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -899,7 +895,6 @@ def PminRule(model, t, g, z):
     """ Generator dispatch must be above minimum stable level if generator is dispatched
     this is actually disabled by default right now since I linearized this version of the model
     update docstring if enabled
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -924,7 +919,6 @@ def PminRule(model, t, g, z):
 # max on segment
 def GeneratorSegmentDispatchMax(model, t, g, gs):
     """ Generator segment dispatch cannot exceed (available) capacity on segment
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -949,7 +943,6 @@ def GeneratorRampUpRule(model, t, g):
     """ Increase in generator dispatch between timepoints cannot exceed upward ramp rate
     Note this isn't implemented in the first timepoint, so any initialization is allowed
     There are a couple ways around this, one of the more common/simple is looping the day back on itself
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -971,7 +964,6 @@ def GeneratorRampDownRule(model, t, g):
     """ Decrease in generator dispatch between timepoints cannot exceed downward ramp rate
     Note this isn't implemented in the first timepoint, so any initialization is allowed
     There are a couple ways around this, one of the more common/simple is looping the day back on itself
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -993,7 +985,6 @@ def GeneratorRampDownRule(model, t, g):
 def BindGeneratorOfferDual(model, t, g, gs):
     """ Duals associated with generator max, min, and load balance constraints equal offer
     If you want to read a paper on reformulating using strong duality, let me know
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1020,7 +1011,6 @@ dispatch_model.GeneratorOfferDualConstraint = Constraint(
 
 def BindStorageOfferDual(model, t, s):
     """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1046,7 +1036,6 @@ dispatch_model.StorageOfferDualConstraint = Constraint(
 def BindRampOfferDual(model, t, g, gs):
     """ Duals associated with generator ramp max, min, and load balance constraints equal offer
     INACTIVE right now, since ramp constraints are left unimplemented. Update docstring if activated.
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1069,7 +1058,6 @@ def BindRampOfferDual(model, t, g, gs):
 def BindFlowDual(model, t, z):
     """ Duals associated with transmission min and max flows equals different between 
     prices at the buses connected by the transmission line.
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1084,8 +1072,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_from[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual += model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual += model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual += model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
 
@@ -1093,8 +1081,8 @@ def BindFlowDual(model, t, z):
             sink_zone = model.transmission_to[t, line]
             # if t==1:
             #    print(sink_zone)
-            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line]
-            mindual -= model.susceptance[line] * model.transmissionmindual[t, line]
+            maxdual -= model.susceptance[line] * model.transmissionmaxdual[t, line] + model.voltageanglemaxdual[t,z]
+            mindual -= model.susceptance[line] * model.transmissionmindual[t, line] + model.voltageanglemindual[t,z]
             lmp_delta += model.susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.susceptance[line] * model.zonalprice[t, sink_zone]
     # if t==8 and z==1:
@@ -1117,7 +1105,6 @@ def BindMaxDispatchComplementarity(model, t, g, gs):
     or (2) the dual variable associated with max segment dispatch is zero.
     Or both can be equalities
     Upshot: gensegmentmaxdual can only be nonzero when generator segment is dispatch to its max
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1143,7 +1130,6 @@ def BindMinDispatchComplementarity(model, t, g, gs):
     or (2) the dual variable associated with min segment dispatch is zero.
     Or both can be equalities
     Upshot: gensegmentmindual can only be nonzero when generator segment is dispatched to its min (i.e., 0)
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1166,7 +1152,6 @@ dispatch_model.MinDispatchComplementarity = Complementarity(
 def BindMaxTransmissionComplementarity(model, t, line):
     """ Transmission line power flow is either (1) at its max, or (2) dual is zero (or both)
     Upshot: transmissionmaxdual can only be nonzero when line flow is at its max
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1188,7 +1173,6 @@ dispatch_model.MaxTransmissionComplementarity = Complementarity(
 def BindMinTransmissionComplementarity(model, t, line):
     """ Transmission line power flow is either (1) at its min, or (2) min dual is zero (or both)
     Upshot: transmissionmindual can only be nonzero when line flow is at its min (max in from/negative direction)
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1208,10 +1192,35 @@ dispatch_model.MinTransmissionComplementarity = Complementarity(
 )  # implements MinTransmissionComplementarity
 
 
+def BindMaxVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle_max[z] - model.voltage_angle[t, z] >= 0,
+        model.voltageanglemaxdual[t, z] >= 0,
+    )
+
+
+dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMaxVoltageAngleComplementarity,
+) 
+
+def BindMinVoltageAngleComplementarity(model, t, z):
+    return complements(
+        model.voltage_angle[t, z] - model.voltage_angle_min[z]>= 0,
+        model.voltageanglemindual[t, z] >= 0,
+    )
+
+
+dispatch_model.MinVoltageAngleComplementarity = Complementarity(
+    dispatch_model.TIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindMinVoltageAngleComplementarity,
+) 
+
 def BindMaxStorageComplementarity(model, t, s):
     """ Storage discharge is either (1) at its max, or (2) dual is zero (or both)
     Upshot: storagemaxdual can only be nonzero when storage discharge is at its max
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1234,7 +1243,6 @@ def BindMinStorageComplementarity(model, t, s):
     """ Storage charge is either (1) at its max, or (2) dual is zero (or both)
     (note charge is negative dispatch)
     Upshot: storagemindual can only be nonzero when storage charge is at its max
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1257,7 +1265,6 @@ def BindMaxRampComplementarity(model, t, g):
     """ Generator ramp is either (1) at its max, or (2) dual is zero (or both)
     Upshot: rampmaxdual can only be nonzero when generator ramp is at its max
     INACTIVE: update docstring if activated
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1281,8 +1288,7 @@ def BindMinRampComplementarity(model, t, g):
     if t == 1:
         return Complementarity.Skip
     else:
-        return complements()
-
+        return Complementarity.Skip
 
 # dispatch_model.MinRampComplementarity = Complementarity(dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS,
 #                                                        rule=BindMinRampComplementarity)
@@ -1296,7 +1302,6 @@ def IncreasingOfferCurve(model, t, g, gs):
     """ Enforces that each segment is offered at greater or equal to the cost of the previous segments
     For marginal costs convexity should enforce this inherently, but it's not guaranteed when you 
     allow generators to submit arbitrary bids. It is a market rule, though, so may as well put it in
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1326,7 +1331,6 @@ dispatch_model.IncreasingOfferCurveConstraint = Constraint(
 def OfferCap(model, t, g, gs):
     """ To keep problem from running away, I cap strategic generators to offer at 2x their cost for now
     This is arbitrary and could be dropped, particularly because I also implement a market price cap
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1348,7 +1352,6 @@ def OfferCap2(model, t, g, gs):
     """ This only ends up really mattering for iterated cases (EPEC), but it caps offer at cost
     for non-competitive generators. In iterated cases it's important the "previous offer"
     be updated to reflect each genco's behavior, making this a bit more complicated.
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1372,7 +1375,6 @@ def OfferMin(model, t, g, gs):
     """ Generators must offer at least at cost. This probably doesn't matter much but 
     I didn't want any kind of weird outcomes where generators offer under cost to get a 
     "deal" for their storage assets, as this would be difficult to pull off. 
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1396,7 +1398,6 @@ def MarketPriceCap(model, t, z):
     """ Caps bus price at $2000/MWh. This is about where the energy price cap is in most RTOs
     other than ERCOT under normal operations without scarcity adders. The purpose here is just
     to avoid cases that are unbounded above, even if constraints on generator bids are removed.
-
     Arguments:
         model -- Pyomo model
         t {int} -- timepoint index
@@ -1427,7 +1428,6 @@ dispatch_model.ZonalPriceConstraint = Constraint(
 
 def objective_rule(model):
     """Old unit commitment system operator objective (includes no-load and start-up cost)
-
     Arguments:
         model  -- Pyomo model
     """
@@ -1464,7 +1464,6 @@ dispatch_model.TotalCost = Objective(rule=objective_rule, sense=minimize)
 
 def objective_rule2(model):
     """system operator dispatch-only objective (considers only marginal cost of generators)
-
     Arguments:
         model  -- Pyomo model
     """
@@ -1489,7 +1488,7 @@ def objective_rule2(model):
             for g in model.GENERATORS
         )
         for gs in model.GENERATORSEGMENTS
-    )
+    ) 
     # DESCRIPTION OF OBJECTIVE
     # (1) dispatch cost
 
@@ -1500,7 +1499,6 @@ dispatch_model.TotalCost2 = Objective(rule=objective_rule2, sense=minimize)
 def objective_profit(model):
     """Simple objective I wrote to look at generator profits as only objective for model vetting
     Not currently used in any cases
-
     Arguments:
         model  -- Pyomo model
     """
@@ -1525,7 +1523,6 @@ dispatch_model.GeneratorProfit = Objective(rule=objective_profit, sense=maximize
 
 def objective_profit_dual(model):
     """Full objective for MPEC reformulated as MIP using BigM
-
     Arguments:
         model  -- Pyomo model
     """
@@ -1604,7 +1601,6 @@ def objective_profit_dual_pre(model):
     for the first term in the objective (involving gensegmentmaxdual). This just forces
     all generators to be considered non-competitive for purposes of the objective
     which makes an easier problem to solve as only storage resources can bid competitively
-
     Arguments:
         model  -- Pyomo model
     """

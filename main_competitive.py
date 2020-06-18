@@ -16,8 +16,8 @@ import sys
 import datetime
 
 # import other scripts
-import input_competitive  # DataPortal for loading data from csvs into Pyomo model
-import model_competitive  # the actual Pyomo model formulation
+import input_competitive_test  # DataPortal for loading data from csvs into Pyomo model
+import model_competitive_test  # the actual Pyomo model formulation
 import write_results_competitive  # writes model outputs to csvs
 
 # import utility functions
@@ -35,8 +35,8 @@ cwd = os.getcwd()
 case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
-end_date = "01-03-2019"  # end date is exclusive
-MPEC = False  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+end_date = "01-02-2019"  # end date is exclusive
+MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 
