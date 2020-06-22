@@ -22,11 +22,11 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyutilib.services import TempfileManager
 from pyomo.environ import Suffix, TransformationFactory
-from pyomo.gdp import bigm
+from pyomo.gdp import *
 from pyomo.opt import SolverFactory
 
-import input_competitive
-import model_competitive
+import input_competitive_test
+import model_competitive_test
 import write_results_competitive
 
 
@@ -84,6 +84,7 @@ class CreateAndRunScenario(object):
         is_MPEC,
         genco_index,
         overwritten_offers,
+        uc_index,
         *args,
         **kwargs
     ):
@@ -94,8 +95,8 @@ class CreateAndRunScenario(object):
         self.load_init = load_init
         self.is_MPEC = is_MPEC
         self.genco_index = genco_index
+        self.uc_index = uc_index
         self.overwritten_offers = overwritten_offers
-
         self.args = args
         # unpack kwargs, which should be only CPLEX params and a warmstart_flag
         self.cplex_params = {}
@@ -113,17 +114,17 @@ class CreateAndRunScenario(object):
 
         # Get model, load data, and solve
         print("Reading model...")
-        self.model = model_competitive.dispatch_model
+        self.model = model_competitive_test.dispatch_model
         print("...model read.")
 
         print("creating competitive generators file...")
         pd.DataFrame(
-            data=[self.genco_index], columns=["genco"], index=pd.Index(["index"])
+            data=[self.genco_index, self.genco_index], columns=["genco", "ucgen"], index=pd.Index(["index", "index"])
         ).to_csv(os.path.join(self.scenario_inputs_directory, "case_index.csv"))
         print("...competitive generators recorded.")
 
         print("Loading data...")
-        self.data = input_competitive.scenario_inputs(self.scenario_inputs_directory)
+        self.data = input_competitive_test.scenario_inputs(self.scenario_inputs_directory)
         print("..data read.")
 
         print("Compiling instance...")

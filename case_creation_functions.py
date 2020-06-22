@@ -195,13 +195,18 @@ class CreateRTSCase(object):
         warnings.warn('No member "%s" contained in settings config.' % name)
         return ""
 
-    def dict_to_csv(self, filename, mydict, index=["Gen_Index"], owned_gens=False):
+    def dict_to_csv(self, filename, mydict, index=["Gen_Index"], owned_gens=False, nuc_gens=False):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(index, inplace=True)
         if owned_gens:
             for gen in self.owned_gen_list:
                 df.at[
                     gen, "GencoIndex"
+                ] = 1  # overwrite to make owned by competitive agent when applicable
+        if nuc_gens:
+            for gen in self.nuc_gen_list:
+                df.at[
+                    gen, "UCIndex"
                 ] = 1  # overwrite to make owned by competitive agent when applicable
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
@@ -215,16 +220,17 @@ class CreateRTSCase(object):
         )
 
     def create_index(self):
-        case_index_df = pd.DataFrame({"genco": [1], "": ["index"]})
+        case_index_df = pd.DataFrame({"ucgen": [1], "genco": [1], "": ["index"]})
         case_index_df.set_index([""], inplace=True)
         case_index_df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, "case_index.csv")
         )
 
-    def generators(self, filename, owned_gen_list=[], retained_bus_list=[]):
+    def generators(self, filename, owned_gen_list=[], nuc_gen_list=[], retained_bus_list=[]):
 
         self.generators_dict = {}
         self.owned_gen_list = owned_gen_list
+        self.nuc_gen_list = nuc_gen_list
         index_list = [
             "Gen_Index",
             "Capacity",
@@ -242,6 +248,7 @@ class CreateRTSCase(object):
             "CO2dollarsperMWh",
             "ZoneLabel",
             "GencoIndex",
+            "UCIndex",
         ]
         if retained_bus_list == []:
             pass  # print("default")
@@ -265,9 +272,12 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[2]] = self.gen_data[
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["$/MWH"].values
-        self.generators_dict[index_list[3]] = self.gen_data[
-            self.gen_data["Unit Type"].isin(self.gentypes)
-        ]["PMin MW"].values
+        self.generators_dict[index_list[3]] = [0] * len(
+            self.generators_dict[index_list[0]]
+        )
+        #self.generators_dict[index_list[3]] = self.gen_data[
+        #    self.gen_data["Unit Type"].isin(self.gentypes)
+        #]["PMin MW"].values
         self.generators_dict[index_list[4]] = [0] * len(
             self.generators_dict[index_list[0]]
         )
@@ -319,9 +329,12 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[15]] = [2] * len(
             self.generators_dict[index_list[0]]
         )
+        self.generators_dict[index_list[16]] = [2] * len(
+            self.generators_dict[index_list[0]]
+        )
         # for gen in owned_gen_list:
 
-        self.dict_to_csv(filename, self.generators_dict, owned_gens=True)
+        self.dict_to_csv(filename, self.generators_dict, owned_gens=True, nuc_gens=True)
 
     def generators_descriptive(self, filename):
         d = {}
@@ -839,6 +852,49 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             "CSP",
         ]
     try:
+        nuc_gens = kwargs["nonucgentypes_included"]
+    except KeyError:
+        print("NOTE: no nonucgentype_included, included ucgentypes based on default behavior")
+        nuc_gens = [
+            "320_PV_1",
+        "314_PV_1",
+        "314_PV_2",
+        "313_PV_1",
+        "314_PV_3",
+        "314_PV_4",
+        "313_PV_2",
+        "310_PV_1",
+        "324_PV_1",
+        "312_PV_1",
+        "310_PV_2",
+        "324_PV_2",
+        "324_PV_3",
+        "319_PV_1",
+        "308_RTPV_1",
+        "313_RTPV_1",
+        "313_RTPV_2",
+        "313_RTPV_3",
+        "313_RTPV_4",
+        "313_RTPV_5",
+        "313_RTPV_6",
+        "313_RTPV_7",
+        "313_RTPV_8",
+        "313_RTPV_9",
+        "313_RTPV_10",
+        "313_RTPV_11",
+        "313_RTPV_12",
+        "320_RTPV_1",
+        "320_RTPV_2",
+        "320_RTPV_3",
+        "313_RTPV_13",
+        "320_RTPV_4",
+        "320_RTPV_5",
+        "320_RTPV_6",
+        "309_WIND_1",
+        "317_WIND_1",
+        "303_WIND_1",
+        ]
+    try:
         owned_gens = kwargs["owned_gens"]  #'309_WIND_1'
     except KeyError:
         print("NOTE: no owned_gens, default behavior is for agent to only own storage")
@@ -890,7 +946,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         case.create_index()
 
         case.generators(
-            "generators", owned_gen_list=owned_gens, retained_bus_list=retained_bus
+            "generators", owned_gen_list=owned_gens, nuc_gen_list= nuc_gens, retained_bus_list=retained_bus
         )
         case.generators_descriptive("generators_descriptive")
         case.storage(
