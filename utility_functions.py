@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyutilib.services import TempfileManager
 from pyomo.environ import Suffix, TransformationFactory
-from pyomo.gdp import *
+from pyomo.gdp import bigm
 from pyomo.opt import SolverFactory
 
 import input_competitive_test
@@ -84,7 +84,6 @@ class CreateAndRunScenario(object):
         is_MPEC,
         genco_index,
         overwritten_offers,
-        uc_index,
         *args,
         **kwargs
     ):
@@ -95,8 +94,8 @@ class CreateAndRunScenario(object):
         self.load_init = load_init
         self.is_MPEC = is_MPEC
         self.genco_index = genco_index
-        self.uc_index = uc_index
         self.overwritten_offers = overwritten_offers
+
         self.args = args
         # unpack kwargs, which should be only CPLEX params and a warmstart_flag
         self.cplex_params = {}
@@ -119,12 +118,14 @@ class CreateAndRunScenario(object):
 
         print("creating competitive generators file...")
         pd.DataFrame(
-            data=[self.genco_index, self.genco_index], columns=["genco", "ucgen"], index=pd.Index(["index", "index"])
+            data=[self.genco_index], columns=["genco"], index=pd.Index(["index"])
         ).to_csv(os.path.join(self.scenario_inputs_directory, "case_index.csv"))
         print("...competitive generators recorded.")
 
         print("Loading data...")
-        self.data = input_competitive_test.scenario_inputs(self.scenario_inputs_directory)
+        self.data = input_competitive_test.scenario_inputs(
+            self.scenario_inputs_directory
+        )
         print("..data read.")
 
         print("Compiling instance...")
@@ -194,9 +195,9 @@ class CreateAndRunScenario(object):
 
         print("Solving...")
 
-        if mip_iter > 1:
-            for k, v in self.cplex_params.items():
-                solver.options[k] = v  # update solver options for warm-started solve
+        # if mip_iter > 1:
+        for k, v in self.cplex_params.items():
+            solver.options[k] = v  # update solver options for warm-started solve
         # to keep human-readable files for debugging, set keepfiles = True
 
         try:
