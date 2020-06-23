@@ -123,7 +123,9 @@ class CreateAndRunScenario(object):
         print("...competitive generators recorded.")
 
         print("Loading data...")
-        self.data = input_competitive_test.scenario_inputs(self.scenario_inputs_directory)
+        self.data = input_competitive_test.scenario_inputs(
+            self.scenario_inputs_directory
+        )
         print("..data read.")
 
         print("Compiling instance...")
@@ -193,9 +195,9 @@ class CreateAndRunScenario(object):
 
         print("Solving...")
 
-        if mip_iter > 1:
-            for k, v in self.cplex_params.items():
-                solver.options[k] = v  # update solver options for warm-started solve
+        # if mip_iter > 1:
+        for k, v in self.cplex_params.items():
+            solver.options[k] = v  # update solver options for warm-started solve
         # to keep human-readable files for debugging, set keepfiles = True
 
         try:

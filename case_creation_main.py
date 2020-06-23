@@ -19,9 +19,9 @@ from case_creation_functions import write_RTS_case
 
 # create a file structure object, "f"
 f = DirStructure(
-    "C:\\Users\\wenmi\\Desktop",
+    "C:\\Users\\llavin\\Desktop",
     RTS_folder="RTS-GMLC-master",
-    MPEC_folder="competitiveMPEC",
+    MPEC_folder="competitiveMPECNik",
 )  # the first arg should be the local directory you put NREL-RTS in
 # the second should be what you named the NREL-RTS folder (what I've input is default behavior)
 # the third is whatever you named the folder where you put the MPEC code
@@ -36,7 +36,7 @@ kw_dict = data_class.define_constants(kw_dict)
 # inputs for running
 start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
-    "01-03-2019", "%m-%d-%Y"
+    "02-08-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
 folder_out = "test"  # name of folder to write the case to
 
@@ -51,7 +51,6 @@ optional_args = {
         "CC",
         "NUCLEAR",
         "HYDRO",
-        "SYNC_COND",
         "RTPV",
         "WIND",
         "PV",

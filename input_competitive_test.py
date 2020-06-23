@@ -41,6 +41,7 @@ def scenario_inputs(inputs_directory):
             model_competitive_test.dispatch_model.CO2dollarsperMWh,
             model_competitive_test.dispatch_model.zonelabel,
             model_competitive_test.dispatch_model.genco_index,
+            model_competitive_test.dispatch_model.uc_index,
         ),
     )
 

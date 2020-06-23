@@ -32,10 +32,10 @@ start_time = time.time()
 cwd = os.getcwd()
 
 ### GENERAL INPUTS ###
-case_folder = "test"  # andWind309
+case_folder = "Desktop\\competitiveMPECNik\\test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
-end_date = "01-02-2019"  # end date is exclusive
+end_date = "02-05-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -44,11 +44,11 @@ show_plots = False  # if True show plot of gen by fuel and bus LMPs after each c
 executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
+    "parallel": -1,
     "mip_tolerances_mipgap": 0.01,
     "dettimelimit": 300000,
-    "warmstart_flag": True,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
-
+#    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
 # for now, I'll just include ability here to deactivate constraints if you don't want the model to use them
 deactivated_constraint_args = []  # list of constraint names to deactivate
