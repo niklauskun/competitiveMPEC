@@ -148,10 +148,7 @@ def scenario_inputs(inputs_directory):
     data.load(
         filename=os.path.join(inputs_directory, "case_index.csv"),
         index=model_competitive_test.dispatch_model.CASE,
-        param=(
-            model_competitive_test.dispatch_model.genco,
-            model_competitive_test.dispatch_model.uc,
-            ),
+        param=(model_competitive_test.dispatch_model.genco),
     )
 
     return data
