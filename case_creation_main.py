@@ -19,9 +19,9 @@ from case_creation_functions import write_RTS_case
 
 # create a file structure object, "f"
 f = DirStructure(
-    "C:\\Users\\llavin\\Desktop",
+    "C:\\Users\\wenmi\\Desktop",
     RTS_folder="RTS-GMLC-master",
-    MPEC_folder="competitiveMPECNik",
+    MPEC_folder="competitiveMPEC",
 )  # the first arg should be the local directory you put NREL-RTS in
 # the second should be what you named the NREL-RTS folder (what I've input is default behavior)
 # the third is whatever you named the folder where you put the MPEC code
