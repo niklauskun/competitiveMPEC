@@ -700,8 +700,8 @@ dispatch_model.zonalcharge = Expression(
 )
 
 def TotalDischargeExpr(model, t, s):
-        for g in model.GENERATORS:
-            if g == '303_WIND_1':
+        for g in model.STRATEGIC_GENERATORS:
+            if model.zonelabel[g] == model.storage_zone_label[s]:
                 return model.dispatch[t,g] + model.discharge[t,s]
 
 dispatch_model.totaldischarge = Expression(
@@ -755,7 +755,7 @@ dispatch_model.REOfferCapConstraint = Constraint(
 
 
 def HybirdCapacityRule(model, t, s, g):
-    if g == '303_WIND_1':
+    if model.zonelabel[g] == model.storage_zone_label[s]:
         return (
             model.capacity_time[t, g] * model.scheduled_available[t, g]
             >= model.discharge[t, s] + model.dispatch[t,g]
