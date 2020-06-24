@@ -700,13 +700,9 @@ dispatch_model.zonalcharge = Expression(
 )
 
 def TotalDischargeExpr(model, t, s):
-    if s in model.STRATEGIC_STORAGE:
         for g in model.GENERATORS:
             if g == '303_WIND_1':
                 return model.dispatch[t,g] + model.discharge[t,s]
-    else:
-        return model.discharge[t,s]
-
 
 dispatch_model.totaldischarge = Expression(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
