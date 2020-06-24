@@ -468,7 +468,7 @@ dispatch_model.gensegmentmaxdual = Var(
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.gensegmentmindual = Var(
@@ -477,7 +477,7 @@ dispatch_model.gensegmentmindual = Var(
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.transmissionmaxdual = Var(
@@ -485,7 +485,7 @@ dispatch_model.transmissionmaxdual = Var(
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.transmissionmindual = Var(
@@ -493,7 +493,7 @@ dispatch_model.transmissionmindual = Var(
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.storagemaxdual = Var(
@@ -501,7 +501,7 @@ dispatch_model.storagemaxdual = Var(
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.storagemindual = Var(
@@ -509,7 +509,7 @@ dispatch_model.storagemindual = Var(
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.rampmaxdual = Var(
@@ -517,7 +517,7 @@ dispatch_model.rampmaxdual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.rampmindual = Var(
@@ -525,7 +525,7 @@ dispatch_model.rampmindual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.voltageanglemaxdual = Var(
@@ -533,7 +533,7 @@ dispatch_model.voltageanglemaxdual = Var(
     dispatch_model.ZONES,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.voltageanglemindual = Var(
@@ -541,7 +541,7 @@ dispatch_model.voltageanglemindual = Var(
     dispatch_model.ZONES,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.storagetightdual = Var(
@@ -549,7 +549,7 @@ dispatch_model.storagetightdual = Var(
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.chargedual = Var(
@@ -557,7 +557,7 @@ dispatch_model.chargedual = Var(
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.dischargedual = Var(
@@ -565,11 +565,11 @@ dispatch_model.dischargedual = Var(
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.onecycledual = Var(
-    dispatch_model.STORAGE, within=NonNegativeReals, initialize=0, bounds=(0, 500000),
+    dispatch_model.STORAGE, within=NonNegativeReals, initialize=0, bounds=(0, 50000),
 )
 
 dispatch_model.gendispatchmaxdual = Var(
@@ -577,7 +577,7 @@ dispatch_model.gendispatchmaxdual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.gendispatchmindual = Var(
@@ -585,7 +585,7 @@ dispatch_model.gendispatchmindual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.startupshutdowndual = Var(
@@ -593,7 +593,7 @@ dispatch_model.startupshutdowndual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 500000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.nucdispatchmaxdual = Var(
@@ -601,7 +601,7 @@ dispatch_model.nucdispatchmaxdual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 5000),
+    bounds=(0, 50000),
 )
 
 dispatch_model.nucdispatchmindual = Var(
@@ -609,7 +609,7 @@ dispatch_model.nucdispatchmindual = Var(
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 5000),
+    bounds=(0, 50000),
 )
 
 # offer-related variables (since generators no longer just offer at marginal cost)
@@ -688,6 +688,16 @@ dispatch_model.CO2_emissions = Expression(
     rule=CO2EmittedExpr,
 )  # implement CO2EmittedExpr
 
+def ZoneChargeExpr(model, t, z):
+    zonal_charge = 0
+    for s in model.STRATEGIC_STORAGE:
+        if model.storage_zone_label[s] == z:
+            zonal_charge += model.charge[t, s]
+    return zonal_charge
+
+dispatch_model.zonalcharge = Expression(
+    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=ZoneChargeExpr
+)
 
 ###########################
 # ##### CONSTRAINTS ##### #
@@ -1235,7 +1245,7 @@ dispatch_model.StorageChargeDualConstraint = Constraint(
 
 
 def BindStartupDual(model, t, g):
-    return model.startcost[g] + model.startupshutdowndual[t, g] == 0
+    return model.startcost[g] - model.startupshutdowndual[t, g] == 0
 
 
 dispatch_model.StartupDualConstraint = Constraint(
@@ -1249,11 +1259,11 @@ def BindComittmentDual(model, t, g):
         - model.scheduled_available[t, g]
         * model.capacity_time[t, g]
         * model.gendispatchmaxdual[t, g]
-        - model.scheduled_available[t, g]
+        + model.scheduled_available[t, g]
         * model.capacity_time[t, g]
         * model.gendispatchmindual[t, g]
         * model.pmin[g]
-        - model.startupshutdowndual[t, g]
+        + model.startupshutdowndual[t, g]
         - (
             model.ramp[g]
             + model.pmin[g]
@@ -1939,7 +1949,7 @@ def objective_profit_dual(model):
         )
         + sum(
             sum(
-                model.gross_load[t, z] * model.zonalprice[t, z]
+                (model.gross_load[t, z] - model.zonalcharge[t, z]) * model.zonalprice[t, z]
                 for t in model.TIMEPOINTS
             )
             for z in model.ZONES
@@ -2051,7 +2061,7 @@ def objective_profit_dual_pre(model):
         )
         + sum(
             sum(
-                model.gross_load[t, z] * model.zonalprice[t, z]
+                (model.gross_load[t, z] - model.zonalcharge[t, z]) * model.zonalprice[t, z]
                 for t in model.TIMEPOINTS
             )
             for z in model.ZONES

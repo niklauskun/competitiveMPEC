@@ -15,7 +15,7 @@ class DirStructure(object):
         self,
         code_directory,
         RTS_folder="RTS-GMLC-master",
-        MPEC_folder="competitiveMPEC-master",
+        MPEC_folder="competitiveMPEC",
         results_folder="",
         results_case="",
     ):
@@ -275,12 +275,15 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[3]] = [0] * len(
             self.generators_dict[index_list[0]]
         )
-        #self.generators_dict[index_list[3]] = self.gen_data[
-        #    self.gen_data["Unit Type"].isin(self.gentypes)
-        #]["PMin MW"].values
-        self.generators_dict[index_list[4]] = [0] * len(
-            self.generators_dict[index_list[0]]
-        )
+        #self.generators_dict[index_list[3]] = [
+        #    self.gen_data.at[i, "PMin MW"] / self.gen_data.at[i, "PMax MW"]
+        #    for i in self.gen_data.index[self.gen_data["Unit Type"].isin(self.gentypes)]
+        #]
+        self.generators_dict[index_list[4]] = [
+            self.gen_data.at[i, "Fuel Price $/MMBTU"]
+            * self.gen_data.at[i, "Start Heat Cold MBTU"]
+            for i in self.gen_data.index[self.gen_data["Unit Type"].isin(self.gentypes)]
+        ]
         self.generators_dict[index_list[5]] = [1] * len(
             self.generators_dict[index_list[0]]
         )
@@ -296,6 +299,13 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[9]] = [0] * len(
             self.generators_dict[index_list[0]]
         )
+        #self.generators_dict[index_list[9]] = [
+        #    (self.gen_data.at[i, "HR_avg_0"] - self.gen_data.at[i, "HR_incr_1"])
+        #    * 0.001
+        #    * self.gen_data.at[i, "Fuel Price $/MMBTU"]
+        #    * (self.gen_data.at[i, "PMax MW"] * self.gen_data.at[i, "Output_pct_0"])
+        #    for i in self.gen_data.index[self.gen_data["Unit Type"].isin(self.gentypes)]
+        #]
         # ramp rates
         self.generators_dict[index_list[10]] = (
             60
