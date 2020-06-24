@@ -288,7 +288,7 @@ def export_generator_segment_offer(
                 total_emissions.append(format_6f(instance.CO2_emissions[t, g, gs]()))
                 commitment.append(format_6f(instance.commitment[t, g]()))
                 start.append(format_6f(instance.startup[t, g]()))
-                shut.append(format_6f(instance.startup[t, g]()))
+                shut.append(format_6f(instance.shutdown[t, g]()))
                 max_dual.append(format_6f(instance.gensegmentmaxdual[t, g, gs].value))
                 min_dual.append(format_6f(instance.gensegmentmindual[t, g, gs].value))
                 dmax_dual.append(format_6f(instance.gendispatchmaxdual[t, g].value))
@@ -657,12 +657,12 @@ def export_reserve_segment_commits(
 
 
 def export_storage(instance, timepoints_set, storage_set, results_directory, is_MPEC):
-
     index_name = []
     results_time = []
     storage_dispatch = []
     storage_charge = []
     storage_discharge = []
+    storage_totaldischarge = []
     soc = []
     storage_offer = []
     storage_tight_dual = []
@@ -680,6 +680,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
             results_time.append(t)
             storage_charge.append(format_6f(instance.charge[t, s].value))
             storage_discharge.append(format_6f(instance.discharge[t, s].value))
+            storage_totaldischarge.append(format_6f(instance.totaldischarge[t, s]()))
             storage_dispatch.append(format_6f(instance.storagedispatch[t, s].value))
             soc.append(format_6f(instance.soc[t, s].value))
             storage_offer.append(format_6f(instance.storageoffer[t, s].value))
@@ -705,11 +706,14 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                     )
                 )
 
-    profit = [float(c) * float(price) for c, price in zip(storage_dispatch, lmp)]
+    profit = [
+        float(d) * float(price) - float(c) * float(price)
+         for d, c, price in zip(storage_discharge, storage_charge, lmp)]
     col_names = [
         "time",
         "charge",
         "discharge",
+        "totaldischarge",
         "dispatch",
         "soc",
         "offer",
@@ -729,6 +733,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(results_time),
                 np.asarray(storage_charge),
                 np.asarray(storage_discharge),
+                np.asarray(storage_totaldischarge),
                 np.asarray(storage_dispatch),
                 np.asarray(soc),
                 np.asarray(storage_offer),

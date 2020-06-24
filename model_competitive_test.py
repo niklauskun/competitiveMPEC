@@ -306,7 +306,7 @@ dispatch_model.NON_STRATEGIC_STORAGE = Set(
 def uc_generators_init(model):
     uc_generators = list()
     for g in model.GENERATORS:
-        if model.uc_index[g] != 0:
+        if model.uc_index[g] == 2:
             uc_generators.append(g)
     return uc_generators
 
@@ -319,7 +319,7 @@ dispatch_model.UC_GENS = Set(
 def nuc_generators_init(model):
     nuc_generators = list()
     for g in model.GENERATORS:
-        if model.uc_index[g] == 0:
+        if model.uc_index[g] == 1:
             nuc_generators.append(g)
     return nuc_generators
 
@@ -699,6 +699,30 @@ dispatch_model.zonalcharge = Expression(
     dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=ZoneChargeExpr
 )
 
+def TotalDischargeExpr(model, t, s):
+    if s in model.STRATEGIC_STORAGE:
+        for g in model.GENERATORS:
+            if g == '303_WIND_1':
+                return model.dispatch[t,g] + model.discharge[t,s]
+    else:
+        return model.discharge[t,s]
+
+
+dispatch_model.totaldischarge = Expression(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
+)
+
+def GeneratorTotalDispatchRule(model, t, g):
+    if g == '303_WIND_1':
+        return 0
+    else:
+        return model.dispatch[t,g]
+
+
+dispatch_model.totaldispatch = Expression(
+    dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorTotalDispatchRule
+)
+
 ###########################
 # ##### CONSTRAINTS ##### #
 ###########################
@@ -733,6 +757,20 @@ dispatch_model.REOfferCapConstraint = Constraint(
 ## STORAGE CONSTRAINTS ##
 # additional constraints applied only to storage resources
 
+
+def HybirdCapacityRule(model, t, s, g):
+    if g == '303_WIND_1':
+        return (
+            model.capacity_time[t, g] * model.scheduled_available[t, g]
+            >= model.discharge[t, s] + model.dispatch[t,g]
+        )
+    else:
+        return Constraint.Skip
+
+
+dispatch_model.HybirdCapacityConstraint = Constraint(
+    dispatch_model.TIMEPOINTS, dispatch_model.STRATEGIC_STORAGE, rule=HybirdCapacityRule
+)
 
 def StorageTightRule(model, t, s):
     """Combine storage charge and discharge capacity limits into one, limit the possibility of charge and discharge happens simutaneously.
@@ -970,17 +1008,12 @@ def LoadRule(model, t, z):
                 imports_exports -= model.transmit_power_MW[t, line]
             # add additional note to dec import/exports by line losses
             # no, this will just be done as a hurdle rate
-    for g in model.UC_GENS:
+    for g in model.GENERATORS:
         if model.zonelabel[g] == z:
-            zonal_generation += sum(
-                model.segmentdispatch[t, g, gs] for gs in model.GENERATORSEGMENTS
-            )
-    for g in model.NUC_GENS:
-        if model.zonelabel[g] == z:
-            zonal_generation += model.nucdispatch[t, g]
+            zonal_generation += model.totaldispatch[t, g]
     for s in model.STORAGE:
         if model.storage_zone_label[s] == z:
-            zonal_storage += model.discharge[t, s]
+            zonal_storage += model.totaldischarge[t, s]
             zonal_storage -= model.charge[t, s]
             # zonal_storage += model.storagedispatch[t, s]
     # full constraint, with tx flow now
