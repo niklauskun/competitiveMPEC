@@ -1259,7 +1259,7 @@ def BindComittmentDual(model, t, g):
         - model.scheduled_available[t, g]
         * model.capacity_time[t, g]
         * model.gendispatchmaxdual[t, g]
-        - model.scheduled_available[t, g]
+        + model.scheduled_available[t, g]
         * model.capacity_time[t, g]
         * model.gendispatchmindual[t, g]
         * model.pmin[g]
