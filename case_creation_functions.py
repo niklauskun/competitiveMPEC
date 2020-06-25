@@ -316,9 +316,8 @@ class CreateRTSCase(object):
         #    self.generators_dict[index_list[0]]
         # )
         self.generators_dict[index_list[9]] = [
-            no_load_cost_scalar * self.gen_data.at[i, "HR_avg_0"]
-            - no_load_cost_scalar
-            * self.gen_data.at[i, "HR_incr_1"]
+            no_load_cost_scalar
+            * (self.gen_data.at[i, "HR_avg_0"] - self.gen_data.at[i, "HR_incr_1"])
             * 0.001
             * self.gen_data.at[i, "Fuel Price $/MMBTU"]
             * (self.gen_data.at[i, "PMax MW"] * self.gen_data.at[i, "Output_pct_0"])
