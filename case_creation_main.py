@@ -36,7 +36,7 @@ kw_dict = data_class.define_constants(kw_dict)
 # inputs for running
 start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
-    "02-08-2019", "%m-%d-%Y"
+    "01-08-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
 folder_out = "test"  # name of folder to write the case to
 
@@ -65,6 +65,9 @@ optional_args = {
     "storage_duration_scalar": 1,
     "tx_capacity_scalar": 1,
     "battery_roundtrip_efficiency": 0.85,
+    "start_cost_scalar": 0,
+    "no_load_cost_scalar": 0,
+    "pmin_scalar": 0,
 }
 
 write_RTS_case(kw_dict, start, end, f, folder_out, **optional_args)
