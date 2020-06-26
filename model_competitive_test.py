@@ -129,6 +129,7 @@ dispatch_model.genco_index = Param(
     dispatch_model.GENERATORS, within=NonNegativeIntegers, mutable=True
 )
 dispatch_model.uc_index = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
+dispatch_model.hybrid_index = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 
 # storage-indexed params (will be subset from other generators)
 dispatch_model.discharge_max = Param(dispatch_model.STORAGE, within=NonNegativeReals)
@@ -328,6 +329,17 @@ dispatch_model.NUC_GENS = Set(
     within=dispatch_model.GENERATORS, initialize=nuc_generators_init
 )
 
+def hybrid_generators_init(model):
+    hybrid_generators = list()
+    for g in model.GENERATORS:
+        if model.hybrid_index[g] == 1:
+            hybrid_generators.append(g)
+    return hybrid_generators
+
+
+dispatch_model.HYBRID_GENS = Set(
+    within=dispatch_model.GENERATORS, initialize=hybrid_generators_init
+)
 
 ###########################
 # ######## VARS ######### #
@@ -700,16 +712,23 @@ dispatch_model.zonalcharge = Expression(
 )
 
 def TotalDischargeExpr(model, t, s):
-        for g in model.STRATEGIC_GENERATORS:
-            if model.zonelabel[g] == model.storage_zone_label[s]:
-                return model.dispatch[t,g] + model.discharge[t,s]
+    hybrid_dispatch = 0
+    for g in model.HYBRID_GENS:
+        if model.zonelabel[g] == model.storage_zone_label[s]:
+            hybrid_dispatch += model.dispatch[t,g]
+        else:
+            raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
+    #if s in model.STRATEGIC_STORAGE:
+    return hybrid_dispatch + model.discharge[t,s]
+    #else:
+        #return model.discharge[t,s]
 
 dispatch_model.totaldischarge = Expression(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
 )
 
 def GeneratorTotalDispatchRule(model, t, g):
-    if g == '303_WIND_1':
+    if g in model.HYBRID_GENS:
         return 0
     else:
         return model.dispatch[t,g]
@@ -754,19 +773,25 @@ dispatch_model.REOfferCapConstraint = Constraint(
 # additional constraints applied only to storage resources
 
 
-def HybirdCapacityRule(model, t, s, g):
-    if model.zonelabel[g] == model.storage_zone_label[s]:
-        return (
-            model.capacity_time[t, g] * model.scheduled_available[t, g]
-            >= model.discharge[t, s] + model.dispatch[t,g]
-        )
-    else:
-        return Constraint.Skip
+def HybirdCapacityRule(model, t, s):
+    hybrid_dispatch = 0
+    hybrid_capacity = 0
+    for g in model.HYBRID_GENS:
+        if model.zonelabel[g] == model.storage_zone_label[s]:
+            hybrid_dispatch += model.discharge[t, s]
+            hybrid_capacity += model.capacity_time[t, g] * model.scheduled_available[t, g]
+    return (
+        hybrid_capacity
+        >= hybrid_dispatch +model.discharge[t,s]
+    )
+    #else:
+    #    return Constraint.Skip
 
 
 dispatch_model.HybirdCapacityConstraint = Constraint(
     dispatch_model.TIMEPOINTS, dispatch_model.STRATEGIC_STORAGE, rule=HybirdCapacityRule
 )
+
 
 def StorageTightRule(model, t, s):
     """Combine storage charge and discharge capacity limits into one, limit the possibility of charge and discharge happens simutaneously.

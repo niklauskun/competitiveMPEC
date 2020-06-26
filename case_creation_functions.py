@@ -196,7 +196,7 @@ class CreateRTSCase(object):
         return ""
 
     def dict_to_csv(
-        self, filename, mydict, index=["Gen_Index"], owned_gens=False, nuc_gens=False
+        self, filename, mydict, index=["Gen_Index"], owned_gens=False, nuc_gens=False, hybrid_gens=False
     ):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(index, inplace=True)
@@ -209,6 +209,11 @@ class CreateRTSCase(object):
             for gen in self.nuc_gen_list:
                 df.at[
                     gen, "UCIndex"
+                ] = 1  # overwrite to make owned by competitive agent when applicable
+        if hybrid_gens:
+            for gen in self.hybrid_gen_list:
+                df.at[
+                    gen, "HybridIndex"
                 ] = 1  # overwrite to make owned by competitive agent when applicable
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
@@ -233,6 +238,7 @@ class CreateRTSCase(object):
         filename,
         owned_gen_list=[],
         nuc_gen_list=[],
+        hybrid_gen_list=[],
         retained_bus_list=[],
         start_cost_scalar=1,
         no_load_cost_scalar=1,
@@ -242,6 +248,7 @@ class CreateRTSCase(object):
         self.generators_dict = {}
         self.owned_gen_list = owned_gen_list
         self.nuc_gen_list = nuc_gen_list
+        self.hybrid_gen_list = hybrid_gen_list
         index_list = [
             "Gen_Index",
             "Capacity",
@@ -260,6 +267,7 @@ class CreateRTSCase(object):
             "ZoneLabel",
             "GencoIndex",
             "UCIndex",
+            "HybridIndex"
         ]
         if retained_bus_list == []:
             pass  # print("default")
@@ -359,9 +367,12 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[16]] = [2] * len(
             self.generators_dict[index_list[0]]
         )
+        self.generators_dict[index_list[17]] = [2] * len(
+            self.generators_dict[index_list[0]]
+        )
         # for gen in owned_gen_list:
 
-        self.dict_to_csv(filename, self.generators_dict, owned_gens=True, nuc_gens=True)
+        self.dict_to_csv(filename, self.generators_dict, owned_gens=True, nuc_gens=True, hybrid_gens=True)
 
     def generators_descriptive(self, filename):
         d = {}
@@ -929,6 +940,11 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         print("NOTE: no owned_gens, default behavior is for agent to only own storage")
         owned_gens = []
     try:
+        hybrid_gens = kwargs["hybrid_gens"]  #'303_WIND_1'
+    except KeyError:
+        print("NOTE: no hybrid_gens, default behavior is for agent to only own storage")
+        hybrid_gens = []
+    try:
         retained_bus = kwargs["retained_buses"]  # [a for a in range(301, 326)]
     except KeyError:
         print("NOTE: no retained_buses, default behavior is to use all buses")
@@ -990,6 +1006,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             "generators",
             owned_gen_list=owned_gens,
             nuc_gen_list=nuc_gens,
+            hybrid_gen_list=hybrid_gens,
             retained_bus_list=retained_bus,
             start_cost_scalar=start_cost_scalar,
             no_load_cost_scalar=no_load_cost_scalar,
