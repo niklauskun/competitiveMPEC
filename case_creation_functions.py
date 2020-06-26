@@ -176,6 +176,13 @@ class LoadNRELData(object):
         input_dict["km_per_mile"] = 1.60934
         return input_dict
 
+    def add_generators(self,final_dict):
+        data_tmp = self.nrel_dict["gen_data"]
+        a = data_tmp.loc[157]
+        b = pd.DataFrame(a).T
+        data_tmp =data_tmp.append([b]*3,ignore_index=True)
+        self.nrel_dict["gen_data"] = data_tmp
+        return final_dict
 
 # Class for creating case (this is the big, complicated part)
 class CreateRTSCase(object):
@@ -220,7 +227,7 @@ class CreateRTSCase(object):
         )
 
     def df_to_csv(self, filename, mydict):
-        df = pd.DataFrame(mydict, index=[0])
+        df = pd.DataFrame.from_dict(mydict)
         df.set_index(["Storage_Index"], inplace=True)
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
@@ -414,28 +421,20 @@ class CreateRTSCase(object):
             "StorageIndex",
         ]
         # size_scalar*
-        storage_dict[index_list[0]] = (
-            self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
-            .reset_index()
-            .at[0, "GEN UID"]
-        )
-        storage_dict[index_list[1]] = (
-            capacity_scalar
-            * self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
-            .reset_index()
-            .at[0, "PMax MW"]
-        )
-        storage_dict[index_list[2]] = (
-            capacity_scalar
-            * self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
-            .reset_index()
-            .at[0, "PMax MW"]
-        )
+        storage_dict[index_list[0]] = self.gen_data[
+            self.gen_data["Unit Type"] == "STORAGE"
+        ]["GEN UID"].values
+        storage_dict[index_list[1]] = self.gen_data[
+            self.gen_data["Unit Type"] == "STORAGE"
+        ]["PMax MW"].values
+        storage_dict[index_list[2]] = self.gen_data[
+            self.gen_data["Unit Type"] == "STORAGE"
+        ]["PMax MW"].values
         storage_dict[index_list[3]] = (
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
-        )
-        storage_dict[index_list[4]] = 1.0 / RTEff ** 0.5
-        storage_dict[index_list[5]] = RTEff ** 0.5
+        ) * len(storage_dict[index_list[0]])
+        storage_dict[index_list[4]] = 1.0 / RTEff ** 0.5  * len(storage_dict[index_list[0]])
+        storage_dict[index_list[5]] = RTEff ** 0.5  * len(storage_dict[index_list[0]])
         if busID == 0:
             storage_dict[index_list[6]] = (
                 self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
@@ -443,8 +442,8 @@ class CreateRTSCase(object):
                 .at[0, "Bus ID"]
             )
         else:
-            storage_dict[index_list[6]] = int(busID)
-        storage_dict[index_list[7]] = 2
+            storage_dict[index_list[6]] = int(busID)  * len(storage_dict[index_list[0]])
+        storage_dict[index_list[7]] = 2  * len(storage_dict[index_list[0]])
 
         self.df_to_csv(filename, storage_dict)
 
