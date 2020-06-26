@@ -63,11 +63,7 @@ class DirStructure(object):
             os.mkdir(self.RESULTS_DIRECTORY)
         if not os.path.exists(self.RESULTS_INPUTS_DIRECTORY):
             os.mkdir(self.RESULTS_INPUTS_DIRECTORY)
-            
-    def load_user_data(self):
-        is_storage = self.nrel_dict["gen_data"]['Unit Type'] == "STORAGE"
-        df_try = self.nrel_dict["gen_data"][is_storage]
-        self.nrel_dict["gen_data"].append(df_try*2)
+
 
 # class for loading NREL RTS case data
 class LoadNRELData(object):
