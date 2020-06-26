@@ -714,8 +714,10 @@ dispatch_model.zonalcharge = Expression(
 def TotalDischargeExpr(model, t, s):
     hybrid_dispatch = 0
     for g in model.HYBRID_GENS:
-        #if model.zonelabel[g] == model.storage_zone_label[s]:
+        if model.zonelabel[g] == model.storage_zone_label[s]:
             hybrid_dispatch += model.dispatch[t,g]
+        else:
+            raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
     #if s in model.STRATEGIC_STORAGE:
     return hybrid_dispatch + model.discharge[t,s]
     #else:
@@ -775,9 +777,9 @@ def HybirdCapacityRule(model, t, s):
     hybrid_dispatch = 0
     hybrid_capacity = 0
     for g in model.HYBRID_GENS:
-        #if model.zonelabel[g] == model.storage_zone_label[s]:
-        hybrid_dispatch += model.discharge[t, s]
-        hybrid_capacity += model.capacity_time[t, g] * model.scheduled_available[t, g]
+        if model.zonelabel[g] == model.storage_zone_label[s]:
+            hybrid_dispatch += model.discharge[t, s]
+            hybrid_capacity += model.capacity_time[t, g] * model.scheduled_available[t, g]
     return (
         hybrid_capacity
         >= hybrid_dispatch +model.discharge[t,s]
