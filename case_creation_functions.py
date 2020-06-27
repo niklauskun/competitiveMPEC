@@ -4,6 +4,7 @@ import pandas as pd
 import math
 import datetime
 import warnings
+import re
 
 
 # directory structure for inputs/outputs
@@ -176,13 +177,31 @@ class LoadNRELData(object):
         input_dict["km_per_mile"] = 1.60934
         return input_dict
 
-    def add_generators(self,final_dict):
+    def add_storage(self, adds_list):
+        for i in adds_list:
+            if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
+                raise ValueError("assigned storage buses must exist in dataset")
+
+            copied_data = self.nrel_dict["gen_data"][-1:].values  # copy last column
+            copied_data[0][1] = i  # replace bus ID
+            copied_data[0][0] = re.sub(
+                r"\d+", str(i), copied_data[0][0], 1
+            )  # will make generator name unique
+            new_data = pd.DataFrame(
+                copied_data,
+                index=[len(self.nrel_dict["gen_data"].index)],
+                columns=self.nrel_dict["gen_data"].columns,
+            )
+            self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
+
+    def add_generators(self, final_dict):
         data_tmp = self.nrel_dict["gen_data"]
         a = data_tmp.loc[157]
         b = pd.DataFrame(a).T
-        data_tmp =data_tmp.append([b]*3,ignore_index=True)
+        data_tmp = data_tmp.append([b] * 3, ignore_index=True)
         self.nrel_dict["gen_data"] = data_tmp
         return final_dict
+
 
 # Class for creating case (this is the big, complicated part)
 class CreateRTSCase(object):
@@ -203,7 +222,13 @@ class CreateRTSCase(object):
         return ""
 
     def dict_to_csv(
-        self, filename, mydict, index=["Gen_Index"], owned_gens=False, nuc_gens=False, hybrid_gens=False
+        self,
+        filename,
+        mydict,
+        index=["Gen_Index"],
+        owned_gens=False,
+        nuc_gens=False,
+        hybrid_gens=False,
     ):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(index, inplace=True)
@@ -274,7 +299,7 @@ class CreateRTSCase(object):
             "ZoneLabel",
             "GencoIndex",
             "UCIndex",
-            "HybridIndex"
+            "HybridIndex",
         ]
         if retained_bus_list == []:
             pass  # print("default")
@@ -379,7 +404,13 @@ class CreateRTSCase(object):
         )
         # for gen in owned_gen_list:
 
-        self.dict_to_csv(filename, self.generators_dict, owned_gens=True, nuc_gens=True, hybrid_gens=True)
+        self.dict_to_csv(
+            filename,
+            self.generators_dict,
+            owned_gens=True,
+            nuc_gens=True,
+            hybrid_gens=True,
+        )
 
     def generators_descriptive(self, filename):
         d = {}
@@ -430,20 +461,26 @@ class CreateRTSCase(object):
         storage_dict[index_list[2]] = self.gen_data[
             self.gen_data["Unit Type"] == "STORAGE"
         ]["PMax MW"].values
-        storage_dict[index_list[3]] = (
+        storage_dict[index_list[3]] = [
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
-        ) * len(storage_dict[index_list[0]])
-        storage_dict[index_list[4]] = 1.0 / RTEff ** 0.5  * len(storage_dict[index_list[0]])
-        storage_dict[index_list[5]] = RTEff ** 0.5  * len(storage_dict[index_list[0]])
-        if busID == 0:
-            storage_dict[index_list[6]] = (
-                self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]
-                .reset_index()
-                .at[0, "Bus ID"]
-            )
+        ] * len(storage_dict[index_list[0]])
+        storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
+            storage_dict[index_list[0]]
+        )
+        storage_dict[index_list[5]] = [RTEff ** 0.5] * len(storage_dict[index_list[0]])
+        storage_dict[index_list[6]] = list(
+            self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]["Bus ID"]
+        )
+        if busID in self.retained_bus_list:
+            storage_dict[index_list[6]][
+                0
+            ] = busID  # replace first element to retain this behavior
         else:
-            storage_dict[index_list[6]] = int(busID)  * len(storage_dict[index_list[0]])
-        storage_dict[index_list[7]] = 2  * len(storage_dict[index_list[0]])
+            print(
+                "passed invalid BusID, so first storage resource will remain at bus "
+                + str(storage_dict[index_list[6]][0])
+            )
+        storage_dict[index_list[7]] = [2] * len(storage_dict[index_list[0]])
 
         self.df_to_csv(filename, storage_dict)
 
