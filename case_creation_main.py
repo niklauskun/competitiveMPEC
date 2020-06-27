@@ -32,6 +32,9 @@ f.make_directories()
 data_class = LoadNRELData(f)
 kw_dict = data_class.load_nrel_data()
 kw_dict = data_class.define_constants(kw_dict)
+kw_dict = data_class.add_generators(kw_dict)
+mydf = data_class.nrel_dict["gen_data"]
+mydf.to_csv(os.path.join("C:\\Users\\wenmi\\Desktop", "gens.csv"))
 
 # inputs for running
 start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
@@ -56,12 +59,12 @@ optional_args = {
         "PV",
         "CSP",
     ],
-    "owned_gens": ["314_PV_1","314_PV_2","314_PV_3"],
-    "hybrid_gens": ["314_PV_1","314_PV_3"],
+    "owned_gens": ["303_WIND_1","317_WIND_1"],
+    "hybrid_gens": ["303_WIND_1","317_WIND_1"],
     "retained_buses": [
         a for a in range(301, 326)
     ],  # [a for a in range(301, 326)] to use only area 3 buses
-    "storage_bus": 314,
+    "storage_bus": 303,
     "storage_capacity_scalar": 1,
     "storage_duration_scalar": 1,
     "tx_capacity_scalar": 1,
