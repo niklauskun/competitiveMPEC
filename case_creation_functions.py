@@ -181,7 +181,11 @@ class LoadNRELData(object):
         for i in adds_list:
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned storage buses must exist in dataset")
-            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == "313_STORAGE_1"].values  # copy storage
+            copied_data = (
+                self.nrel_dict["gen_data"]
+                .loc[self.nrel_dict["gen_data"]["GEN UID"] == "313_STORAGE_1"]
+                .values
+            )  # copy storage
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
@@ -194,23 +198,39 @@ class LoadNRELData(object):
             self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
 
     def add_generator(self, adds_list, adds_type):
-        n=0
-        for i in adds_list:
+        for n, i in enumerate(adds_list):
             type = adds_type[n]
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned generator buses must exist in dataset")
-            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == type].values  # copy generator
+            copied_data = (
+                self.nrel_dict["gen_data"]
+                .loc[self.nrel_dict["gen_data"]["GEN UID"] == type]
+                .values
+            )  # copy generator
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
-            )  # will make generator name unique
+            )  # updates generator bus to be user-specified one
+            copied_data[0][0] = self.update_unique(
+                copied_data[0][0]
+            )  # ensures generator name unique by giving new ID
             new_data = pd.DataFrame(
                 copied_data,
                 index=[len(self.nrel_dict["gen_data"].index)],
                 columns=self.nrel_dict["gen_data"].columns,
             )
             self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
-            n=n+1
+
+    def update_unique(self, gen_str):
+        if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
+            next_int = re.findall(r"_(\d+)", gen_str)
+            gen_str = re.sub(r"_(\d+)", "_" + str(int(next_int[0]) + 1), gen_str)
+            if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
+                return self.update_unique(gen_str)  # recursion if still not unique
+            else:
+                return gen_str
+        else:
+            return gen_str
 
 
 # Class for creating case (this is the big, complicated part)
