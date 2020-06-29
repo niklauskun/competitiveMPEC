@@ -177,40 +177,44 @@ class LoadNRELData(object):
         input_dict["km_per_mile"] = 1.60934
         return input_dict
 
-    def add_storage(self, adds_list):
-        for i in adds_list:
-            if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
-                raise ValueError("assigned storage buses must exist in dataset")
-            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == "313_STORAGE_1"].values  # copy storage
-            copied_data[0][1] = i  # replace bus ID
-            copied_data[0][0] = re.sub(
-                r"\d+", str(i), copied_data[0][0], 1
-            )  # will make generator name unique
-            new_data = pd.DataFrame(
-                copied_data,
-                index=[len(self.nrel_dict["gen_data"].index)],
-                columns=self.nrel_dict["gen_data"].columns,
-            )
-            self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
-
     def add_generator(self, adds_list, adds_type):
-        n=0
-        for i in adds_list:
-            type = adds_type[n]
+        for n, i in enumerate(adds_list):
+            gentype = adds_type[n]
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned generator buses must exist in dataset")
-            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == type].values  # copy generator
+            copied_data = (
+                self.nrel_dict["gen_data"]
+                .loc[self.nrel_dict["gen_data"]["GEN UID"] == gentype]
+                .values
+            )  # copy generator
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
             )  # will make generator name unique
+            copied_data[0][0] = self.update_unique(copied_data[0][0]) #ensures generator name unique by giving new ID
             new_data = pd.DataFrame(
                 copied_data,
                 index=[len(self.nrel_dict["gen_data"].index)],
                 columns=self.nrel_dict["gen_data"].columns,
             )
             self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
-            n=n+1
+            for j in ["hydro_data", "pv_data", "rtpv_data", "csp_data", "wind_data"]:
+                if gentype in self.nrel_dict[j]:
+                    copied_profile = self.nrel_dict[j][gentype].values
+                self.nrel_dict[j][copied_data[0][0]] = copied_profile
+
+    def update_unique(self, gen_str):
+        if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
+            next_int = re.findall(r"_(\d+)", gen_str)
+            gen_str = re.sub(r"_(\d+)", "_" + str(int(next_int[0]) + 1), gen_str)
+            if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
+                return self.update_unique(gen_str)  # recursion if still not unique
+            else:
+                return gen_str
+        else:
+            return gen_str
+
+
 
 
 # Class for creating case (this is the big, complicated part)
@@ -261,9 +265,19 @@ class CreateRTSCase(object):
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
         )
 
-    def df_to_csv(self, filename, mydict):
+    def df_to_csv(
+        self, 
+        filename, 
+        mydict,
+        owned_storage=False,
+    ):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(["Storage_Index"], inplace=True)
+        if owned_storage:
+            for st in self.owned_storage_list:
+                df.at[
+                    st, "StorageIndex"
+                ] = 1  # overwrite to make owned by competitive agent when applicable
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
         )
@@ -448,9 +462,16 @@ class CreateRTSCase(object):
         self.dict_to_csv(filename, d)
 
     def storage(
-        self, filename, capacity_scalar=1, duration_scalar=1, busID=313, RTEff=1.0
+        self,
+        filename, 
+        owned_storage_list=[],
+        capacity_scalar=1, 
+        duration_scalar=1, 
+        busID=313, 
+        RTEff=1.0
     ):
-        storage_dict = {}
+        self.storage_dict = {}
+        self.owned_storage_list=owned_storage_list,
         index_list = [
             "Storage_Index",
             "Discharge",
@@ -462,37 +483,37 @@ class CreateRTSCase(object):
             "StorageIndex",
         ]
         # size_scalar*
-        storage_dict[index_list[0]] = self.gen_data[
+        self.storage_dict[index_list[0]] = self.gen_data[
             self.gen_data["Unit Type"] == "STORAGE"
         ]["GEN UID"].values
-        storage_dict[index_list[1]] = self.gen_data[
+        self.storage_dict[index_list[1]] = self.gen_data[
             self.gen_data["Unit Type"] == "STORAGE"
         ]["PMax MW"].values
-        storage_dict[index_list[2]] = self.gen_data[
+        self.storage_dict[index_list[2]] = self.gen_data[
             self.gen_data["Unit Type"] == "STORAGE"
         ]["PMax MW"].values
-        storage_dict[index_list[3]] = [
+        self.storage_dict[index_list[3]] = [
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
-        ] * len(storage_dict[index_list[0]])
-        storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
-            storage_dict[index_list[0]]
+        ] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
+            self.storage_dict[index_list[0]]
         )
-        storage_dict[index_list[5]] = [RTEff ** 0.5] * len(storage_dict[index_list[0]])
-        storage_dict[index_list[6]] = list(
+        self.storage_dict[index_list[5]] = [RTEff ** 0.5] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[6]] = list(
             self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]["Bus ID"]
         )
         if busID in self.retained_bus_list:
-            storage_dict[index_list[6]][
+            self.storage_dict[index_list[6]][
                 0
             ] = busID  # replace first element to retain this behavior
         else:
             print(
                 "passed invalid BusID, so first storage resource will remain at bus "
-                + str(storage_dict[index_list[6]][0])
+                + str(self.storage_dict[index_list[6]][0])
             )
-        storage_dict[index_list[7]] = [2] * len(storage_dict[index_list[0]])
+        self.storage_dict[index_list[7]] = [2] * len(self.storage_dict[index_list[0]])
 
-        self.df_to_csv(filename, storage_dict)
+        self.df_to_csv(filename, self.storage_dict, owned_storage=True,)
 
     def init_gens(self, filename):
         d = {}
@@ -986,6 +1007,11 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         print("NOTE: no owned_gens, default behavior is for agent to only own storage")
         owned_gens = []
     try:
+        owned_storage = kwargs["owned_storage"]  #'313_STORAGE_1'
+    except KeyError:
+        print("NOTE: no owned_storage, default behavior is for agent to only own storage")
+        owned_storage = []
+    try:
         hybrid_gens = kwargs["hybrid_gens"]  #'303_WIND_1'
     except KeyError:
         print("NOTE: no hybrid_gens, default behavior is for agent to only own storage")
@@ -1061,6 +1087,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         case.generators_descriptive("generators_descriptive")
         case.storage(
             "storage_resources",
+            owned_storage_list=owned_storage,
             capacity_scalar=capacity_scalar,
             duration_scalar=duration_scalar,
             busID=storage_bus,

@@ -713,19 +713,20 @@ dispatch_model.zonalcharge = Expression(
 
 def TotalDischargeExpr(model, t, s):
     hybrid_dispatch = 0
-    for g in model.HYBRID_GENS:
-        if model.zonelabel[g] == model.storage_zone_label[s]:
-            hybrid_dispatch += model.dispatch[t,g]
-        else:
-            raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
-    #if s in model.STRATEGIC_STORAGE:
-    return hybrid_dispatch + model.discharge[t,s]
-    #else:
-        #return model.discharge[t,s]
+    if s in model.STRATEGIC_STORAGE:
+        for s in model.STRATEGIC_STORAGE:
+            for g in model.HYBRID_GENS:
+                if model.zonelabel[g] == model.storage_zone_label[s]:
+                    hybrid_dispatch += model.dispatch[t,g]
+                else:
+                    raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
+                    return hybrid_dispatch + model.discharge[t,s]
+    else:
+        return model.discharge[t,s]
 
-dispatch_model.totaldischarge = Expression(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
-)
+#dispatch_model.totaldischarge = Expression(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
+#)
 
 def GeneratorTotalDispatchRule(model, t, g):
     if g in model.HYBRID_GENS:
@@ -788,9 +789,9 @@ def HybirdCapacityRule(model, t, s):
     #    return Constraint.Skip
 
 
-dispatch_model.HybirdCapacityConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STRATEGIC_STORAGE, rule=HybirdCapacityRule
-)
+#dispatch_model.HybirdCapacityConstraint = Constraint(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STRATEGIC_STORAGE, rule=HybirdCapacityRule
+#)
 
 
 def StorageTightRule(model, t, s):
@@ -1034,7 +1035,7 @@ def LoadRule(model, t, z):
             zonal_generation += model.totaldispatch[t, g]
     for s in model.STORAGE:
         if model.storage_zone_label[s] == z:
-            zonal_storage += model.totaldischarge[t, s]
+            zonal_storage += model.discharge[t, s]
             zonal_storage -= model.charge[t, s]
             # zonal_storage += model.storagedispatch[t, s]
     # full constraint, with tx flow now
