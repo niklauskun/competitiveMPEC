@@ -181,8 +181,7 @@ class LoadNRELData(object):
         for i in adds_list:
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned storage buses must exist in dataset")
-
-            copied_data = self.nrel_dict["gen_data"][-1:].values  # copy last column
+            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == "313_STORAGE_1"].values  # copy storage
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
@@ -194,13 +193,24 @@ class LoadNRELData(object):
             )
             self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
 
-    def add_generators(self, final_dict):
-        data_tmp = self.nrel_dict["gen_data"]
-        a = data_tmp.loc[157]
-        b = pd.DataFrame(a).T
-        data_tmp = data_tmp.append([b] * 3, ignore_index=True)
-        self.nrel_dict["gen_data"] = data_tmp
-        return final_dict
+    def add_generator(self, adds_list, adds_type):
+        n=0
+        for i in adds_list:
+            type = adds_type[n]
+            if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
+                raise ValueError("assigned generator buses must exist in dataset")
+            copied_data = self.nrel_dict["gen_data"].loc[self.nrel_dict["gen_data"]["GEN UID"] == type].values  # copy generator
+            copied_data[0][1] = i  # replace bus ID
+            copied_data[0][0] = re.sub(
+                r"\d+", str(i), copied_data[0][0], 1
+            )  # will make generator name unique
+            new_data = pd.DataFrame(
+                copied_data,
+                index=[len(self.nrel_dict["gen_data"].index)],
+                columns=self.nrel_dict["gen_data"].columns,
+            )
+            self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
+            n=n+1
 
 
 # Class for creating case (this is the big, complicated part)

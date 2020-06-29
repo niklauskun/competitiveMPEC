@@ -32,12 +32,13 @@ f.make_directories()
 data_class = LoadNRELData(f)
 kw_dict = data_class.load_nrel_data()
 kw_dict = data_class.define_constants(kw_dict)
-data_class.add_storage(
-    [301, 314]
-)  # this is the new call for now, with buses to add storage at
-# kw_dict = data_class.add_generators(kw_dict)
-# mydf = data_class.nrel_dict["gen_data"]
-# mydf.to_csv(os.path.join("C:\\Users\\wenmi\\Desktop", "gens.csv"))
+#data_class.add_storage(
+#    [301,314]
+#)  # this is the new call for now, with buses to add storage at
+
+data_class.add_generator(
+    [301,302,301],["301_CT_1","301_CT_2","313_STORAGE_1"]
+)
 
 # inputs for running
 start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
