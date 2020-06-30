@@ -33,7 +33,7 @@ data_class = LoadNRELData(f)
 kw_dict = data_class.load_nrel_data()
 kw_dict = data_class.define_constants(kw_dict)
 data_class.add_generator(
-    [323,301,301],["322_HYDRO_1","303_WIND_1", "313_STORAGE_1"]
+    [323,301,301],["322_HYDRO_1","303_WIND_1","313_STORAGE_1"]
 )
 
 # inputs for running
