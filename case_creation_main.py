@@ -60,8 +60,9 @@ optional_args = {
         "CSP",
     ],
     "owned_gens": ["303_WIND_1", "317_WIND_1"],
-    "owned_storage": ["313_STORAGE_1"],
+    "owned_storage": ["313_STORAGE_1", "301_STORAGE_1"],
     "hybrid_gens": ["303_WIND_1"],
+    "hybrid_storage": ["313_STORAGE_1"],
     "retained_buses": [
         a for a in range(301, 326)
     ],  # [a for a in range(301, 326)] to use only area 3 buses

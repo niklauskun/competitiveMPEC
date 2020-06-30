@@ -270,6 +270,7 @@ class CreateRTSCase(object):
         filename, 
         mydict,
         owned_storage=False,
+        hybrid_storage=False,
     ):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(["Storage_Index"], inplace=True)
@@ -278,6 +279,11 @@ class CreateRTSCase(object):
                 df.at[
                     st, "StorageIndex"
                 ] = 1  # overwrite to make owned by competitive agent when applicable
+        if hybrid_storage:
+            for st in self.hybrid_storage_list:
+                df.at[
+                    st, "HybridIndex"
+                ] = 1
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
         )
@@ -465,6 +471,7 @@ class CreateRTSCase(object):
         self,
         filename, 
         owned_storage_list=[],
+        hybrid_storage_list=[],
         capacity_scalar=1, 
         duration_scalar=1, 
         busID=313, 
@@ -472,6 +479,7 @@ class CreateRTSCase(object):
     ):
         self.storage_dict = {}
         self.owned_storage_list=owned_storage_list,
+        self.hybrid_storage_list = hybrid_storage_list
         index_list = [
             "Storage_Index",
             "Discharge",
@@ -481,6 +489,7 @@ class CreateRTSCase(object):
             "ChargeEff",
             "StorageZoneLabel",
             "StorageIndex",
+            "HybridIndex",
         ]
         # size_scalar*
         self.storage_dict[index_list[0]] = self.gen_data[
@@ -512,8 +521,13 @@ class CreateRTSCase(object):
                 + str(self.storage_dict[index_list[6]][0])
             )
         self.storage_dict[index_list[7]] = [2] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[8]] = [2] * len(self.storage_dict[index_list[0]])
 
-        self.df_to_csv(filename, self.storage_dict, owned_storage=True,)
+        self.df_to_csv(filename, 
+        self.storage_dict, 
+        owned_storage=True, 
+        hybrid_storage=True
+        )
 
     def init_gens(self, filename):
         d = {}
@@ -1017,6 +1031,11 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         print("NOTE: no hybrid_gens, default behavior is for agent to only own storage")
         hybrid_gens = []
     try:
+        hybrid_storage = kwargs["hybrid_storage"]  #'303_WIND_1'
+    except KeyError:
+        print("NOTE: no hybrid_storage, default behavior is for agent to only own storage")
+        hybrid_storage = []
+    try:
         retained_bus = kwargs["retained_buses"]  # [a for a in range(301, 326)]
     except KeyError:
         print("NOTE: no retained_buses, default behavior is to use all buses")
@@ -1088,6 +1107,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         case.storage(
             "storage_resources",
             owned_storage_list=owned_storage,
+            hybrid_storage_list=hybrid_storage,
             capacity_scalar=capacity_scalar,
             duration_scalar=duration_scalar,
             busID=storage_bus,
