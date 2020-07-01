@@ -177,21 +177,47 @@ class LoadNRELData(object):
         input_dict["km_per_mile"] = 1.60934
         return input_dict
 
+    def add_storage(self, adds_list):
+        for i in adds_list:
+            if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
+                raise ValueError("assigned storage buses must exist in dataset")
+            copied_data = (
+                self.nrel_dict["gen_data"]
+                .loc[self.nrel_dict["gen_data"]["GEN UID"] == "313_STORAGE_1"]
+                .values
+            )  # copy storage
+            copied_data[0][1] = i  # replace bus ID
+            copied_data[0][0] = re.sub(
+                r"\d+", str(i), copied_data[0][0], 1
+            )  # will make generator name unique
+            new_data = pd.DataFrame(
+                copied_data,
+                index=[len(self.nrel_dict["gen_data"].index)],
+                columns=self.nrel_dict["gen_data"].columns,
+            )
+            self.nrel_dict["gen_data"] = self.nrel_dict["gen_data"].append(new_data)
+
     def add_generator(self, adds_list, adds_type):
         for n, i in enumerate(adds_list):
-            gentype = adds_type[n]
+            type = adds_type[n]
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned generator buses must exist in dataset")
             copied_data = (
                 self.nrel_dict["gen_data"]
                 .loc[self.nrel_dict["gen_data"]["GEN UID"] == gentype]
+                .loc[self.nrel_dict["gen_data"]["GEN UID"] == type]
+
                 .values
             )  # copy generator
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
+
             )  # will make generator name unique
             copied_data[0][0] = self.update_unique(copied_data[0][0]) #ensures generator name unique by giving new ID
+
+            )  # updates generator bus to be user-specified one
+
             new_data = pd.DataFrame(
                 copied_data,
                 index=[len(self.nrel_dict["gen_data"].index)],
@@ -203,6 +229,7 @@ class LoadNRELData(object):
                     copied_profile = self.nrel_dict[j][gentype].values
                 self.nrel_dict[j][copied_data[0][0]] = copied_profile
 
+
     def update_unique(self, gen_str):
         if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
             next_int = re.findall(r"_(\d+)", gen_str)
@@ -213,7 +240,6 @@ class LoadNRELData(object):
                 return gen_str
         else:
             return gen_str
-
 
 
 
