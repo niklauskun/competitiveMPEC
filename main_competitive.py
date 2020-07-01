@@ -26,6 +26,7 @@ from utility_functions import (
     update_offers,
     create_scenario_list,
     CreateAndRunScenario,
+    StorageOfferMitigation,
 )
 
 start_time = time.time()
@@ -36,9 +37,10 @@ case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = False  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
+mitigate_storage_offers = True
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -51,7 +53,10 @@ solver_kwargs = {
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
 # for now, I'll just include ability here to deactivate constraints if you don't want the model to use them
-deactivated_constraint_args = []  # list of constraint names to deactivate
+deactivated_constraint_args = [
+    "MitigateDischargeOfferConstraint",
+    "MitigateChargeOfferConstraint",
+]  # list of constraint names to deactivate
 # an example that won't affect problem much is "OfferCapConstraint"
 # "OneCycleConstraint"
 
@@ -129,6 +134,9 @@ for counter, s in enumerate(scenario_list):
     code_directory = cwd
     dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
     dir_str.make_directories()
+    if mitigate_storage_offers:
+        storageclass = StorageOfferMitigation(dir_str)
+        storageclass.write_SPP_mitigated_offers()
     logger = Logger(dir_str)
     log_file = logger.log_file_path
     print(

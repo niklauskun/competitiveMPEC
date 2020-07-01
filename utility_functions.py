@@ -395,3 +395,137 @@ class CreateAndRunScenario(object):
         plt.ylabel("LMP ($/MWh)")
         plt.xlabel("Hour")
         plt.show()
+
+
+def create_default_prices_df(case_directory):
+    df = pd.read_csv(
+        os.path.join(case_directory.INPUTS_DIRECTORY, "timepoints_zonal.csv")
+    )
+    df = df[["timepoint", "zone"]].sort_values("zone").set_index("zone")
+    df["LMP"] = [0] * len(df.index)
+    df.reset_index(inplace=True)
+    df.columns = ["zone", "hour", "LMP"]
+    return df
+
+
+class StorageOfferMitigation(object):
+    def __init__(self, case_directory, mitigation_flag=True):
+        self.case_directory = case_directory
+        self.mitigation_flag = mitigation_flag
+        self.storage_df = pd.read_csv(
+            os.path.join(case_directory.INPUTS_DIRECTORY, "storage_resources.csv")
+        )  # storage_df
+        try:
+            self.prices_df = pd.read_csv(
+                os.path.join(case_directory.RESULTS_DIRECTORY, "zonal_prices.csv")
+            )  # prices_df
+        except FileNotFoundError:
+            print(
+                "NOTE: mitigate_storage_offers is TRUE, but there is no results file zonal_prices.csv for this case, so storage offers will not be mitigated"
+            )
+            self.prices_df = create_default_prices_df(case_directory)
+            self.mitigation_flag = False
+        self.prices_df.columns = ["zone"] + list(self.prices_df.columns[1:])
+        self.storage_prices = pd.merge(
+            self.storage_df,
+            self.prices_df[["zone", "hour", "LMP"]],
+            how="left",
+            left_on=["StorageZoneLabel"],
+            right_on=["zone"],
+        )
+        self.RTE = round(
+            self.storage_df["ChargeEff"].mean()
+            / self.storage_df["DischargeEff"].mean(),
+            3,
+        )
+
+    def period_type(self, i, df):
+        if i == len(df.index) - 1:
+            return "last"  # last same as prvs
+        elif i == 0:
+            return "+"
+        elif not np.isnan(df.at[i + 1, "min"]):
+            return "+"
+        elif not np.isnan(df.at[i + 1, "max"]):
+            return "-"
+        elif not np.isnan(df.at[i + 1, "absmax"]):
+            return "-"
+        elif not np.isnan(df.at[i + 1, "absmin"]):
+            return "+"
+        else:
+            return self.period_type(i - 1, df)
+
+    def write_SPP_mitigated_offers(self):
+        # print(self.storage_prices)
+        storage_list = []
+        for esr in self.storage_prices["Storage_Index"].unique():
+            subset_storage_df = (
+                self.storage_prices[(self.storage_prices.Storage_Index == esr)]
+                .copy()
+                .reset_index()
+            )
+            # Find local peaks
+            subset_storage_df["min"] = subset_storage_df.LMP[
+                (
+                    (subset_storage_df.LMP.shift(1) > subset_storage_df.LMP)
+                    & (subset_storage_df.LMP.shift(-1) > subset_storage_df.LMP)
+                )
+            ]
+            subset_storage_df["max"] = subset_storage_df.LMP[
+                (subset_storage_df.LMP.shift(1) < subset_storage_df.LMP)
+                & (subset_storage_df.LMP.shift(-1) < subset_storage_df.LMP)
+            ]
+            # absolute peaks?
+            subset_storage_df["absmin"] = subset_storage_df.LMP[
+                subset_storage_df.LMP == subset_storage_df.LMP.min()
+            ]
+            subset_storage_df["absmax"] = subset_storage_df.LMP[
+                subset_storage_df.LMP == subset_storage_df.LMP.max()
+            ]
+            # categorize whether approaching peak or trough
+            # based off SPP's "DYNAMIC OPPORTUNITY COST MITIGATED ENERGY OFFER FRAMEWORK FOR ELECTRIC STORAGE RESOURCES"
+            test_l = []
+            for i in subset_storage_df.index:
+                test_l.append(self.period_type(i, subset_storage_df))
+            subset_storage_df["flag"] = test_l
+
+            charge_list = []
+            discharge_list = []
+            for i in subset_storage_df.index:
+                if subset_storage_df.at[i, "flag"] == "-":
+                    discharge_list.append(subset_storage_df.at[i + 1, "LMP"])
+                    charge_list.append(subset_storage_df.at[i + 1, "LMP"] * self.RTE)
+                elif subset_storage_df.at[i, "flag"] == "+":
+                    discharge_list.append(subset_storage_df.at[i + 1, "LMP"] / self.RTE)
+                    charge_list.append(subset_storage_df.at[i + 1, "LMP"])
+                elif subset_storage_df.at[i, "flag"] == "last":
+                    charge_list.append(0)
+                    discharge_list.append(subset_storage_df.at[i, "LMP"] / self.RTE)
+            subset_storage_df["ChargeMaxOffer"] = charge_list
+            subset_storage_df["DischargeMaxOffer"] = discharge_list
+            # print(
+            #    subset_storage_df[
+            #        ["Storage_Index", "ChargeMaxOffer", "DischargeMaxOffer"]
+            #    ]
+            # )
+            storage_list.append(
+                subset_storage_df[
+                    ["hour", "Storage_Index", "ChargeMaxOffer", "DischargeMaxOffer"]
+                ]
+            )
+        storage_df = pd.concat(storage_list, axis=0)
+        storage_df.sort_values("hour", inplace=True)
+        storage_df.columns = [
+            "timepoint",
+            "Storage_Index",
+            "ChargeMaxOffer",
+            "DischargeMaxOffer",
+        ]
+        if not self.mitigation_flag:
+            storage_df.ChargeMaxOffer = [-5000 for i in storage_df.ChargeMaxOffer]
+            storage_df.DischargeMaxOffer = [5000 for i in storage_df.DischargeMaxOffer]
+        storage_df.to_csv(
+            os.path.join(self.case_directory.INPUTS_DIRECTORY, "storage_offers.csv"),
+            index=False,
+        )
+        return storage_df.reset_index()
