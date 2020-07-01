@@ -141,6 +141,7 @@ dispatch_model.storage_zone_label = Param(
     dispatch_model.STORAGE, within=dispatch_model.ZONES
 )
 dispatch_model.storage_index = Param(dispatch_model.STORAGE, within=NonNegativeIntegers)
+dispatch_model.hybrid_storage_index = Param(dispatch_model.STORAGE, within=NonNegativeIntegers)
 
 # generator-indexed initialization params
 # shouldn't be needed for current cases, but I used them in an old model that had commitment to pass
@@ -339,6 +340,18 @@ def hybrid_generators_init(model):
 
 dispatch_model.HYBRID_GENS = Set(
     within=dispatch_model.GENERATORS, initialize=hybrid_generators_init
+)
+
+def hybrid_storage_init(model):
+    hybrid_storage = list()
+    for s in model.STORAGE:
+        if model.hybrid_storage_index[s] == 1:
+            hybrid_storage.append(s)
+    return hybrid_storage
+
+
+dispatch_model.HYBRID_STORAGE = Set(
+    within=dispatch_model.STORAGE, initialize=hybrid_storage_init
 )
 
 ###########################
@@ -712,20 +725,21 @@ dispatch_model.zonalcharge = Expression(
 )
 
 def TotalDischargeExpr(model, t, s):
-    hybrid_dispatch = 0
-    for g in model.HYBRID_GENS:
-        if model.zonelabel[g] == model.storage_zone_label[s]:
-            hybrid_dispatch += model.dispatch[t,g]
-        else:
-            raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
-    #if s in model.STRATEGIC_STORAGE:
-    return hybrid_dispatch + model.discharge[t,s]
-    #else:
-        #return model.discharge[t,s]
+    if s in model.HYBRID_STORAGE:
+        hybrid_dispatch = 0
+        for g in model.HYBRID_GENS:
+            if model.zonelabel[g] == model.storage_zone_label[s]:
+                hybrid_dispatch += model.dispatch[t,g]
+            else:
+                raise ValueError('Generator is trying to be hybridized with storage that is not in its zone.')
+        return hybrid_dispatch + model.discharge[t,s]
+    else:
+        return model.discharge[t,s]
 
 dispatch_model.totaldischarge = Expression(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
 )
+
 
 def GeneratorTotalDispatchRule(model, t, g):
     if g in model.HYBRID_GENS:
@@ -774,22 +788,20 @@ dispatch_model.REOfferCapConstraint = Constraint(
 
 
 def HybirdCapacityRule(model, t, s):
-    hybrid_dispatch = 0
-    hybrid_capacity = 0
     for g in model.HYBRID_GENS:
+        hybrid_dispatch = 0
+        hybrid_capacity = 0
         if model.zonelabel[g] == model.storage_zone_label[s]:
             hybrid_dispatch += model.discharge[t, s]
             hybrid_capacity += model.capacity_time[t, g] * model.scheduled_available[t, g]
     return (
         hybrid_capacity
-        >= hybrid_dispatch +model.discharge[t,s]
+        >= hybrid_dispatch + model.discharge[t,s]
     )
-    #else:
-    #    return Constraint.Skip
 
 
 dispatch_model.HybirdCapacityConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STRATEGIC_STORAGE, rule=HybirdCapacityRule
+    dispatch_model.TIMEPOINTS, dispatch_model.HYBRID_STORAGE, rule=HybirdCapacityRule
 )
 
 

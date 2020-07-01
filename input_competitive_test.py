@@ -57,6 +57,7 @@ def scenario_inputs(inputs_directory):
             model_competitive_test.dispatch_model.charge_eff,
             model_competitive_test.dispatch_model.storage_zone_label,
             model_competitive_test.dispatch_model.storage_index,
+            model_competitive_test.dispatch_model.hybrid_storage_index,
         ),
     )
 

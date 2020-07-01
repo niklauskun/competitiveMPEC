@@ -32,12 +32,8 @@ f.make_directories()
 data_class = LoadNRELData(f)
 kw_dict = data_class.load_nrel_data()
 kw_dict = data_class.define_constants(kw_dict)
-#data_class.add_storage(
-#    [301,314]
-#)  # this is the new call for now, with buses to add storage at
-
 data_class.add_generator(
-    [301,302,301],["301_CT_1","301_CT_2","313_STORAGE_1"]
+    [323,301,301],["322_HYDRO_1","303_WIND_1","313_STORAGE_1"]
 )
 
 # inputs for running
@@ -64,7 +60,9 @@ optional_args = {
         "CSP",
     ],
     "owned_gens": ["303_WIND_1", "317_WIND_1"],
+    "owned_storage": ["313_STORAGE_1", "301_STORAGE_1"],
     "hybrid_gens": ["303_WIND_1"],
+    "hybrid_storage": ["313_STORAGE_1"],
     "retained_buses": [
         a for a in range(301, 326)
     ],  # [a for a in range(301, 326)] to use only area 3 buses
