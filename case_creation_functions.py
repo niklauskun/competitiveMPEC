@@ -332,10 +332,6 @@ class CreateRTSCase(object):
             "Fuel_Cost",
             "Pmin",
             "start_cost",
-            "Can_Spin",
-            "Can_NonSpin",
-            "Min_Up",
-            "Min_Down",
             "No_Load_Cost",
             "Ramp_Rate",
             "tonneCO2perMWh",
@@ -368,7 +364,6 @@ class CreateRTSCase(object):
         self.generators_dict[index_list[2]] = self.gen_data[
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["$/MWH"].values
-
         # self.generators_dict[index_list[3]] = [0] * len(
         #    self.generators_dict[index_list[0]]
         # )
@@ -385,22 +380,10 @@ class CreateRTSCase(object):
             * self.gen_data.at[i, "Start Heat Hot MBTU"]
             for i in self.gen_data.index[self.gen_data["Unit Type"].isin(self.gentypes)]
         ]
-        self.generators_dict[index_list[5]] = [1] * len(
-            self.generators_dict[index_list[0]]
-        )
-        self.generators_dict[index_list[6]] = [1] * len(
-            self.generators_dict[index_list[0]]
-        )
-        self.generators_dict[index_list[7]] = [1] * len(
-            self.generators_dict[index_list[0]]
-        )
-        self.generators_dict[index_list[8]] = [1] * len(
-            self.generators_dict[index_list[0]]
-        )
-        # self.generators_dict[index_list[9]] = [0] * len(
+        # self.generators_dict[index_list[5]] = [0] * len(
         #    self.generators_dict[index_list[0]]
         # )
-        self.generators_dict[index_list[9]] = [
+        self.generators_dict[index_list[5]] = [
             no_load_cost_scalar
             * (self.gen_data.at[i, "HR_avg_0"] - self.gen_data.at[i, "HR_incr_1"])
             * 0.001
@@ -409,42 +392,41 @@ class CreateRTSCase(object):
             for i in self.gen_data.index[self.gen_data["Unit Type"].isin(self.gentypes)]
         ]
         # ramp rates
-        self.generators_dict[index_list[10]] = (
+        self.generators_dict[index_list[6]] = (
             60
             * self.gen_data[self.gen_data["Unit Type"].isin(self.gentypes)][
                 "Ramp Rate MW/Min"
             ].values
         )
-
         self.gen_data.loc[:, "CO2/MWH"] = (
             self.gen_data.loc[:, "Emissions CO2 Lbs/MMBTU"]
             * self.lb_to_tonne
             * self.gen_data.loc[:, "HR_incr_3"]
             / 1000
         )
-        self.generators_dict[index_list[11]] = self.gen_data[
+        self.generators_dict[index_list[7]] = self.gen_data[
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["CO2/MWH"].values
-        self.generators_dict[index_list[12]] = [0] * len(
+        self.generators_dict[index_list[8]] = [0] * len(
             self.generators_dict[index_list[0]]
         )
-        self.generators_dict[index_list[13]] = [
+        self.generators_dict[index_list[9]] = [
             a * b
             for a, b in zip(
-                self.generators_dict[index_list[11]],
-                self.generators_dict[index_list[12]],
+                self.generators_dict[index_list[7]],
+                self.generators_dict[index_list[8]],
             )
         ]
-        self.generators_dict[index_list[14]] = self.gen_data[
+        self.generators_dict[index_list[10]] = self.gen_data[
             self.gen_data["Unit Type"].isin(self.gentypes)
         ]["Bus ID"].values
-        self.generators_dict[index_list[15]] = [2] * len(
+        self.generators_dict[index_list[11]] = [2] * len(
             self.generators_dict[index_list[0]]
         )
-        self.generators_dict[index_list[16]] = [2] * len(
+        self.generators_dict[index_list[12]] = [2] * len(
             self.generators_dict[index_list[0]]
         )
-        self.generators_dict[index_list[17]] = [2] * len(
+        self.generators_dict[index_list[13]] = [2] * len(
             self.generators_dict[index_list[0]]
         )
         # for gen in owned_gen_list:
@@ -466,7 +448,6 @@ class CreateRTSCase(object):
             "Category",
             "Capacity",
             "Fuel_Cost",
-            "Can_Spin",
             "UTILUNIT",
         ]
         d[index_list[0]] = self.generators_dict["Gen_Index"]
@@ -477,7 +458,6 @@ class CreateRTSCase(object):
         ]["Category"].values
         d[index_list[4]] = self.generators_dict["Capacity"]
         d[index_list[5]] = self.generators_dict["Fuel_Cost"]
-        d[index_list[6]] = self.generators_dict["Can_Spin"]
         d[index_list[7]] = ["NA"] * len(self.generators_dict[index_list[0]])
 
         self.dict_to_csv(filename, d)
@@ -544,16 +524,6 @@ class CreateRTSCase(object):
             filename, self.storage_dict, owned_storage=True, hybrid_storage=True
         )
 
-    def init_gens(self, filename):
-        d = {}
-        index_list = ["Gen_Index", "commit_init", "time_up_init", "time_down_init"]
-
-        d[index_list[0]] = self.generators_dict["Gen_Index"]
-        d[index_list[1]] = [1] * len(d[index_list[0]])
-        d[index_list[2]] = [200] * len(d[index_list[0]])
-        d[index_list[3]] = [0] * len(d[index_list[0]])
-        self.dict_to_csv(filename, d)
-
     def scheduled_gens(self, filename):
         scheduled_dict = {}
         index_list = ["timepoint", "Gen_Index", "available", "Capacity", "Fuel_Cost"]
@@ -596,10 +566,6 @@ class CreateRTSCase(object):
         index_list = [
             "timepoint",
             "reference_bus",
-            "reg_up_mw",
-            "reg_down_mw",
-            "flex_up_mw",
-            "flex_down_mw",
         ]
 
         self.timepoint_dict[index_list[0]] = list(range(1, self.hours + 1))
@@ -612,44 +578,12 @@ class CreateRTSCase(object):
             self.timepoint_dict[index_list[1]] = [self.retained_bus_list[0]] * len(
                 self.timepoint_dict[index_list[0]]
             )
-        # reformatting for timepoints
-        period_list = []
-        for h in range(self.hour_begin, self.hour_end):
-            if h == self.hour_begin:
-                month = self.hydro_data.at[h, "Month"]
-                day = self.hydro_data.at[h, "Day"]
-            period_list.append(str(self.hydro_data.at[h, "Period"]))
-        self.timepoint_dict[index_list[2]] = list(
-            self.reg_up_data[
-                (self.reg_up_data["Month"] == month) & (self.reg_up_data["Day"] == day)
-            ][period_list].values.ravel()
-        )
-        self.timepoint_dict[index_list[3]] = list(
-            self.reg_down_data[
-                (self.reg_down_data["Month"] == month)
-                & (self.reg_down_data["Day"] == day)
-            ][period_list].values.ravel()
-        )
-        self.timepoint_dict[index_list[4]] = list(
-            self.flex_up_data[
-                (self.flex_up_data["Month"] == month)
-                & (self.flex_up_data["Day"] == day)
-            ][period_list].values.ravel()
-        )
-        self.timepoint_dict[index_list[5]] = list(
-            self.flex_down_data[
-                (self.flex_down_data["Month"] == month)
-                & (self.flex_down_data["Day"] == day)
-            ][period_list].values.ravel()
-        )
         self.dict_to_csv(filename, self.timepoint_dict, index="timepoint")
 
     def zones(self, filename):
         self.zone_dict = {}
         index_list = [
             "zone",
-            "wind_cap",
-            "solar_cap",
             "voltage_angle_max",
             "voltage_angle_min",
         ]
@@ -662,16 +596,10 @@ class CreateRTSCase(object):
             ]
 
         self.zone_dict[index_list[0]] = self.bus_data.loc[:, "Bus ID"].values
-        self.zone_dict[index_list[1]] = [0] * len(
-            self.zone_dict[index_list[0]]
-        )  # eventually replace this
-        self.zone_dict[index_list[2]] = [0] * len(
-            self.zone_dict[index_list[0]]
-        )  # eventually replace this
-        self.zone_dict[index_list[3]] = [180] * len(
+        self.zone_dict[index_list[1]] = [180] * len(
             self.zone_dict[index_list[0]]
         )  # math.pi/3
-        self.zone_dict[index_list[4]] = [-180] * len(
+        self.zone_dict[index_list[2]] = [-180] * len(
             self.zone_dict[index_list[0]]
         )  # math.pi/3
         self.dict_to_csv(filename, self.zone_dict, index="zone")
@@ -703,7 +631,7 @@ class CreateRTSCase(object):
         hourly_df["bus load"] = hourly_df["zonal_load"] * hourly_df["Frac Load"]
 
         time_zone_dict = {}
-        index_list = ["timepoint", "zone", "gross_load", "wind_cf", "solar_cf"]
+        index_list = ["timepoint", "zone", "gross_load"]
 
         time_zone_dict[index_list[0]] = [
             e for e in self.timepoint_dict["timepoint"] for i in self.zone_dict["zone"]
@@ -714,8 +642,6 @@ class CreateRTSCase(object):
         time_zone_dict[index_list[2]] = hourly_df[
             "bus load"
         ].values  # hourly_df['MW Load_x'].values
-        time_zone_dict[index_list[3]] = [0] * len(time_zone_dict[index_list[0]])
-        time_zone_dict[index_list[4]] = [0] * len(time_zone_dict[index_list[0]])
 
         self.dict_to_csv(filename, time_zone_dict, index="timepoint")
 
@@ -779,7 +705,6 @@ class CreateRTSCase(object):
             "transmission_to",
             "min_flow",
             "max_flow",
-            "hurdle_rate",
         ]
 
         tx_hourly_dict[index_list[0]] = [
@@ -812,7 +737,6 @@ class CreateRTSCase(object):
             for t in self.timepoint_dict["timepoint"]
             for flow in self.branch_data_final["Cont Rating"].values
         ]
-        tx_hourly_dict[index_list[6]] = [0] * len(tx_hourly_dict[index_list[0]])
         self.dict_to_csv(
             filename, tx_hourly_dict, index=["timepoint", "transmission_line"]
         )
@@ -1132,7 +1056,6 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             busID=storage_bus,
             RTEff=RTEfficiency,
         )  # size_scalar=0
-        case.init_gens("initialize_generators")
         case.scheduled_gens("generators_scheduled_availability")
         case.timepoints("timepoints_index")
         case.zones("zones")

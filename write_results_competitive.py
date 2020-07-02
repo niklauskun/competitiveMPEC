@@ -121,12 +121,6 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
     except Exception as err:
         msg = "ERROR exporting storage! Check export_storage()."
         handle_exception(msg, debug_mode)
-    # export VRE
-    try:
-        export_VREs(instance, results_directory)
-    except Exception as err:
-        msg = "ERROR exporting VRE results! Check export_VREs()."
-        handle_exception(msg, debug_mode)
 
     # return call
     return None
@@ -212,7 +206,7 @@ def export_generator_dispatch(
     for g in generators_set:
         index_name.append(str(g))
         for t in timepoints_set:
-            results_dispatch.append(format_6f(instance.dispatch[t, g]()))
+            results_dispatch.append(format_6f(instance.gd[t, g]()))
     results_dispatch_np = np.reshape(
         results_dispatch,
         (int(len(results_dispatch) / len(timepoints_set)), int(len(timepoints_set))),
@@ -236,7 +230,7 @@ def export_generator_segment_dispatch(
             index_name.append(str(g) + "-" + str(gs))
             for t in timepoints_set:
                 results_dispatch.append(
-                    format_6f(instance.segmentdispatch[t, g, gs].value)
+                    format_6f(instance.gsd[t, g, gs].value)
                 )
     results_dispatch_np = np.reshape(
         results_dispatch,
@@ -282,36 +276,36 @@ def export_generator_segment_offer(
                 timepoints_list.append(t)
                 index_name.append(str(g) + "-" + str(gs))
                 results_offer.append(
-                    format_6f(instance.gensegmentoffer[t, g, gs].value)
+                    format_6f(instance.gso[t, g, gs].value)
                 )
-                total_dispatch.append(format_6f(instance.segmentdispatch[t, g, gs]()))
+                total_dispatch.append(format_6f(instance.gsd[t, g, gs]()))
                 total_emissions.append(format_6f(instance.CO2_emissions[t, g, gs]()))
-                commitment.append(format_6f(instance.commitment[t, g]()))
-                start.append(format_6f(instance.startup[t, g]()))
-                shut.append(format_6f(instance.shutdown[t, g]()))
-                max_dual.append(format_6f(instance.gensegmentmaxdual[t, g, gs].value))
-                min_dual.append(format_6f(instance.gensegmentmindual[t, g, gs].value))
-                dmax_dual.append(format_6f(instance.gendispatchmaxdual[t, g].value))
-                dmin_dual.append(format_6f(instance.gendispatchmindual[t, g].value))
-                rmax_dual.append(format_6f(instance.rampmaxdual[t, g].value))
-                rmin_dual.append(format_6f(instance.rampmindual[t, g].value))
+                commitment.append(format_6f(instance.gopstat[t, g]()))
+                start.append(format_6f(instance.gup[t, g]()))
+                shut.append(format_6f(instance.gdn[t, g]()))
+                max_dual.append(format_6f(instance.gensegmentmax_dual[t, g, gs].value))
+                min_dual.append(format_6f(instance.gensegmentmin_dual[t, g, gs].value))
+                dmax_dual.append(format_6f(instance.gendispatchmax_dual[t, g].value))
+                dmin_dual.append(format_6f(instance.gendispatchmin_dual[t, g].value))
+                rmax_dual.append(format_6f(instance.rampmax_dual[t, g].value))
+                rmin_dual.append(format_6f(instance.rampmin_dual[t, g].value))
                 start_shut_dual.append(
-                    format_6f(instance.startupshutdowndual[t, g].value)
+                    format_6f(instance.startupshutdown_dual[t, g].value)
                 )
                 marginal_cost.append(
-                    format_6f(instance.generator_marginal_cost[t, g, gs])
+                    format_6f(instance.GeneratorMarginalCost[t, g, gs])
                 )
                 previous_offer.append(format_6f(instance.previous_offer[t, g, gs]))
-                zone_names.append(instance.zonelabel[g])
+                zone_names.append(instance.ZoneLabel[g])
                 if is_MPEC:
                     lmp.append(
-                        format_6f(instance.zonalprice[t, instance.zonelabel[g]].value)
+                        format_6f(instance.zonalprice[t, instance.ZoneLabel[g]].value)
                     )
                 else:
                     lmp.append(
                         format_6f(
                             instance.dual[
-                                instance.LoadConstraint[t, instance.zonelabel[g]]
+                                instance.LoadConstraint[t, instance.ZoneLabel[g]]
                             ]
                         )
                     )
@@ -379,17 +373,17 @@ def export_nuc_generator_dispatch(
         for g in nuc_set:
             index_name.append(str(g) + "-" + str(t))
             timepoints_list.append(t)
-            dispatch.append(format_6f(instance.nucdispatch[t, g]()))
-            dual.append(format_6f(instance.nucdispatchmaxdual[t, g].value))
-            offer.append(format_6f(instance.genoffer[t, g].value))
+            dispatch.append(format_6f(instance.nucgd[t, g]()))
+            dual.append(format_6f(instance.nucdispatchmax_dual[t, g].value))
+            offer.append(format_6f(instance.go[t, g].value))
             if is_MPEC:
                 lmp.append(
-                    format_6f(instance.zonalprice[t, instance.zonelabel[g]].value)
+                    format_6f(instance.zonalprice[t, instance.ZoneLabel[g]].value)
                 )
             else:
                 lmp.append(
                     format_6f(
-                        instance.dual[instance.LoadConstraint[t, instance.zonelabel[g]]]
+                        instance.dual[instance.LoadConstraint[t, instance.ZoneLabel[g]]]
                     )
                 )
     col_names = ["hour", "dispatch", "dual", "offer", "lmp"]
@@ -430,21 +424,21 @@ def export_zonal_price(instance, timepoints_set, zones_set, results_directory, i
                 )
 
             timepoints_list.append(t)
-            voltage_angle_list.append(format_6f(instance.voltage_angle[t, z].value))
+            voltage_angle_list.append(format_6f(instance.va[t, z].value))
             voltage_angle_dual_max.append(
-                format_6f(instance.voltageanglemaxdual[t, z].value)
+                format_6f(instance.voltageanglemax_dual[t, z].value)
             )
             voltage_angle_dual_min.append(
-                format_6f(instance.voltageanglemindual[t, z].value)
+                format_6f(instance.voltageanglemin_dual[t, z].value)
             )
-            load.append(format_6f(instance.gross_load[t, z]))
+            load.append(format_6f(instance.GrossLoad[t, z]))
 
     load_payment = [float(a) * float(b) for a, b in zip(results_prices, load)]
     col_names = [
         "hour",
         "LMP",
         "VoltageAngle",
-        " VoltageAngleDualMax",
+        "VoltageAngleDualMax",
         "VoltageAngleDualMin",
         "Load",
         "LoadPayment",
@@ -482,10 +476,10 @@ def export_lines(
             index_name.append(line + "-" + str(t))
             if is_MPEC:
                 transmission_duals_from.append(
-                    format_6f(instance.transmissionmindual[t, line].value)
+                    format_6f(instance.transmissionmin_dual[t, line].value)
                 )
                 transmission_duals_to.append(
-                    format_6f(instance.transmissionmaxdual[t, line].value)
+                    format_6f(instance.transmissionmax_dual[t, line].value)
                 )
             else:
                 transmission_duals_from.append(
@@ -495,7 +489,7 @@ def export_lines(
                     format_6f(instance.dual[instance.TxToConstraint[t, line]])
                 )
             results_transmission_line_flow.append(
-                format_6f(instance.transmit_power_MW[t, line].value)
+                format_6f(instance.txmw[t, line].value)
             )
             # dc_opf_dual.append(format_6f(instance.dual[instance.DCOPFConstraint[t,line]]))
     col_names = [
@@ -539,8 +533,8 @@ def export_generator_commits_reserves(
             results_gens.append(g)
             results_time.append(t)
             results_commitment.append(instance.commitment[t, g].value)
-            results_starts.append(instance.startup[t, g].value)
-            results_shuts.append(instance.shutdown[t, g].value)
+            results_starts.append(instance.gup[t, g].value)
+            results_shuts.append(instance.gdn[t, g].value)
 
             if t == 1 and instance.commitinit[g] == instance.commitment[t, g].value:
                 results_hourson.append(
@@ -552,7 +546,7 @@ def export_generator_commits_reserves(
                     + (1 - instance.commitment[t, g].value)
                 )
             elif (
-                instance.startup[t, g].value == 1 or instance.shutdown[t, g].value == 1
+                instance.gup[t, g].value == 1 or instance.gdn[t, g].value == 1
             ):
                 results_hourson.append(instance.commitment[t, g].value)
                 results_hoursoff.append((1 - instance.commitment[t, g].value))
@@ -659,7 +653,6 @@ def export_reserve_segment_commits(
 def export_storage(instance, timepoints_set, storage_set, results_directory, is_MPEC):
     index_name = []
     results_time = []
-    storage_dispatch = []
     storage_charge = []
     storage_discharge = []
     storage_totaldischarge = []
@@ -678,30 +671,29 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         for s in storage_set:
             index_name.append(s)
             results_time.append(t)
-            storage_charge.append(format_6f(instance.charge[t, s].value))
-            storage_discharge.append(format_6f(instance.discharge[t, s].value))
+            storage_charge.append(format_6f(instance.sc[t, s].value))
+            storage_discharge.append(format_6f(instance.sd[t, s].value))
             storage_totaldischarge.append(format_6f(instance.totaldischarge[t, s]()))
-            storage_dispatch.append(format_6f(instance.storagedispatch[t, s].value))
             soc.append(format_6f(instance.soc[t, s].value))
-            storage_offer.append(format_6f(instance.storageoffer[t, s].value))
-            storage_tight_dual.append(format_6f(instance.storagetightdual[t, s].value))
-            storage_max_dual.append(format_6f(instance.storagemaxdual[t, s].value))
-            storage_min_dual.append(format_6f(instance.storagemindual[t, s].value))
-            storage_charge_dual.append(format_6f(instance.chargedual[t, s].value))
-            storage_discharge_dual.append(format_6f(instance.dischargedual[t, s].value))
-            cycle_dual.append(format_6f(instance.onecycledual[s].value))
-            node.append(instance.storage_zone_label[s])
+            storage_offer.append(format_6f(instance.so[t, s].value))
+            storage_tight_dual.append(format_6f(instance.storagetight_dual[t, s].value))
+            storage_max_dual.append(format_6f(instance.socmax_dual[t, s].value))
+            storage_min_dual.append(format_6f(instance.socmin_dual[t, s].value))
+            storage_charge_dual.append(format_6f(instance.charge_dual[t, s].value))
+            storage_discharge_dual.append(format_6f(instance.discharge_dual[t, s].value))
+            cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
+            node.append(instance.StorageZoneLabel[s])
             if is_MPEC:
                 lmp.append(
                     format_6f(
-                        instance.zonalprice[t, instance.storage_zone_label[s]].value
+                        instance.zonalprice[t, instance.StorageZoneLabel[s]].value
                     )
                 )
             else:
                 lmp.append(
                     format_6f(
                         instance.dual[
-                            instance.LoadConstraint[t, instance.storage_zone_label[s]]
+                            instance.LoadConstraint[t, instance.StorageZoneLabel[s]]
                         ]
                     )
                 )
@@ -714,7 +706,6 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         "charge",
         "discharge",
         "totaldischarge",
-        "dispatch",
         "soc",
         "offer",
         "tightdual",
@@ -734,7 +725,6 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_charge),
                 np.asarray(storage_discharge),
                 np.asarray(storage_totaldischarge),
-                np.asarray(storage_dispatch),
                 np.asarray(soc),
                 np.asarray(storage_offer),
                 np.asarray(storage_tight_dual),
@@ -755,29 +745,3 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     df.to_csv(os.path.join(results_directory, "storage_dispatch.csv"))
 
 
-def export_VREs(instance, results_directory):
-
-    results_wind = []
-    results_solar = []
-    results_curtailment = []
-    tmps = []
-    zones = []
-
-    for t in instance.TIMEPOINTS:
-        for z in instance.ZONES:
-            tmps.append(t)
-            zones.append(z)
-            results_wind.append(instance.windgen[t, z].value)
-            results_solar.append(instance.solargen[t, z].value)
-            results_curtailment.append(instance.curtailment[t, z].value)
-
-    VRE = pd.DataFrame(
-        {
-            "timepoint": tmps,
-            "zone": zones,
-            "wind": results_wind,
-            "solar": results_solar,
-            "curtailment": results_curtailment,
-        }
-    )
-    VRE.to_csv(os.path.join(results_directory, "renewable_generation.csv"), index=False)
