@@ -101,11 +101,11 @@ dispatch_model.Pmin = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.StartCost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.NoLoadCost = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
 dispatch_model.RampRate = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.tonneCO2perMWh = Param(
+dispatch_model.TonneCO2PerMWh = Param(
     dispatch_model.GENERATORS, within=NonNegativeReals
 )
-dispatch_model.CO2price = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
-dispatch_model.CO2dollarsperMWh = Param(
+dispatch_model.CO2Price = Param(dispatch_model.GENERATORS, within=NonNegativeReals)
+dispatch_model.CO2DollarsPerMWh = Param(
     dispatch_model.GENERATORS, within=NonNegativeReals
 )
 dispatch_model.ZoneLabel = Param(dispatch_model.GENERATORS, within=dispatch_model.ZONES)
