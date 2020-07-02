@@ -199,24 +199,21 @@ class LoadNRELData(object):
 
     def add_generator(self, adds_list, adds_type):
         for n, i in enumerate(adds_list):
-            type = adds_type[n]
+            gentype = adds_type[n]
             if i not in self.nrel_dict["bus_data"]["Bus ID"].unique():
                 raise ValueError("assigned generator buses must exist in dataset")
             copied_data = (
                 self.nrel_dict["gen_data"]
                 .loc[self.nrel_dict["gen_data"]["GEN UID"] == gentype]
-                .loc[self.nrel_dict["gen_data"]["GEN UID"] == type]
-
                 .values
             )  # copy generator
             copied_data[0][1] = i  # replace bus ID
             copied_data[0][0] = re.sub(
                 r"\d+", str(i), copied_data[0][0], 1
-
             )  # will make generator name unique
-            copied_data[0][0] = self.update_unique(copied_data[0][0]) #ensures generator name unique by giving new ID
-
-            )  # updates generator bus to be user-specified one
+            copied_data[0][0] = self.update_unique(
+                copied_data[0][0]
+            )  # ensures generator name unique by giving new ID
 
             new_data = pd.DataFrame(
                 copied_data,
@@ -229,7 +226,6 @@ class LoadNRELData(object):
                     copied_profile = self.nrel_dict[j][gentype].values
                 self.nrel_dict[j][copied_data[0][0]] = copied_profile
 
-
     def update_unique(self, gen_str):
         if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
             next_int = re.findall(r"_(\d+)", gen_str)
@@ -240,7 +236,6 @@ class LoadNRELData(object):
                 return gen_str
         else:
             return gen_str
-
 
 
 # Class for creating case (this is the big, complicated part)
@@ -292,11 +287,7 @@ class CreateRTSCase(object):
         )
 
     def df_to_csv(
-        self, 
-        filename, 
-        mydict,
-        owned_storage=False,
-        hybrid_storage=False,
+        self, filename, mydict, owned_storage=False, hybrid_storage=False,
     ):
         df = pd.DataFrame.from_dict(mydict)
         df.set_index(["Storage_Index"], inplace=True)
@@ -307,9 +298,7 @@ class CreateRTSCase(object):
                 ] = 1  # overwrite to make owned by competitive agent when applicable
         if hybrid_storage:
             for st in self.hybrid_storage_list:
-                df.at[
-                    st, "HybridIndex"
-                ] = 1
+                df.at[st, "HybridIndex"] = 1
         df.to_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv")
         )
@@ -495,16 +484,16 @@ class CreateRTSCase(object):
 
     def storage(
         self,
-        filename, 
+        filename,
         owned_storage_list=[],
         hybrid_storage_list=[],
-        capacity_scalar=1, 
-        duration_scalar=1, 
-        busID=313, 
-        RTEff=1.0
+        capacity_scalar=1,
+        duration_scalar=1,
+        busID=313,
+        RTEff=1.0,
     ):
         self.storage_dict = {}
-        self.owned_storage_list=owned_storage_list,
+        self.owned_storage_list = (owned_storage_list,)
         self.hybrid_storage_list = hybrid_storage_list
         index_list = [
             "Storage_Index",
@@ -533,7 +522,9 @@ class CreateRTSCase(object):
         self.storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
             self.storage_dict[index_list[0]]
         )
-        self.storage_dict[index_list[5]] = [RTEff ** 0.5] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[5]] = [RTEff ** 0.5] * len(
+            self.storage_dict[index_list[0]]
+        )
         self.storage_dict[index_list[6]] = list(
             self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]["Bus ID"]
         )
@@ -549,10 +540,8 @@ class CreateRTSCase(object):
         self.storage_dict[index_list[7]] = [2] * len(self.storage_dict[index_list[0]])
         self.storage_dict[index_list[8]] = [2] * len(self.storage_dict[index_list[0]])
 
-        self.df_to_csv(filename, 
-        self.storage_dict, 
-        owned_storage=True, 
-        hybrid_storage=True
+        self.df_to_csv(
+            filename, self.storage_dict, owned_storage=True, hybrid_storage=True
         )
 
     def init_gens(self, filename):
@@ -1049,7 +1038,9 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
     try:
         owned_storage = kwargs["owned_storage"]  #'313_STORAGE_1'
     except KeyError:
-        print("NOTE: no owned_storage, default behavior is for agent to only own storage")
+        print(
+            "NOTE: no owned_storage, default behavior is for agent to only own storage"
+        )
         owned_storage = []
     try:
         hybrid_gens = kwargs["hybrid_gens"]  #'303_WIND_1'
@@ -1059,7 +1050,9 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
     try:
         hybrid_storage = kwargs["hybrid_storage"]  #'303_WIND_1'
     except KeyError:
-        print("NOTE: no hybrid_storage, default behavior is for agent to only own storage")
+        print(
+            "NOTE: no hybrid_storage, default behavior is for agent to only own storage"
+        )
         hybrid_storage = []
     try:
         retained_bus = kwargs["retained_buses"]  # [a for a in range(301, 326)]
