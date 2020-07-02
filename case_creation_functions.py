@@ -458,7 +458,7 @@ class CreateRTSCase(object):
         ]["Category"].values
         d[index_list[4]] = self.generators_dict["Capacity"]
         d[index_list[5]] = self.generators_dict["Fuel_Cost"]
-        d[index_list[7]] = ["NA"] * len(self.generators_dict[index_list[0]])
+        d[index_list[6]] = ["NA"] * len(self.generators_dict[index_list[0]])
 
         self.dict_to_csv(filename, d)
 
