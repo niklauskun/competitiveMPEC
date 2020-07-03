@@ -748,22 +748,22 @@ dispatch_model.REOfferCapConstraint = Constraint(
 ## STORAGE OFFER CONSTRAINTS ##
 # added by Luke 6.30.20
 # will eventually want to move lower down with other upper-level offer mitigation constraints
-def MitigateChargeOffer(model, t, s):
-    return model.so[t, s] >= model.charge_max_offer[t, s]
+#def MitigateChargeOffer(model, t, s):
+#    return model.so[t, s] >= model.charge_max_offer[t, s]
 
 
-dispatch_model.MitigateChargeOfferConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateChargeOffer
-)
+#dispatch_model.MitigateChargeOfferConstraint = Constraint(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateChargeOffer
+#)
 
 
-def MitigateDischargeOffer(model, t, s):
-    return model.discharge_max_offer[t, s] >= model.so[t, s]
+#def MitigateDischargeOffer(model, t, s):
+#    return model.discharge_max_offer[t, s] >= model.so[t, s]
 
 
-dispatch_model.MitigateDischargeOfferConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateDischargeOffer
-)
+#dispatch_model.MitigateDischargeOfferConstraint = Constraint(
+#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateDischargeOffer
+#)
 
 
 ## STORAGE CONSTRAINTS ##
@@ -2045,7 +2045,7 @@ def objective_profit_dual_pre(model):
         - sum(
             sum(
                 model.DischargeMax[s]
-                * model.sc_max[s]
+                * model.ChargeMax[s]
                 * model.storagetight_dual[t, s]
                 for t in model.TIMEPOINTS
             )
