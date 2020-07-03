@@ -289,18 +289,18 @@ class CreateAndRunScenario(object):
         results["tmps"] = [t for t in self.instance.TIMEPOINTS]
 
         results["dispatch"] = [
-            self.instance.dispatch[t, g]()
+            self.instance.gd[t, g]()
             for t in self.instance.TIMEPOINTS
             for g in self.instance.GENERATORS
         ]
 
         results["starts"] = [
-            self.instance.startup[t, g].value
+            self.instance.gup[t, g].value
             for t in self.instance.TIMEPOINTS
             for g in self.instance.GENERATORS
         ]
         results["shuts"] = [
-            self.instance.shutdown[t, g].value
+            self.instance.gsd[t, g].value
             for t in self.instance.TIMEPOINTS
             for g in self.instance.GENERATORS
         ]
