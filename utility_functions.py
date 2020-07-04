@@ -26,6 +26,7 @@ from pyomo.gdp import bigm
 from pyomo.opt import SolverFactory
 
 import input_competitive_test
+import input_competitive_RT
 import model_competitive_test
 import write_results_competitive
 
@@ -82,6 +83,7 @@ class CreateAndRunScenario(object):
         dir_str,
         load_init,
         is_MPEC,
+        is_RT,
         genco_index,
         overwritten_offers,
         *args,
@@ -93,6 +95,7 @@ class CreateAndRunScenario(object):
         self.scenario_logs_directory = dir_str.LOGS_DIRECTORY
         self.load_init = load_init
         self.is_MPEC = is_MPEC
+        self.is_RT = is_RT
         self.genco_index = genco_index
         self.overwritten_offers = overwritten_offers
 
@@ -123,10 +126,16 @@ class CreateAndRunScenario(object):
         print("...competitive generators recorded.")
 
         print("Loading data...")
-        self.data = input_competitive_test.scenario_inputs(
+        if self.is_RT:
+            self.data = input_competitive_RT.scenario_inputs(
             self.scenario_inputs_directory
-        )
-        print("..data read.")
+            )
+            print(".. real-time data read.")
+        else:
+            self.data = input_competitive_test.scenario_inputs(
+            self.scenario_inputs_directory
+            )
+            print(".. day-ahead data read.")
 
         print("Compiling instance...")
         instance = self.model.create_instance(self.data)

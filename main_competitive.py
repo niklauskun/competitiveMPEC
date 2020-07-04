@@ -17,6 +17,7 @@ import datetime
 
 # import other scripts
 import input_competitive_test  # DataPortal for loading data from csvs into Pyomo model
+import input_competitive_RT
 import model_competitive_test  # the actual Pyomo model formulation
 import write_results_competitive  # writes model outputs to csvs
 
@@ -37,7 +38,8 @@ case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = False  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+MPEC = False # if you wish to run as MPEC, if false runs as min cost dispatch LP
+RT = True
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = True
@@ -53,10 +55,7 @@ solver_kwargs = {
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
 # for now, I'll just include ability here to deactivate constraints if you don't want the model to use them
-deactivated_constraint_args = [
-    "MitigateDischargeOfferConstraint",
-    "MitigateChargeOfferConstraint",
-]  # list of constraint names to deactivate
+deactivated_constraint_args = []  # list of constraint names to deactivate
 # an example that won't affect problem much is "OfferCapConstraint"
 # "OneCycleConstraint"
 
@@ -159,6 +158,7 @@ for counter, s in enumerate(scenario_list):
         dir_str,
         load_init,
         MPEC,
+        RT,
         genco_index,
         overwritten_offers,
         *deactivated_constraint_args,
