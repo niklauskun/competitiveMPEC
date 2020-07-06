@@ -129,6 +129,10 @@ class CreateAndRunScenario(object):
         print("...competitive generators recorded.")
 
         print("Loading data...")
+        storageclass = StorageOfferMitigation(
+            self.dir_str, mitigation_flag=False, suppress_print=True
+        )
+        storageclass.write_SPP_mitigated_offers()
         if self.is_RT:
             self.data = input_competitive_RT.scenario_inputs(
                 self.scenario_inputs_directory
@@ -439,7 +443,7 @@ def create_default_prices_df(case_directory):
 
 
 class StorageOfferMitigation(object):
-    def __init__(self, case_directory, mitigation_flag=True):
+    def __init__(self, case_directory, mitigation_flag=True, suppress_print=False):
         self.case_directory = case_directory
         self.mitigation_flag = mitigation_flag
         self.storage_df = pd.read_csv(
@@ -450,9 +454,10 @@ class StorageOfferMitigation(object):
                 os.path.join(case_directory.RESULTS_DIRECTORY, "zonal_prices.csv")
             )  # prices_df
         except FileNotFoundError:
-            print(
-                "NOTE: mitigate_storage_offers is TRUE, but there is no results file zonal_prices.csv for this case, so storage offers will not be mitigated"
-            )
+            if not suppress_print:
+                print(
+                    "NOTE: mitigate_storage_offers is TRUE, but there is no results file zonal_prices.csv for this case, so storage offers will not be mitigated"
+                )
             self.prices_df = create_default_prices_df(case_directory)
             self.mitigation_flag = False
         self.prices_df.columns = ["zone"] + list(self.prices_df.columns[1:])

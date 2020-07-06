@@ -38,7 +38,7 @@ cwd = os.getcwd()
 case_folder = "Desktop//competitiveMPEC//test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
-end_date = "01-02-2019"  # end date is exclusive
+end_date = "01-04-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, rt_iter = False, 96, 3
 # the second value is how many tmps to subset RT cases into
