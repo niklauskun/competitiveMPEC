@@ -32,7 +32,7 @@ import model_competitive_test
 import write_results_competitive
 
 
-def create_scenario_list(start_str, end_str):
+def create_scenario_list(start_str, end_str, is_RT, tmps, total_tmps):
     """ creates list of scenarios from input dates
 
     Arguments:
@@ -45,6 +45,7 @@ def create_scenario_list(start_str, end_str):
     Returns:
         [list] -- info about case
     """
+    assert total_tmps % tmps == 0
     start = datetime.datetime.strptime(start_str, "%m-%d-%Y")
     end = datetime.datetime.strptime(end_str, "%m-%d-%Y")
     if start >= end:
@@ -54,7 +55,11 @@ def create_scenario_list(start_str, end_str):
     ]
 
     date_folders = [date.strftime("%m.%d.%Y") for date in date_generated]
-    return [(d, False, "", 1) for d in date_folders]
+    tmps_range = [i for i in range(1, int(total_tmps / tmps) + 1)]
+    if is_RT:
+        return [(d, False, "", 1, i) for i in tmps_range for d in date_folders]
+    else:
+        return [(d, False, "", 1, 1) for d in date_folders]
 
 
 def update_offers(dir_str):
@@ -130,7 +135,7 @@ class CreateAndRunScenario(object):
 
         print("Loading data...")
         storageclass = StorageOfferMitigation(
-            self.dir_str, mitigation_flag=False, suppress_print=True
+            self.dir_str, self.is_RT, mitigation_flag=False, suppress_print=True
         )
         storageclass.write_SPP_mitigated_offers()
         if self.is_RT:
@@ -161,7 +166,7 @@ class CreateAndRunScenario(object):
                 debug_mode=1,
             )
         storageclass = StorageOfferMitigation(
-            self.dir_str, mitigation_flag=self.mitigate_storage_offers
+            self.dir_str, self.is_RT, mitigation_flag=self.mitigate_storage_offers
         )
         storageclass.write_SPP_mitigated_offers()
         print("...storage offer mitigation file created")
@@ -431,10 +436,15 @@ class CreateAndRunScenario(object):
         plt.show()
 
 
-def create_default_prices_df(case_directory):
-    df = pd.read_csv(
-        os.path.join(case_directory.INPUTS_DIRECTORY, "timepoints_zonal.csv")
-    )
+def create_default_prices_df(case_directory, is_RT):
+    if is_RT:
+        df = pd.read_csv(
+            os.path.join(case_directory.INPUTS_DIRECTORY, "timepoints_zonal_rt.csv")
+        )
+    else:
+        df = pd.read_csv(
+            os.path.join(case_directory.INPUTS_DIRECTORY, "timepoints_zonal.csv")
+        )
     df = df[["timepoint", "zone"]].sort_values("zone").set_index("zone")
     df["LMP"] = [0] * len(df.index)
     df.reset_index(inplace=True)
@@ -443,22 +453,29 @@ def create_default_prices_df(case_directory):
 
 
 class StorageOfferMitigation(object):
-    def __init__(self, case_directory, mitigation_flag=True, suppress_print=False):
+    def __init__(
+        self, case_directory, is_RT, mitigation_flag=True, suppress_print=False
+    ):
         self.case_directory = case_directory
         self.mitigation_flag = mitigation_flag
-        self.storage_df = pd.read_csv(
-            os.path.join(case_directory.INPUTS_DIRECTORY, "storage_resources.csv")
-        )  # storage_df
+        if is_RT:
+            self.storage_df = pd.read_csv(
+                os.path.join(
+                    case_directory.INPUTS_DIRECTORY, "storage_resources_rt.csv"
+                )
+            )
+        else:
+            self.storage_df = pd.read_csv(
+                os.path.join(case_directory.INPUTS_DIRECTORY, "storage_resources.csv")
+            )  # storage_df
         try:
             self.prices_df = pd.read_csv(
                 os.path.join(case_directory.RESULTS_DIRECTORY, "zonal_prices.csv")
             )  # prices_df
         except FileNotFoundError:
             if not suppress_print:
-                print(
-                    "NOTE: mitigate_storage_offers is TRUE, but there is no results file zonal_prices.csv for this case, so storage offers will not be mitigated"
-                )
-            self.prices_df = create_default_prices_df(case_directory)
+                print("NOTE: storage offers will not be mitigated")
+            self.prices_df = create_default_prices_df(case_directory, is_RT)
             self.mitigation_flag = False
         self.prices_df.columns = ["zone"] + list(self.prices_df.columns[1:])
         self.storage_prices = pd.merge(
@@ -591,3 +608,14 @@ def write_timepoint_subset(directory, is_RT, tmps, slicer):
     df = pd.DataFrame.from_dict(case_dict)
     df.set_index("timepoint", inplace=True)
     df.to_csv(join(directory.INPUTS_DIRECTORY, "timepoints_index_subset_rt.csv"))
+
+
+def create_case_suffix(directory, RT, rt_tmps, n_iter):
+    if not RT:
+        return "_DA"
+    else:
+        case_string = (
+            "_" + str((n_iter - 1) * rt_tmps + 1) + "_" + str((n_iter) * rt_tmps)
+        )
+        return "_RT" + case_string
+
