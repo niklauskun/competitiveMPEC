@@ -21,7 +21,8 @@ import warnings
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 from pyutilib.services import TempfileManager
-from pyomo.environ import Suffix, TransformationFactory
+from pyomo.environ import Suffix, TransformationFactory, Set
+from pyomo.core.base.sets import OrderedSimpleSet
 from pyomo.gdp import bigm
 from pyomo.opt import SolverFactory
 
@@ -84,6 +85,7 @@ class CreateAndRunScenario(object):
         load_init,
         is_MPEC,
         is_RT,
+        mitigate_storage_offers,
         genco_index,
         overwritten_offers,
         *args,
@@ -94,6 +96,7 @@ class CreateAndRunScenario(object):
         self.scenario_results_directory = dir_str.RESULTS_DIRECTORY
         self.scenario_logs_directory = dir_str.LOGS_DIRECTORY
         self.load_init = load_init
+        self.mitigate_storage_offers = mitigate_storage_offers
         self.is_MPEC = is_MPEC
         self.is_RT = is_RT
         self.genco_index = genco_index
@@ -128,18 +131,36 @@ class CreateAndRunScenario(object):
         print("Loading data...")
         if self.is_RT:
             self.data = input_competitive_RT.scenario_inputs(
-            self.scenario_inputs_directory
+                self.scenario_inputs_directory
             )
             print(".. real-time data read.")
         else:
             self.data = input_competitive_test.scenario_inputs(
-            self.scenario_inputs_directory
+                self.scenario_inputs_directory
             )
             print(".. day-ahead data read.")
 
         print("Compiling instance...")
         instance = self.model.create_instance(self.data)
         print("...instance created.")
+
+        print("Creating Offer Mitigation (model will solve as dispatch if TRUE)...")
+        if self.mitigate_storage_offers:
+            self.instance = instance
+            self.instance.dual = Suffix(direction=Suffix.IMPORT)
+            solution_pre = self.solve("LP")
+            write_results_competitive.export_results(
+                instance,
+                solution_pre,
+                self.scenario_results_directory,
+                False,
+                debug_mode=1,
+            )
+        storageclass = StorageOfferMitigation(
+            self.dir_str, mitigation_flag=self.mitigate_storage_offers
+        )
+        storageclass.write_SPP_mitigated_offers()
+        print("...storage offer mitigation file created")
 
         if self.is_MPEC:
             print("Converting model to MPEC...")
@@ -531,10 +552,37 @@ class StorageOfferMitigation(object):
             "DischargeMaxOffer",
         ]
         if not self.mitigation_flag:
-            storage_df.ChargeMaxOffer = [-5000 for i in storage_df.ChargeMaxOffer]
+            storage_df.ChargeMaxOffer = [5000 for i in storage_df.ChargeMaxOffer]
             storage_df.DischargeMaxOffer = [5000 for i in storage_df.DischargeMaxOffer]
         storage_df.to_csv(
             os.path.join(self.case_directory.INPUTS_DIRECTORY, "storage_offers.csv"),
             index=False,
         )
         return storage_df.reset_index()
+
+
+def write_timepoint_subset(directory, is_RT, tmps, slicer):
+    if not is_RT:
+        case_dict = {}
+        existing_df = pd.read_csv(
+            join(directory.INPUTS_DIRECTORY, "timepoints_index.csv")
+        )
+        case_dict["timepoint"] = existing_df.timepoint
+        case_dict["first_timepoint"] = [min(case_dict["timepoint"])] * len(
+            case_dict["timepoint"]
+        )
+    # if not RT, just copy the DA file with a new name
+    else:
+        case_dict = {}
+        existing_tmps = pd.read_csv(
+            join(directory.INPUTS_DIRECTORY, "timepoints_index_rt.csv")
+        )
+        existing_tmps_list = list(existing_tmps.timepoint)
+        assert max(existing_tmps_list) % tmps == 0
+        case_dict["timepoint"] = existing_tmps_list[tmps * (slicer - 1) : tmps * slicer]
+        case_dict["first_timepoint"] = [min(case_dict["timepoint"])] * len(
+            case_dict["timepoint"]
+        )
+    df = pd.DataFrame.from_dict(case_dict)
+    df.set_index("timepoint", inplace=True)
+    df.to_csv(join(directory.INPUTS_DIRECTORY, "timepoints_index_subset_rt.csv"))
