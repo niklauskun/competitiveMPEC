@@ -71,9 +71,13 @@ def scenario_inputs(inputs_directory):
     data.load(
         filename=os.path.join(inputs_directory, "timepoints_index_rt.csv"),
         index=model_competitive_test.dispatch_model.TIMEPOINTS,
-        param=(
-            model_competitive_test.dispatch_model.ReferenceBus,
-        ),
+        param=(model_competitive_test.dispatch_model.ReferenceBus,),
+    )
+
+    data.load(
+        filename=os.path.join(inputs_directory, "timepoints_index_subset_rt.csv"),
+        index=model_competitive_test.dispatch_model.ACTIVETIMEPOINTS,
+        param=(model_competitive_test.dispatch_model.FirstTimepoint,),
     )
 
     data.load(
@@ -87,9 +91,7 @@ def scenario_inputs(inputs_directory):
 
     data.load(
         filename=os.path.join(inputs_directory, "timepoints_zonal_rt.csv"),
-        param=(
-            model_competitive_test.dispatch_model.GrossLoad,
-        ),
+        param=(model_competitive_test.dispatch_model.GrossLoad,),
     )
 
     data.load(
@@ -115,7 +117,9 @@ def scenario_inputs(inputs_directory):
     )
 
     data.load(
-        filename=os.path.join(inputs_directory, "generator_segment_marginalcost_rt.csv"),
+        filename=os.path.join(
+            inputs_directory, "generator_segment_marginalcost_rt.csv"
+        ),
         param=(
             model_competitive_test.dispatch_model.GeneratorSegmentLength,
             model_competitive_test.dispatch_model.GeneratorMarginalCost,

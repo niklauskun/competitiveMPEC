@@ -38,7 +38,7 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
 
     # Get model sets for indexing
     # Sort the sets to return a predictable format of results files
-    timepoints_set = sorted(instance.TIMEPOINTS)
+    timepoints_set = sorted(instance.ACTIVETIMEPOINTS)
     generators_set = (
         instance.GENERATORS
     )  # don't sort these so order is preserved for future cases
@@ -229,9 +229,7 @@ def export_generator_segment_dispatch(
         for gs in generatorsegment_set:
             index_name.append(str(g) + "-" + str(gs))
             for t in timepoints_set:
-                results_dispatch.append(
-                    format_6f(instance.gsd[t, g, gs].value)
-                )
+                results_dispatch.append(format_6f(instance.gsd[t, g, gs].value))
     results_dispatch_np = np.reshape(
         results_dispatch,
         (int(len(results_dispatch) / len(timepoints_set)), int(len(timepoints_set))),
@@ -275,9 +273,7 @@ def export_generator_segment_offer(
             for gs in generatorsegment_set:
                 timepoints_list.append(t)
                 index_name.append(str(g) + "-" + str(gs))
-                results_offer.append(
-                    format_6f(instance.gso[t, g, gs].value)
-                )
+                results_offer.append(format_6f(instance.gso[t, g, gs].value))
                 total_dispatch.append(format_6f(instance.gsd[t, g, gs]()))
                 total_emissions.append(format_6f(instance.CO2_emissions[t, g, gs]()))
                 commitment.append(format_6f(instance.gopstat[t, g]()))
@@ -545,9 +541,7 @@ def export_generator_commits_reserves(
                     (1 - instance.commitinit[g]) * instance.downinit[g]
                     + (1 - instance.commitment[t, g].value)
                 )
-            elif (
-                instance.gup[t, g].value == 1 or instance.gdn[t, g].value == 1
-            ):
+            elif instance.gup[t, g].value == 1 or instance.gdn[t, g].value == 1:
                 results_hourson.append(instance.commitment[t, g].value)
                 results_hoursoff.append((1 - instance.commitment[t, g].value))
             else:
@@ -658,6 +652,9 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_totaldischarge = []
     soc = []
     storage_offer = []
+    max_storage_offer = []
+    storage_charge_offer = []
+    max_storage_charge_offer = []
     storage_tight_dual = []
     storage_max_dual = []
     storage_min_dual = []
@@ -675,12 +672,17 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
             storage_discharge.append(format_6f(instance.sd[t, s].value))
             storage_totaldischarge.append(format_6f(instance.totaldischarge[t, s]()))
             soc.append(format_6f(instance.soc[t, s].value))
-            storage_offer.append(format_6f(instance.so[t, s].value))
+            storage_offer.append(format_6f(instance.sodischarge[t, s].value))
+            max_storage_offer.append(format_6f(instance.discharge_max_offer[t, s]))
+            storage_charge_offer.append(format_6f(instance.socharge[t, s].value))
+            max_storage_charge_offer.append(format_6f(instance.charge_max_offer[t, s]))
             storage_tight_dual.append(format_6f(instance.storagetight_dual[t, s].value))
             storage_max_dual.append(format_6f(instance.socmax_dual[t, s].value))
             storage_min_dual.append(format_6f(instance.socmin_dual[t, s].value))
             storage_charge_dual.append(format_6f(instance.charge_dual[t, s].value))
-            storage_discharge_dual.append(format_6f(instance.discharge_dual[t, s].value))
+            storage_discharge_dual.append(
+                format_6f(instance.discharge_dual[t, s].value)
+            )
             cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
             node.append(instance.StorageZoneLabel[s])
             if is_MPEC:
@@ -700,14 +702,18 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
 
     profit = [
         float(d) * float(price) - float(c) * float(price)
-         for d, c, price in zip(storage_discharge, storage_charge, lmp)]
+        for d, c, price in zip(storage_discharge, storage_charge, lmp)
+    ]
     col_names = [
         "time",
         "charge",
         "discharge",
         "totaldischarge",
         "soc",
-        "offer",
+        "discharge_offer",
+        "maxdischargeoffer",
+        "charge_offer",
+        "maxchargeoffer",
         "tightdual",
         "maxdual",
         "mindual",
@@ -727,6 +733,9 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_totaldischarge),
                 np.asarray(soc),
                 np.asarray(storage_offer),
+                np.asarray(max_storage_offer),
+                np.asarray(storage_charge_offer),
+                np.asarray(max_storage_charge_offer),
                 np.asarray(storage_tight_dual),
                 np.asarray(storage_max_dual),
                 np.asarray(storage_min_dual),
@@ -743,5 +752,3 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     )
 
     df.to_csv(os.path.join(results_directory, "storage_dispatch.csv"))
-
-

@@ -231,7 +231,7 @@ class LoadNRELData(object):
             for j in ["hydro_data", "pv_data", "rtpv_data", "csp_data", "wind_data"]:
                 if gentype in self.nrel_dict[j]:
                     copied_profile = self.nrel_dict[j][gentype].values
-                self.nrel_dict[j][copied_data[0][0]] = copied_profile
+                    self.nrel_dict[j][copied_data[0][0]] = copied_profile
 
     def update_unique(self, gen_str):
         if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):
@@ -535,7 +535,7 @@ class CreateRTSCase(object):
             * self.gen_data[self.gen_data["Unit Type"].isin(self.gentypes)][
                 "Ramp Rate MW/Min"
             ].values
-        )/12
+        ) / 12
         self.gen_data.loc[:, "CO2/MWH"] = (
             self.gen_data.loc[:, "Emissions CO2 Lbs/MMBTU"]
             * self.lb_to_tonne
@@ -690,12 +690,12 @@ class CreateRTSCase(object):
         self.storage_dict[index_list[0]] = self.gen_data[
             self.gen_data["Unit Type"] == "STORAGE"
         ]["GEN UID"].values
-        self.storage_dict[index_list[1]] = (self.gen_data[
-            self.gen_data["Unit Type"] == "STORAGE"
-        ]["PMax MW"].values)/12
-        self.storage_dict[index_list[2]] = (self.gen_data[
-            self.gen_data["Unit Type"] == "STORAGE"
-        ]["PMax MW"].values)/12
+        self.storage_dict[index_list[1]] = (
+            self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]["PMax MW"].values
+        ) / 12
+        self.storage_dict[index_list[2]] = (
+            self.gen_data[self.gen_data["Unit Type"] == "STORAGE"]["PMax MW"].values
+        ) / 12
         self.storage_dict[index_list[3]] = [
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
         ] * len(self.storage_dict[index_list[0]])
@@ -760,7 +760,7 @@ class CreateRTSCase(object):
             list(self.generators_dict["Fuel_Cost"]) * self.hours
         )
         self.dict_to_csv(filename, scheduled_dict, index="timepoint")
-    
+
     def scheduled_gens_rt(self, filename):
         scheduled_dict = {}
         index_list = ["timepoint", "Gen_Index", "available", "Capacity", "Fuel_Cost"]
@@ -778,7 +778,8 @@ class CreateRTSCase(object):
         gen_cap_list = []
         for h in range(self.period_begin, self.period_end):
             for gen, capacity in zip(
-                self.generators_rt_dict["Gen_Index"], self.generators_rt_dict["Capacity"],
+                self.generators_rt_dict["Gen_Index"],
+                self.generators_rt_dict["Capacity"],
             ):
                 if gen in self.hydro_data_rt.columns:
                     gen_cap_list.append(self.hydro_data_rt.at[h, gen])
@@ -820,16 +821,16 @@ class CreateRTSCase(object):
     def timepoints_rt(self, filename):
         self.timepoint_rt_dict = {}
         index_list = [
-        "timepoint",
-        "reference_bus",
+            "timepoint",
+            "reference_bus",
         ]
 
         self.timepoint_rt_dict[index_list[0]] = list(range(1, self.periods + 1))
 
         if self.retained_bus_list == []:
-            self.timepoint_rt_dict[index_list[1]] = [self.bus_data.at[12, "Bus ID"]] * len(
-                self.timepoint_rt_dict[index_list[0]]
-            )
+            self.timepoint_rt_dict[index_list[1]] = [
+                self.bus_data.at[12, "Bus ID"]
+            ] * len(self.timepoint_rt_dict[index_list[0]])
         else:
             self.timepoint_rt_dict[index_list[1]] = [self.retained_bus_list[0]] * len(
                 self.timepoint_rt_dict[index_list[0]]
@@ -900,7 +901,7 @@ class CreateRTSCase(object):
         ].values  # hourly_df['MW Load_x'].values
 
         self.dict_to_csv(filename, time_zone_dict, index="timepoint")
-    
+
     def zonal_loads_rt(self, filename):
         bus_df = self.bus_data[["Bus ID", "MW Load", "Area"]]
         bus_df_load = pd.merge(
@@ -913,7 +914,9 @@ class CreateRTSCase(object):
         bus_df_load["Frac Load"] = bus_df_load["MW Load_x"] / bus_df_load["MW Load_y"]
         hourly_df = pd.concat([bus_df_load] * self.periods, ignore_index=True)
         hourly_df["timepoint"] = [
-            e for e in self.timepoint_rt_dict["timepoint"] for i in self.zone_dict["zone"]
+            e
+            for e in self.timepoint_rt_dict["timepoint"]
+            for i in self.zone_dict["zone"]
         ]
         # print(load_data_rt)
         load_short = (
@@ -931,10 +934,14 @@ class CreateRTSCase(object):
         index_list = ["timepoint", "zone", "gross_load"]
 
         time_zone_dict[index_list[0]] = [
-            e for e in self.timepoint_rt_dict["timepoint"] for i in self.zone_dict["zone"]
+            e
+            for e in self.timepoint_rt_dict["timepoint"]
+            for i in self.zone_dict["zone"]
         ]
         time_zone_dict[index_list[1]] = [
-            i for e in self.timepoint_rt_dict["timepoint"] for i in self.zone_dict["zone"]
+            i
+            for e in self.timepoint_rt_dict["timepoint"]
+            for i in self.zone_dict["zone"]
         ]
         time_zone_dict[index_list[2]] = hourly_df[
             "bus load"
@@ -1037,7 +1044,7 @@ class CreateRTSCase(object):
         self.dict_to_csv(
             filename, tx_hourly_dict, index=["timepoint", "transmission_line"]
         )
-    
+
     def tx_lines_hourly_rt(self, filename, flow_multiplier=1):
         tx_hourly_dict = {}
         index_list = [
@@ -1107,22 +1114,23 @@ class CreateRTSCase(object):
             "marginal_CO2",
             "CO2damage",
         ]
-
+        n_tmps = len(self.timepoint_dict["timepoint"])
+        first_tmp = [self.timepoint_dict["timepoint"].pop(0)]
         gs_seg_dict[index_list[0]] = [
             t
-            for t in self.timepoint_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[1]] = [
             gen
-            for t in self.timepoint_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[2]] = [
             gs
-            for t in self.timepoint_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
@@ -1192,7 +1200,6 @@ class CreateRTSCase(object):
                     * self.gen_data.set_index("GEN UID").at[gen, "Fuel Price $/MMBTU"]
                 )
                 emissions_list.append(HeatRate * EmissionsRate)
-
         gs_seg_dict[index_list[3]] = seg_length_list
         gs_seg_dict[index_list[4]] = mcos_list
         gs_seg_dict[index_list[5]] = gs_seg_dict[index_list[4]]
@@ -1205,6 +1212,15 @@ class CreateRTSCase(object):
             )
 
         gs_seg_df = pd.DataFrame.from_dict(gs_seg_dict)
+        gs_seg_df = pd.concat(
+            [gs_seg_df] * n_tmps, ignore_index=True
+        )  # replication across tmps
+        # replacement of first column
+        orig_len = len(gs_seg_dict[index_list[0]])
+        for i in self.timepoint_dict["timepoint"]:
+            gs_seg_dict[index_list[0]] += orig_len * [i]
+        gs_seg_df["time"] = gs_seg_dict[index_list[0]]
+        # then write
         gs_seg_df.set_index(["time", "Gen_Index"], inplace=True)
         # overwrite 0's on segment 1 for renewable generators
         gs_seg_df.loc[
@@ -1232,22 +1248,24 @@ class CreateRTSCase(object):
             "marginal_CO2",
             "CO2damage",
         ]
+        n_tmps = len(self.timepoint_rt_dict["timepoint"])
+        first_tmp = [self.timepoint_rt_dict["timepoint"].pop(0)]
 
         gs_seg_dict[index_list[0]] = [
             t
-            for t in self.timepoint_rt_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_rt_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[1]] = [
             gen
-            for t in self.timepoint_rt_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_rt_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[2]] = [
             gs
-            for t in self.timepoint_rt_dict["timepoint"]
+            for t in first_tmp
             for gen in self.generators_rt_dict["Gen_Index"]
             for gs in self.gs_list
         ]
@@ -1330,6 +1348,15 @@ class CreateRTSCase(object):
             )
 
         gs_seg_df = pd.DataFrame.from_dict(gs_seg_dict)
+        gs_seg_df = pd.concat(
+            [gs_seg_df] * n_tmps, ignore_index=True
+        )  # replication across tmps
+        # replacement of first column
+        orig_len = len(gs_seg_dict[index_list[0]])
+        for i in self.timepoint_rt_dict["timepoint"]:
+            gs_seg_dict[index_list[0]] += orig_len * [i]
+        gs_seg_df["time"] = gs_seg_dict[index_list[0]]
+        # then write
         gs_seg_df.set_index(["time", "Gen_Index"], inplace=True)
         # overwrite 0's on segment 1 for renewable generators
         gs_seg_df.loc[
@@ -1344,6 +1371,7 @@ class CreateRTSCase(object):
         )
         # print(gs_seg_df)
         return gs_seg_df
+
 
 def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
     zero_day = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")
