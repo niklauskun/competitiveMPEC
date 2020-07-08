@@ -1983,23 +1983,14 @@ def objective_profit_dual(model):
         )
         - sum(
             sum(
-                model.DischargeMax[s]
-                * model.ChargeMax[s]
-                * model.storagetight_dual[t, s]
-                for t in model.ACTIVETIMEPOINTS
-            )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(
                 model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             sum(
@@ -2099,23 +2090,14 @@ def objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                model.DischargeMax[s]
-                * model.ChargeMax[s]
-                * model.storagetight_dual[t, s]
-                for t in model.ACTIVETIMEPOINTS
-            )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(
                 model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             sum(
