@@ -231,7 +231,7 @@ class LoadNRELData(object):
             for j in ["hydro_data", "pv_data", "rtpv_data", "csp_data", "wind_data"]:
                 if gentype in self.nrel_dict[j]:
                     copied_profile = self.nrel_dict[j][gentype].values
-                self.nrel_dict[j][copied_data[0][0]] = copied_profile
+                    self.nrel_dict[j][copied_data[0][0]] = copied_profile
 
     def update_unique(self, gen_str):
         if gen_str in list(self.nrel_dict["gen_data"]["GEN UID"].values):

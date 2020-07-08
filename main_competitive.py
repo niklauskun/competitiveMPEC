@@ -28,6 +28,9 @@ from utility_functions import (
     create_scenario_list,
     CreateAndRunScenario,
     StorageOfferMitigation,
+    write_timepoint_subset,
+    create_case_suffix,
+    write_DA_bids,
 )
 
 start_time = time.time()
@@ -38,8 +41,9 @@ case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = False # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT = True
+MPEC = True # if you wish to run as MPEC, if false runs as min cost dispatch LP
+RT, rt_tmps, total_rt_tmps = False, 24, 288
+# the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = True
@@ -50,7 +54,7 @@ solver_name = "cplex"  # only change if you wish to use a solver other than cple
 solver_kwargs = {
     "parallel": -1,
     "mip_tolerances_mipgap": 0.01,
-    "dettimelimit": 300000,
+    "dettimelimit": 30000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
@@ -74,14 +78,14 @@ class DirStructure(object):
         self.INPUTS_DIRECTORY = os.path.join(
             self.CASE_DIRECTORY, scenario_name, "inputs"
         )
-        self.RESULTS_DIRECTORY = os.path.join(
-            self.CASE_DIRECTORY, scenario_name, "results"
-        )
         self.LOGS_DIRECTORY = os.path.join(self.DIRECTORY, "logs")
         if load_init:
             self.INIT_DIRECTORY = os.path.join(self.CASE_DIRECTORY, load_dir, "results")
 
-    def make_directories(self):
+    def make_directories(self, results_suffix):
+        self.RESULTS_DIRECTORY = os.path.join(
+            self.CASE_DIRECTORY, scenario_name, "results" + results_suffix
+        )
         if not os.path.exists(self.RESULTS_DIRECTORY):
             os.mkdir(self.RESULTS_DIRECTORY)
         if not os.path.exists(self.LOGS_DIRECTORY):
@@ -115,27 +119,29 @@ class Logger(object):
         self.log_file.flush()
 
 
-scenario_list = create_scenario_list(start_date, end_date)  # create scenario list
+scenario_list = create_scenario_list(
+    start_date, end_date, RT, rt_tmps, total_rt_tmps
+)  # create scenario list
+# creates rt subset list
 ### RUN MODEL ###
 for counter, s in enumerate(scenario_list):
     # initialize scenario data in the tuple
     if EPEC:
         print("EPEC not currently enabled, so exiting")
         break
-    scenario_name, load_init, load_dir, genco_index = (
+    scenario_name, load_init, load_dir, genco_index, rt_iter = (
         s[0],
         s[1],  # this and the next one are only needed for initializing a case based on
         s[2],  # a previous day. Don't worry about this for now
         s[3],  # this is only needed for EPEC
+        s[4],
     )
 
     # run the case, as usual
     code_directory = cwd
     dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-    dir_str.make_directories()
-    if mitigate_storage_offers:
-        storageclass = StorageOfferMitigation(dir_str)
-        storageclass.write_SPP_mitigated_offers()
+    case_suffix = create_case_suffix(dir_str, RT, rt_tmps, rt_iter)
+    dir_str.make_directories(case_suffix)
     logger = Logger(dir_str)
     log_file = logger.log_file_path
     print(
@@ -145,6 +151,8 @@ for counter, s in enumerate(scenario_list):
         + str(len(scenario_list))
         + " ("
         + str(scenario_name)
+        + "_"
+        + str(rt_iter)
         + ")..."
     )
     stdout = sys.stdout
@@ -153,12 +161,19 @@ for counter, s in enumerate(scenario_list):
     # updates generator offers for iterable scenarios
     overwritten_offers = update_offers(dir_str)
 
+    # writes the file timepoints_index_subset_rt.csv
+    write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
+
+    # writes the file storage_bids_DA.csv
+    write_DA_bids(dir_str, RT)
+
     # create and run scenario (this is the big one)
     scenario = CreateAndRunScenario(
         dir_str,
         load_init,
         MPEC,
         RT,
+        mitigate_storage_offers,
         genco_index,
         overwritten_offers,
         *deactivated_constraint_args,

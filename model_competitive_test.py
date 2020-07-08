@@ -54,6 +54,11 @@ dispatch_model = AbstractModel()
 # time
 dispatch_model.TIMEPOINTS = Set(domain=PositiveIntegers, ordered=True)
 
+# active time
+dispatch_model.ACTIVETIMEPOINTS = Set(
+    domain=PositiveIntegers, ordered=True, within=dispatch_model.TIMEPOINTS
+)
+
 # generators
 dispatch_model.GENERATORS = Set(ordered=True)
 
@@ -88,6 +93,11 @@ dispatch_model.GrossLoad = Param(
 # timepoint-indexed params
 dispatch_model.ReferenceBus = Param(
     dispatch_model.TIMEPOINTS, within=dispatch_model.ZONES
+)
+
+# active timepoint-indexed params
+dispatch_model.FirstTimepoint = Param(
+    dispatch_model.ACTIVETIMEPOINTS, within=dispatch_model.TIMEPOINTS
 )
 
 # zone-indexed params
@@ -348,7 +358,7 @@ dispatch_model.HYBRID_STORAGE = Set(
 # Vars will be CamelCase without underscore
 
 dispatch_model.gsd = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
@@ -357,7 +367,7 @@ dispatch_model.gsd = Var(
 )
 
 dispatch_model.nucgd = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -366,7 +376,7 @@ dispatch_model.nucgd = Var(
 
 
 dispatch_model.txmw = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     within=Reals,
     initialize=0,
@@ -374,7 +384,7 @@ dispatch_model.txmw = Var(
 )
 
 dispatch_model.va = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     within=Reals,
     initialize=0,
@@ -384,7 +394,7 @@ dispatch_model.va = Var(
 # resource specific vars
 
 dispatch_model.sd = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     bounds=(0, 5000),
@@ -392,7 +402,7 @@ dispatch_model.sd = Var(
 )
 
 dispatch_model.sc = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     bounds=(0, 5000),
@@ -400,7 +410,7 @@ dispatch_model.sc = Var(
 )
 
 dispatch_model.soc = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     bounds=(0, 5000),
@@ -411,7 +421,7 @@ dispatch_model.soc = Var(
 # the following vars can make problem integer when implemented
 # for now relevant constraints are unimplemented, so there is no commitment
 dispatch_model.gopstat = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     bounds=(0, 1),
@@ -419,7 +429,7 @@ dispatch_model.gopstat = Var(
 )
 
 dispatch_model.gup = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     bounds=(0, 1),
@@ -427,7 +437,7 @@ dispatch_model.gup = Var(
 )
 
 dispatch_model.gdn = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     bounds=(0, 1),
@@ -438,11 +448,11 @@ dispatch_model.gdn = Var(
 # duals of MO problem
 # bounds help reduce feasible space for BigM method, but they should be high enough to not bind
 dispatch_model.zonalprice = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, within=Reals, initialize=0
 )  # this is zonal load balance dual
 
 dispatch_model.gensegmentmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
@@ -451,7 +461,7 @@ dispatch_model.gensegmentmax_dual = Var(
 )
 
 dispatch_model.gensegmentmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
@@ -460,7 +470,7 @@ dispatch_model.gensegmentmin_dual = Var(
 )
 
 dispatch_model.transmissionmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
@@ -468,7 +478,7 @@ dispatch_model.transmissionmax_dual = Var(
 )
 
 dispatch_model.transmissionmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
@@ -476,7 +486,7 @@ dispatch_model.transmissionmin_dual = Var(
 )
 
 dispatch_model.socmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
@@ -484,7 +494,7 @@ dispatch_model.socmax_dual = Var(
 )
 
 dispatch_model.socmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
@@ -492,7 +502,7 @@ dispatch_model.socmin_dual = Var(
 )
 
 dispatch_model.rampmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -500,7 +510,7 @@ dispatch_model.rampmax_dual = Var(
 )
 
 dispatch_model.rampmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -508,7 +518,7 @@ dispatch_model.rampmin_dual = Var(
 )
 
 dispatch_model.voltageanglemax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     within=NonNegativeReals,
     initialize=0,
@@ -516,7 +526,7 @@ dispatch_model.voltageanglemax_dual = Var(
 )
 
 dispatch_model.voltageanglemin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     within=NonNegativeReals,
     initialize=0,
@@ -524,7 +534,7 @@ dispatch_model.voltageanglemin_dual = Var(
 )
 
 dispatch_model.storagetight_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
@@ -532,7 +542,7 @@ dispatch_model.storagetight_dual = Var(
 )
 
 dispatch_model.charge_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
@@ -540,7 +550,7 @@ dispatch_model.charge_dual = Var(
 )
 
 dispatch_model.discharge_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     within=NonNegativeReals,
     initialize=0,
@@ -552,7 +562,7 @@ dispatch_model.onecycle_dual = Var(
 )
 
 dispatch_model.gendispatchmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -560,7 +570,7 @@ dispatch_model.gendispatchmax_dual = Var(
 )
 
 dispatch_model.gendispatchmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -568,7 +578,7 @@ dispatch_model.gendispatchmin_dual = Var(
 )
 
 dispatch_model.startupshutdown_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -576,7 +586,7 @@ dispatch_model.startupshutdown_dual = Var(
 )
 
 dispatch_model.nucdispatchmax_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -584,7 +594,7 @@ dispatch_model.nucdispatchmax_dual = Var(
 )
 
 dispatch_model.nucdispatchmin_dual = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     within=NonNegativeReals,
     initialize=0,
@@ -593,18 +603,22 @@ dispatch_model.nucdispatchmin_dual = Var(
 
 # offer-related variables (since generators no longer just offer at marginal cost)
 dispatch_model.gso = Var(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     within=Reals,
 )
 
 dispatch_model.go = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, within=Reals,
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.GENERATORS, within=Reals,
 )
 
-dispatch_model.so = Var(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+dispatch_model.sodischarge = Var(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.socharge = Var(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
 
@@ -622,7 +636,9 @@ def GeneratorDispatchRule(model, t, g):
 
 
 dispatch_model.gd = Expression(
-    dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, rule=GeneratorDispatchRule
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.GENERATORS,
+    rule=GeneratorDispatchRule,
 )  # implement GeneratorDispatchRule
 
 
@@ -636,7 +652,7 @@ def GeneratorPminRule(model, t, g):
 
 
 dispatch_model.gpmin = Expression(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorPminRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorPminRule
 )
 
 
@@ -649,7 +665,7 @@ def AvailableSegmentCapacityExpr(model, t, g, gs):
 
 
 dispatch_model.availablesegmentcapacity = Expression(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=AvailableSegmentCapacityExpr,
@@ -661,7 +677,7 @@ def CO2EmittedExpr(model, t, g, gs):
 
 
 dispatch_model.CO2_emissions = Expression(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     rule=CO2EmittedExpr,
@@ -677,7 +693,7 @@ def ZoneChargeExpr(model, t, z):
 
 
 dispatch_model.zonalcharge = Expression(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=ZoneChargeExpr
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, rule=ZoneChargeExpr
 )
 
 
@@ -697,7 +713,7 @@ def TotalDischargeExpr(model, t, s):
 
 
 dispatch_model.totaldischarge = Expression(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=TotalDischargeExpr
 )
 
 
@@ -709,7 +725,7 @@ def GeneratorTotalDispatchRule(model, t, g):
 
 
 dispatch_model.totaldispatch = Expression(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
     rule=GeneratorTotalDispatchRule,
 )
@@ -723,13 +739,12 @@ dispatch_model.totaldispatch = Expression(
 
 def NonUCDispatchRule(model, t, g):
     return (
-        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
-        >= model.nucgd[t, g]
+        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] >= model.nucgd[t, g]
     )
 
 
 dispatch_model.NonUCDispatchConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.NUC_GENS, rule=NonUCDispatchRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.NUC_GENS, rule=NonUCDispatchRule
 )
 
 
@@ -741,29 +756,40 @@ def REOfferCap(model, t, g):
 
 
 dispatch_model.REOfferCapConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, rule=REOfferCap,
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.GENERATORS, rule=REOfferCap,
 )
 # dispatch_model.NON_STRATEGIC_GENERATORS
 
 ## STORAGE OFFER CONSTRAINTS ##
 # added by Luke 6.30.20
 # will eventually want to move lower down with other upper-level offer mitigation constraints
-#def MitigateChargeOffer(model, t, s):
-#    return model.so[t, s] >= model.charge_max_offer[t, s]
+def MitigateChargeOffer(model, t, s):
+    return model.charge_max_offer[t, s] >= model.socharge[t, s]
 
 
-#dispatch_model.MitigateChargeOfferConstraint = Constraint(
-#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateChargeOffer
-#)
+dispatch_model.MitigateChargeOfferConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=MitigateChargeOffer
+)
 
 
-#def MitigateDischargeOffer(model, t, s):
-#    return model.discharge_max_offer[t, s] >= model.so[t, s]
+def MitigateDischargeOffer(model, t, s):
+    return model.discharge_max_offer[t, s] >= model.sodischarge[t, s]
 
 
-#dispatch_model.MitigateDischargeOfferConstraint = Constraint(
-#    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=MitigateDischargeOffer
-#)
+dispatch_model.MitigateDischargeOfferConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=MitigateDischargeOffer
+)
+
+
+def DischargeOfferExceedsChargeOffer(model, t, s):
+    return model.sodischarge[t, s] >= model.socharge[t, s]
+
+
+dispatch_model.StorageOfferConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=DischargeOfferExceedsChargeOffer,
+)
 
 
 ## STORAGE CONSTRAINTS ##
@@ -776,14 +802,14 @@ def HybirdCapacityRule(model, t, s):
         hybrid_capacity = 0
         if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
             hybrid_dispatch += model.sd[t, s]
-            hybrid_capacity += (
-                model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
-            )
+            hybrid_capacity += model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
     return hybrid_capacity >= hybrid_dispatch + model.sd[t, s]
 
 
 dispatch_model.HybirdCapacityConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.HYBRID_STORAGE, rule=HybirdCapacityRule
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.HYBRID_STORAGE,
+    rule=HybirdCapacityRule,
 )
 
 
@@ -797,13 +823,12 @@ def StorageTightRule(model, t, s):
     """
     return (
         model.ChargeMax[s] * model.DischargeMax[s]
-        >= model.ChargeMax[s] * model.sd[t, s]
-        + model.DischargeMax[s] * model.sc[t, s]
+        >= model.ChargeMax[s] * model.sd[t, s] + model.DischargeMax[s] * model.sc[t, s]
     )
 
 
 dispatch_model.StorageTightConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=StorageTightRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=StorageTightRule
 )
 
 
@@ -816,7 +841,8 @@ def SOCChangeRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    if t == 1:
+
+    if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
             == model.sc[t, s] * model.ChargeEff[s]
@@ -834,7 +860,7 @@ def SOCChangeRule(model, t, s):
 
 
 dispatch_model.SOCChangeConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=SOCChangeRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=SOCChangeRule
 )  # implements SOCChangeConstraint
 
 
@@ -850,7 +876,7 @@ def SOCMaxRule(model, t, s):
 
 
 dispatch_model.SOCMaxConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, rule=SOCMaxRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=SOCMaxRule
 )  # implements SOCMaxConstraint
 
 
@@ -862,7 +888,7 @@ def BindFinalSOCRule(model, s):
         model -- Pyomo model
         s {str} -- storage resource index
     """
-    return model.SocMax[s] * 0 == model.soc[model.TIMEPOINTS[-1], s]
+    return model.SocMax[s] * 0 == model.soc[model.ACTIVETIMEPOINTS[-1], s]
 
 
 dispatch_model.BindFinalSOCConstraint = Constraint(
@@ -871,7 +897,7 @@ dispatch_model.BindFinalSOCConstraint = Constraint(
 
 
 def OneCycleRule(model, s):
-    return model.SocMax[s] >= sum(model.sd[t, s] for t in model.TIMEPOINTS)
+    return model.SocMax[s] >= sum(model.sd[t, s] for t in model.ACTIVETIMEPOINTS)
 
 
 dispatch_model.OneCycleConstraint = Constraint(
@@ -896,7 +922,7 @@ def TxFromRule(model, t, line):
 
 
 dispatch_model.TxFromConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxFromRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxFromRule
 )  # implements TxFromConstraint
 
 
@@ -913,7 +939,7 @@ def TxToRule(model, t, line):
 
 
 dispatch_model.TxToConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxToRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=TxToRule
 )  # implements TxToConstraint
 
 # then the dcopf rules
@@ -932,7 +958,7 @@ def VoltageAngleMaxRule(model, t, z):
 
 
 dispatch_model.VoltageAngleMaxConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=VoltageAngleMaxRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, rule=VoltageAngleMaxRule
 )  # implements VoltageAngleMaxConstraint
 
 
@@ -948,7 +974,7 @@ def VoltageAngleMinRule(model, t, z):
 
 
 dispatch_model.VoltageAngleMinConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     rule=VoltageAngleMinRule,
     name="VoltageAngleMin",
@@ -970,7 +996,7 @@ def SetReferenceBusRule(model, t, z):
 
 
 dispatch_model.SetReferenceBusConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     rule=SetReferenceBusRule,
     name="RefBus",
@@ -995,7 +1021,7 @@ def DCOPFRule(model, t, line):
 
 
 dispatch_model.DCOPFConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=DCOPFRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.TRANSMISSION_LINE, rule=DCOPFRule
 )  # implements DCOPFConstraint
 
 ## LOAD BALANCE ##
@@ -1037,7 +1063,7 @@ def LoadRule(model, t, z):
 
 
 dispatch_model.LoadConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=LoadRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, rule=LoadRule
 )  # implements load constraint
 
 ## CONVENTIONAL GENERATORS CONSTRAINTS ##
@@ -1054,15 +1080,13 @@ def CapacityMaxRule(model, t, g):
         g {str} -- generator index
     """
     return (
-        model.CapacityTime[t, g]
-        * model.gopstat[t, g]
-        * model.ScheduledAvailable[t, g]
+        model.CapacityTime[t, g] * model.gopstat[t, g] * model.ScheduledAvailable[t, g]
         >= model.gd[t, g]
     )
 
 
 dispatch_model.CapacityMaxConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=CapacityMaxRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=CapacityMaxRule
 )
 
 # pmin: INACTIVE
@@ -1080,7 +1104,7 @@ def CapacityMinRule(model, t, g):
 
 
 dispatch_model.PminConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=CapacityMinRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=CapacityMinRule
 )
 
 ### GENERATOR SEGMENT DISPATCH ###
@@ -1101,7 +1125,7 @@ def GeneratorSegmentDispatchMax(model, t, g, gs):
 
 
 dispatch_model.GeneratorSegmentMaxConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=GeneratorSegmentDispatchMax,
@@ -1112,7 +1136,7 @@ dispatch_model.GeneratorSegmentMaxConstraint = Constraint(
 
 
 def GeneratorRampUpRule(model, t, g):
-    """ Increase in generator dispatch between timepoints cannot exceed upward ramp rate
+    """ Increase in generator dispatch between ACTIVETIMEPOINTS cannot exceed upward ramp rate
     Note this isn't implemented in the first timepoint, so any initialization is allowed
     There are a couple ways around this, one of the more common/simple is looping the day back on itself
 
@@ -1121,7 +1145,7 @@ def GeneratorRampUpRule(model, t, g):
         t {int} -- timepoint index
         g {str} -- generator index
     """
-    if t == 1:
+    if t == model.FirstTimepoint[t]:
         return Constraint.Skip
     else:
         return (
@@ -1133,12 +1157,12 @@ def GeneratorRampUpRule(model, t, g):
 
 
 dispatch_model.GeneratorRampUpConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorRampUpRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorRampUpRule
 )
 
 
 def GeneratorRampDownRule(model, t, g):
-    """ Decrease in generator dispatch between timepoints cannot exceed downward ramp rate
+    """ Decrease in generator dispatch between ACTIVETIMEPOINTS cannot exceed downward ramp rate
     Note this isn't implemented in the first timepoint, so any initialization is allowed
     There are a couple ways around this, one of the more common/simple is looping the day back on itself
 
@@ -1147,7 +1171,7 @@ def GeneratorRampDownRule(model, t, g):
         t {int} -- timepoint index
         g {str} -- generator index
     """
-    if t == 1:
+    if t == model.FirstTimepoint[t]:
         return Constraint.Skip
     else:
         return (
@@ -1159,7 +1183,7 @@ def GeneratorRampDownRule(model, t, g):
 
 
 dispatch_model.GeneratorRampDownConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorRampDownRule
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorRampDownRule
 )
 
 
@@ -1173,7 +1197,7 @@ def GeneratorStartupShutdownRule(model, t, g):
         g {str} -- generator index
         gs {int} -- generator segment index
     """
-    if t == 1:
+    if t == model.FirstTimepoint[t]:
         return Constraint.Skip
     else:
         return (
@@ -1183,7 +1207,9 @@ def GeneratorStartupShutdownRule(model, t, g):
 
 
 dispatch_model.GeneratorStartupShutdownConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=GeneratorStartupShutdownRule
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.UC_GENS,
+    rule=GeneratorStartupShutdownRule,
 )
 
 
@@ -1215,7 +1241,7 @@ def BindGeneratorOfferDual(model, t, g, gs):
 
 
 dispatch_model.GeneratorOfferDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=BindGeneratorOfferDual,
@@ -1234,7 +1260,7 @@ def BindNonUCDual(model, t, g):
 
 
 dispatch_model.NonUCDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.NUC_GENS, rule=BindNonUCDual,
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.NUC_GENS, rule=BindNonUCDual,
 )
 
 
@@ -1247,19 +1273,20 @@ def BindStorageDischargeDual(model, t, s):
         s {str} -- storage index
     """
     return (
-        model.so[t, s]
+        model.sodischarge[t, s]
         + model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
         - model.DischargeEff[s] * model.socmax_dual[t, s]
         + model.DischargeEff[s] * model.socmin_dual[t, s]
-        + model.onecycle_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
 
 
+# + model.onecycle_dual[s]
+
 dispatch_model.StorageDischargeDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindStorageDischargeDual,
     name="StorageDischargeDual",
@@ -1275,7 +1302,8 @@ def BindStorageChargeDual(model, t, s):
         s {str} -- storage index
     """
     return (
-        model.DischargeMax[s] * model.storagetight_dual[t, s]
+        -model.socharge[t, s]
+        + model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
         + model.ChargeEff[s] * model.socmax_dual[t, s]
         - model.ChargeEff[s] * model.socmin_dual[t, s]
@@ -1285,7 +1313,7 @@ def BindStorageChargeDual(model, t, s):
 
 
 dispatch_model.StorageChargeDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindStorageChargeDual,
     name="StorageChargeDual",
@@ -1297,7 +1325,7 @@ def BindStartupDual(model, t, g):
 
 
 dispatch_model.StartupDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=BindStartupDual
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=BindStartupDual
 )
 
 
@@ -1314,16 +1342,12 @@ def BindComittmentDual(model, t, g):
         + model.startupshutdown_dual[t, g]
         - (
             model.RampRate[g]
-            + model.Pmin[g]
-            * model.ScheduledAvailable[t, g]
-            * model.CapacityTime[t, g]
+            + model.Pmin[g] * model.ScheduledAvailable[t, g] * model.CapacityTime[t, g]
         )
         * model.rampmax_dual[t, g]
         - (
             model.RampRate[g]
-            - model.Pmin[g]
-            * model.ScheduledAvailable[t, g]
-            * model.CapacityTime[t, g]
+            - model.Pmin[g] * model.ScheduledAvailable[t, g] * model.CapacityTime[t, g]
         )
         * model.rampmin_dual[t, g]
         == 0
@@ -1331,7 +1355,7 @@ def BindComittmentDual(model, t, g):
 
 
 dispatch_model.CommitmentConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=BindComittmentDual
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.UC_GENS, rule=BindComittmentDual
 )
 
 
@@ -1384,7 +1408,10 @@ def BindFlowDual(model, t, z):
 
 
 dispatch_model.FlowDualConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=BindFlowDual, name="FlowDual"
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.ZONES,
+    rule=BindFlowDual,
+    name="FlowDual",
 )  # implements FlowDualConstraint
 
 ### COMPLEMENTARITY CONSTRAINTS ###
@@ -1404,7 +1431,7 @@ def BindStorageTightComplementarity(model, t, s):
 
 
 dispatch_model.StorageTightComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindStorageTightComplementarity,
 )
@@ -1415,7 +1442,7 @@ def BindStorageChargeComplementarity(model, t, s):
 
 
 dispatch_model.StorageChargeComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindStorageChargeComplementarity,
 )
@@ -1426,7 +1453,7 @@ def BindStorageDischargeComplementarity(model, t, s):
 
 
 dispatch_model.StorageDischargeComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindStorageDischargeComplementarity,
 )
@@ -1439,7 +1466,7 @@ def BindMaxStorageComplementarity(model, t, s):
 
 
 dispatch_model.MaxStorageComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindMaxStorageComplementarity,
 )
@@ -1450,7 +1477,7 @@ def BindMinStorageComplementarity(model, t, s):
 
 
 dispatch_model.MinStorageComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STORAGE,
     rule=BindMinStorageComplementarity,
 )
@@ -1458,7 +1485,7 @@ dispatch_model.MinStorageComplementarity = Complementarity(
 
 def BindOneCycleComplementarity(model, s):
     return complements(
-        model.SocMax[s] - sum(model.sd[t, s] for t in model.TIMEPOINTS) >= 0,
+        model.SocMax[s] - sum(model.sd[t, s] for t in model.ACTIVETIMEPOINTS) >= 0,
         model.onecycle_dual[s] >= 0,
     )
 
@@ -1484,7 +1511,7 @@ def BindMaxTransmissionComplementarity(model, t, line):
 
 
 dispatch_model.MaxTransmissionComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     rule=BindMaxTransmissionComplementarity,
 )  # implements MaxTransmissionComplementarity
@@ -1500,14 +1527,13 @@ def BindMinTransmissionComplementarity(model, t, line):
         line {str} -- transmission line index
     """
     return complements(
-        -model.TransmissionFromCapacity[t, line] + model.txmw[t, line]
-        >= 0,
+        -model.TransmissionFromCapacity[t, line] + model.txmw[t, line] >= 0,
         model.transmissionmin_dual[t, line] >= 0,
     )
 
 
 dispatch_model.MinTransmissionComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     rule=BindMinTransmissionComplementarity,
 )  # implements MinTransmissionComplementarity
@@ -1521,7 +1547,7 @@ def BindMaxVoltageAngleComplementarity(model, t, z):
 
 
 dispatch_model.MaxVoltageAngleComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     rule=BindMaxVoltageAngleComplementarity,
 )
@@ -1535,7 +1561,7 @@ def BindMinVoltageAngleComplementarity(model, t, z):
 
 
 dispatch_model.MinVoltageAngleComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.ZONES,
     rule=BindMinVoltageAngleComplementarity,
 )
@@ -1543,9 +1569,7 @@ dispatch_model.MinVoltageAngleComplementarity = Complementarity(
 
 def BindMaxDispatchComplementarity(model, t, g):
     return complements(
-        model.CapacityTime[t, g]
-        * model.gopstat[t, g]
-        * model.ScheduledAvailable[t, g]
+        model.CapacityTime[t, g] * model.gopstat[t, g] * model.ScheduledAvailable[t, g]
         - model.gd[t, g]
         >= 0,
         model.gendispatchmax_dual[t, g] >= 0,
@@ -1553,7 +1577,7 @@ def BindMaxDispatchComplementarity(model, t, g):
 
 
 dispatch_model.MaxDispatchComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     rule=BindMaxDispatchComplementarity,
 )  # implements MaxDispatchComplementarity
@@ -1561,13 +1585,12 @@ dispatch_model.MaxDispatchComplementarity = Complementarity(
 
 def BindMinDispatchComplementarity(model, t, g):
     return complements(
-        model.gd[t, g] - model.gpmin[t, g] >= 0,
-        model.gendispatchmin_dual[t, g] >= 0,
+        model.gd[t, g] - model.gpmin[t, g] >= 0, model.gendispatchmin_dual[t, g] >= 0,
     )
 
 
 dispatch_model.MinDispatchComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     rule=BindMinDispatchComplementarity,
 )  # implements MinDispatchComplementarity
@@ -1581,7 +1604,7 @@ def BindMaxSegmentComplementarity(model, t, g, gs):
 
 
 dispatch_model.MaxSegmentComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=BindMaxSegmentComplementarity,
@@ -1595,7 +1618,7 @@ def BindMinSegmentComplementarity(model, t, g, gs):
 
 
 dispatch_model.MinSegmentComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=BindMinSegmentComplementarity,
@@ -1603,7 +1626,7 @@ dispatch_model.MinSegmentComplementarity = Complementarity(
 
 
 def BindMaxRampComplementarity(model, t, g):
-    if t == 1:
+    if t == model.FirstTimepoint[t]:
         return Complementarity.Skip
     else:
         return complements(
@@ -1618,13 +1641,15 @@ def BindMaxRampComplementarity(model, t, g):
 
 
 dispatch_model.MaxRampComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=BindMaxRampComplementarity
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.UC_GENS,
+    rule=BindMaxRampComplementarity,
 )
 
 
 def BindMinRampComplementarity(model, t, g):
     # INACTIVE: I never finished writing this and integrating it in the objective(s)
-    if t == 1:
+    if t == model.FirstTimepoint[t]:
         return Complementarity.Skip
     else:
         return complements(
@@ -1639,32 +1664,35 @@ def BindMinRampComplementarity(model, t, g):
 
 
 dispatch_model.MinRampComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS, dispatch_model.UC_GENS, rule=BindMinRampComplementarity
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.UC_GENS,
+    rule=BindMinRampComplementarity,
 )
 
 
 def BindMaxNonUCComplementarity(model, t, g):
     return complements(
-        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
-        - model.nucgd[t, g]
+        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] - model.nucgd[t, g]
         >= 0,
         model.nucdispatchmax_dual[t, g] >= 0,
     )
 
 
 dispatch_model.MaxNonUCComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS, dispatch_model.NUC_GENS, rule=BindMaxNonUCComplementarity
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NUC_GENS,
+    rule=BindMaxNonUCComplementarity,
 )
 
 
 def BindMinNonUCComplementarity(model, t, g):
-    return complements(
-        model.nucgd[t, g] >= 0, model.nucdispatchmin_dual[t, g] >= 0,
-    )
+    return complements(model.nucgd[t, g] >= 0, model.nucdispatchmin_dual[t, g] >= 0,)
 
 
 dispatch_model.MinNonUCComplementarity = Complementarity(
-    dispatch_model.TIMEPOINTS, dispatch_model.NUC_GENS, rule=BindMinNonUCComplementarity
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NUC_GENS,
+    rule=BindMinNonUCComplementarity,
 )
 
 
@@ -1692,7 +1720,7 @@ def IncreasingOfferCurve(model, t, g, gs):
 
 
 dispatch_model.IncreasingOfferCurveConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=IncreasingOfferCurve,
@@ -1720,7 +1748,7 @@ def OfferCap(model, t, g, gs):
 
 
 dispatch_model.OfferCapConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STRATEGIC_GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     rule=OfferCap,
@@ -1747,7 +1775,7 @@ def OfferCap2(model, t, g, gs):
 
 
 dispatch_model.OfferCap2Constraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.NON_STRATEGIC_GENERATORS,
     dispatch_model.GENERATORSEGMENTS,
     rule=OfferCap2,
@@ -1771,10 +1799,36 @@ def OfferMin(model, t, g, gs):
 
 
 dispatch_model.OfferMinConstraint = Constraint(
-    dispatch_model.TIMEPOINTS,
+    dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.UC_GENS,
     dispatch_model.GENERATORSEGMENTS,
     rule=OfferMin,
+)
+
+
+def StorageOfferCap(model, t, s):
+    return (
+            0 == model.sodischarge[t, s]
+        ) 
+
+
+dispatch_model.StorageOfferCapConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=StorageOfferCap,
+)
+
+
+def StorageOfferCap2(model, t, s):
+    return (
+            0 == model.socharge[t, s]
+        )  
+
+
+dispatch_model.StorageOfferCap2Constraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=StorageOfferCap2,
 )
 
 
@@ -1792,7 +1846,7 @@ def MarketPriceCap(model, t, z):
 
 
 dispatch_model.ZonalPriceConstraint = Constraint(
-    dispatch_model.TIMEPOINTS, dispatch_model.ZONES, rule=MarketPriceCap
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, rule=MarketPriceCap
 )
 
 ###########################
@@ -1814,20 +1868,20 @@ def objective_rule(model):
         sum(
             sum(
                 sum(
-                    model.gsd[t, g, gs]
-                    * model.GeneratorMarginalCost[t, g, gs]
-                    for t in model.TIMEPOINTS
+                    model.gsd[t, g, gs] * model.GeneratorMarginalCost[t, g, gs]
+                    for t in model.ACTIVETIMEPOINTS
                 )
                 for g in model.GENERATORS
             )
             for gs in model.GENERATORSEGMENTS
         )
         + sum(
-            sum(model.gopstat[t, g] for t in model.TIMEPOINTS) * model.NoLoadCost[g]
+            sum(model.gopstat[t, g] for t in model.ACTIVETIMEPOINTS)
+            * model.NoLoadCost[g]
             for g in model.GENERATORS
         )
         + sum(
-            sum(model.gup[t, g] for t in model.TIMEPOINTS) * model.StartCost[g]
+            sum(model.gup[t, g] for t in model.ACTIVETIMEPOINTS) * model.StartCost[g]
             for g in model.GENERATORS
         )
     )
@@ -1849,9 +1903,8 @@ def objective_rule2(model):
     return sum(
         sum(
             sum(
-                model.gsd[t, g, gs]
-                * model.GeneratorMarginalCost[t, g, gs]
-                for t in model.TIMEPOINTS
+                model.gsd[t, g, gs] * model.GeneratorMarginalCost[t, g, gs]
+                for t in model.ACTIVETIMEPOINTS
             )
             for g in model.GENERATORS
         )
@@ -1862,7 +1915,7 @@ def objective_rule2(model):
                 model.gsd[t, g, gs]
                 * model.marginal_CO2[t, g, gs]
                 * model.CO2_damage[t, g, gs]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for g in model.GENERATORS
         )
@@ -1884,13 +1937,12 @@ def objective_profit(model):
     """
     return sum(
         sum(model.GrossLoad[t, z] * model.zonalprice[t, z] for z in model.ZONES)
-        for t in model.TIMEPOINTS
+        for t in model.ACTIVETIMEPOINTS
     ) - sum(
         sum(
             sum(
-                model.gsd[t, g, gs]
-                * model.GeneratorMarginalCost[t, g, gs]
-                for t in model.TIMEPOINTS
+                model.gsd[t, g, gs] * model.GeneratorMarginalCost[t, g, gs]
+                for t in model.ACTIVETIMEPOINTS
             )
             for g in model.GENERATORS
         )
@@ -1914,7 +1966,7 @@ def objective_profit_dual(model):
                 sum(
                     -model.availablesegmentcapacity[t, g, gs]
                     * model.gensegmentmax_dual[t, g, gs]
-                    for t in model.TIMEPOINTS
+                    for t in model.ACTIVETIMEPOINTS
                 )
                 for g in model.NON_STRATEGIC_GENERATORS.intersection(model.UC_GENS)
             )
@@ -1925,51 +1977,45 @@ def objective_profit_dual(model):
                 -model.CapacityTime[t, g]
                 * model.ScheduledAvailable[t, g]
                 * model.nucdispatchmax_dual[t, g]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for g in model.NON_STRATEGIC_GENERATORS
         )
         - sum(
             sum(
-                model.DischargeMax[s]
-                * model.ChargeMax[s]
-                * model.storagetight_dual[t, s]
-                for t in model.TIMEPOINTS
+                model.SocMax[s] * model.socmax_dual[t, s]
+                for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(model.SocMax[s] * model.socmax_dual[t, s] for t in model.TIMEPOINTS)
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             sum(
                 sum(
-                    model.gsd[t, g, gs]
-                    * model.GeneratorMarginalCost[t, g, gs]
-                    for t in model.TIMEPOINTS
+                    model.gsd[t, g, gs] * model.GeneratorMarginalCost[t, g, gs]
+                    for t in model.ACTIVETIMEPOINTS
                 )
                 for g in model.UC_GENS
             )
             for gs in model.GENERATORSEGMENTS
         )
         - sum(
-            sum(model.gopstat[t, g] for t in model.TIMEPOINTS) * model.NoLoadCost[g]
+            sum(model.gopstat[t, g] for t in model.ACTIVETIMEPOINTS)
+            * model.NoLoadCost[g]
             for g in model.UC_GENS
         )
         - sum(
-            sum(model.gup[t, g] for t in model.TIMEPOINTS) * model.StartCost[g]
+            sum(model.gup[t, g] for t in model.ACTIVETIMEPOINTS) * model.StartCost[g]
             for g in model.UC_GENS
         )
         - sum(
             sum(
                 model.TransmissionToCapacity[t, line]
                 * model.transmissionmax_dual[t, line]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for line in model.TRANSMISSION_LINE
         )
@@ -1977,28 +2023,28 @@ def objective_profit_dual(model):
             sum(
                 model.TransmissionFromCapacity[t, line]
                 * model.transmissionmin_dual[t, line]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for line in model.TRANSMISSION_LINE
         )
         - sum(
             sum(
                 model.VoltageAngleMax[z] * model.voltageanglemax_dual[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
         + sum(
             sum(
                 model.VoltageAngleMin[z] * model.voltageanglemin_dual[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
         + sum(
             sum(
                 (model.GrossLoad[t, z]) * model.zonalprice[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
@@ -2027,7 +2073,7 @@ def objective_profit_dual_pre(model):
                 sum(
                     -model.availablesegmentcapacity[t, g, gs]
                     * model.gensegmentmax_dual[t, g, gs]
-                    for t in model.TIMEPOINTS
+                    for t in model.ACTIVETIMEPOINTS
                 )
                 for g in model.UC_GENS
             )
@@ -2038,51 +2084,45 @@ def objective_profit_dual_pre(model):
                 -model.CapacityTime[t, g]
                 * model.ScheduledAvailable[t, g]
                 * model.nucdispatchmax_dual[t, g]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for g in model.NUC_GENS
         )
         - sum(
             sum(
-                model.DischargeMax[s]
-                * model.ChargeMax[s]
-                * model.storagetight_dual[t, s]
-                for t in model.TIMEPOINTS
+                model.SocMax[s] * model.socmax_dual[t, s]
+                for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(model.SocMax[s] * model.socmax_dual[t, s] for t in model.TIMEPOINTS)
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
+            for s in model.STORAGE
         )
         - sum(
             sum(
                 sum(
-                    model.gsd[t, g, gs]
-                    * model.GeneratorMarginalCost[t, g, gs]
-                    for t in model.TIMEPOINTS
+                    model.gsd[t, g, gs] * model.GeneratorMarginalCost[t, g, gs]
+                    for t in model.ACTIVETIMEPOINTS
                 )
                 for g in model.UC_GENS
             )
             for gs in model.GENERATORSEGMENTS
         )
         - sum(
-            sum(model.gopstat[t, g] for t in model.TIMEPOINTS) * model.NoLoadCost[g]
+            sum(model.gopstat[t, g] for t in model.ACTIVETIMEPOINTS)
+            * model.NoLoadCost[g]
             for g in model.UC_GENS
         )
         - sum(
-            sum(model.gup[t, g] for t in model.TIMEPOINTS) * model.StartCost[g]
+            sum(model.gup[t, g] for t in model.ACTIVETIMEPOINTS) * model.StartCost[g]
             for g in model.UC_GENS
         )
         - sum(
             sum(
                 model.TransmissionToCapacity[t, line]
                 * model.transmissionmax_dual[t, line]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for line in model.TRANSMISSION_LINE
         )
@@ -2090,28 +2130,28 @@ def objective_profit_dual_pre(model):
             sum(
                 model.TransmissionFromCapacity[t, line]
                 * model.transmissionmin_dual[t, line]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for line in model.TRANSMISSION_LINE
         )
         - sum(
             sum(
                 model.VoltageAngleMax[z] * model.voltageanglemax_dual[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
         + sum(
             sum(
                 model.VoltageAngleMin[z] * model.voltageanglemin_dual[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
         + sum(
             sum(
                 (model.GrossLoad[t, z]) * model.zonalprice[t, z]
-                for t in model.TIMEPOINTS
+                for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
         )
