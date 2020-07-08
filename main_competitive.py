@@ -30,17 +30,18 @@ from utility_functions import (
     StorageOfferMitigation,
     write_timepoint_subset,
     create_case_suffix,
+    write_DA_bids,
 )
 
 start_time = time.time()
 cwd = os.getcwd()
 
 ### GENERAL INPUTS ###
-case_folder = "Desktop//competitiveMPEC//test"  # andWind309
+case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+MPEC = False # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = True, 24, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
@@ -162,6 +163,9 @@ for counter, s in enumerate(scenario_list):
 
     # writes the file timepoints_index_subset_rt.csv
     write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
+
+    # writes the file storage_bids_DA.csv
+    write_DA_bids(dir_str, RT)
 
     # create and run scenario (this is the big one)
     scenario = CreateAndRunScenario(

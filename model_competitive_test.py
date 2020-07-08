@@ -1806,6 +1806,32 @@ dispatch_model.OfferMinConstraint = Constraint(
 )
 
 
+def StorageOfferCap(model, t, s):
+    return (
+            0 == model.sodischarge[t, s]
+        ) 
+
+
+dispatch_model.StorageOfferCapConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=StorageOfferCap,
+)
+
+
+def StorageOfferCap2(model, t, s):
+    return (
+            0 == model.socharge[t, s]
+        )  
+
+
+dispatch_model.StorageOfferCap2Constraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=StorageOfferCap2,
+)
+
+
 def MarketPriceCap(model, t, z):
     """ Caps bus price at $2000/MWh. This is about where the energy price cap is in most RTOs
     other than ERCOT under normal operations without scarcity adders. The purpose here is just

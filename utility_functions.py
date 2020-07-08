@@ -619,3 +619,53 @@ def create_case_suffix(directory, RT, rt_tmps, n_iter):
         )
         return "_RT" + case_string
 
+
+def write_DA_bids(directory,RT):
+    directory = directory
+    storage_list = []
+    storage_list2 = []
+    if RT:
+        try:
+            bid_df = pd.read_csv(
+                os.path.join(directory.RESULTS_DIRECTORY, "storage_dispatch.csv")
+            )
+        except FileNotFoundError:
+            print("NOTE: storage offer not exist")
+        bid_df.rename(columns={'Unnamed: 0':'Storage_Index'}, inplace = True)
+        for esr in bid_df["Storage_Index"].unique():
+            subset_bid_df = (
+                bid_df[(bid_df.Storage_Index == esr)]
+                .copy()
+                .reset_index()
+            )
+            storage_list.append(
+                subset_bid_df[
+                    ["time", "Storage_Index", "discharge_offer", "charge_offer"]
+                ]
+            )
+            storage_tmp = pd.concat(storage_list, axis=0)
+            storage_tmp2 = pd.DataFrame()
+            for i in range(len(storage_tmp)):
+                a=storage_tmp.loc[i]
+                d=pd.DataFrame(a).T
+                storage_tmp2=storage_tmp2.append([d]*12)
+            for j in range(len(storage_tmp2)):
+                storage_tmp2.iloc[j,0] = j + 1
+            storage_list2.append(
+                storage_tmp2[
+                    ["time", "Storage_Index", "discharge_offer", "charge_offer"]
+                ]
+            )
+        storage_df = pd.concat(storage_list2, axis=0)
+        storage_df.sort_values("time", inplace=True)
+        storage_df.columns = [
+            "timepoint",
+            "Storage_Index",
+            "discharge_offer",
+            "charge_offer",
+        ]
+        storage_df.to_csv(
+            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+            index=False,
+        )
+        return storage_df.reset_index()
