@@ -147,6 +147,14 @@ dispatch_model.discharge_max_offer = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
+dispatch_model.discharge_offer = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.charge_offer = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
 # time and zone-indexed params
 dispatch_model.ScheduledAvailable = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.GENERATORS, within=PercentFraction
@@ -778,6 +786,32 @@ def MitigateDischargeOffer(model, t, s):
 
 dispatch_model.MitigateDischargeOfferConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=MitigateDischargeOffer
+)
+
+
+def ForceBindDischargeOffer(model, t, s):
+    """This constraint should only be active in RT cases, and only when user select it to be active
+    It FORCES RT offers to equal DA offers from previously run case
+    """
+    return model.discharge_offer[t, s] == model.sodischarge[t, s]
+
+
+dispatch_model.ForceBindDischargeOfferConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.STORAGE,
+    rule=ForceBindDischargeOffer,
+)
+
+
+def ForceBindChargeOffer(model, t, s):
+    """This constraint should only be active in RT cases, and only when user select it to be active
+    It FORCES RT offers to equal DA offers from previously run case
+    """
+    return model.charge_offer[t, s] == model.socharge[t, s]
+
+
+dispatch_model.ForceBindChargeOfferConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=ForceBindChargeOffer,
 )
 
 
@@ -1807,9 +1841,7 @@ dispatch_model.OfferMinConstraint = Constraint(
 
 
 def StorageOfferCap(model, t, s):
-    return (
-            0 == model.sodischarge[t, s]
-        ) 
+    return 0 == model.sodischarge[t, s]
 
 
 dispatch_model.StorageOfferCapConstraint = Constraint(
@@ -1820,9 +1852,7 @@ dispatch_model.StorageOfferCapConstraint = Constraint(
 
 
 def StorageOfferCap2(model, t, s):
-    return (
-            0 == model.socharge[t, s]
-        )  
+    return 0 == model.socharge[t, s]
 
 
 dispatch_model.StorageOfferCap2Constraint = Constraint(
@@ -1988,10 +2018,7 @@ def objective_profit_dual(model):
             )
             for s in model.STORAGE
         )
-        - sum(
-            model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.STORAGE
-        )
+        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.STORAGE)
         - sum(
             sum(
                 sum(
@@ -2095,10 +2122,7 @@ def objective_profit_dual_pre(model):
             )
             for s in model.STORAGE
         )
-        - sum(
-            model.SocMax[s] * model.onecycle_dual[s]
-            for s in model.STORAGE
-        )
+        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.STORAGE)
         - sum(
             sum(
                 sum(
