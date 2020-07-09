@@ -141,4 +141,12 @@ def scenario_inputs(inputs_directory):
         ),
     )
 
+    data.load(
+        filename=os.path.join(inputs_directory, "storage_offers_DA.csv"),
+        param=(
+            model_competitive_test.dispatch_model.discharge_offer,
+            model_competitive_test.dispatch_model.charge_offer,
+        ),
+    )
+
     return data
