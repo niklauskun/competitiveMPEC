@@ -34,19 +34,20 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.getcwd()
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test78")
 
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = True # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = False, 24, 288
+MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
-mitigate_storage_offers = True
+mitigate_storage_offers = False
+bind_DA_offers_in_RT = True  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -54,16 +55,28 @@ solver_name = "cplex"  # only change if you wish to use a solver other than cple
 solver_kwargs = {
     "parallel": -1,
     "mip_tolerances_mipgap": 0.01,
-    "dettimelimit": 30000,
+    "dettimelimit": 100000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
 # for now, I'll just include ability here to deactivate constraints if you don't want the model to use them
 deactivated_constraint_args = []  # list of constraint names to deactivate
-# an example that won't affect problem much is "OfferCapConstraint"
-# "OneCycleConstraint"
-
 ### END INPUTS ###
+
+# an example that won't affect problem much is "OfferCapConstraint"
+# "OneCycleConstraint
+if not bind_DA_offers_in_RT or not RT:
+    print("deactivating offer constraint binds")
+    deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
+    deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
+else:
+    # no offer mitigation allowed?
+    print("deactivating offer mitigation because RT offers are bound against DA")
+    deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
+    deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    # deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    # deactivated_constraint_args.append("StorageChargeDualConstraint")
+
 
 # Directory structure, using existing files rather than creating case structure for now
 class DirStructure(object):
@@ -165,7 +178,13 @@ for counter, s in enumerate(scenario_list):
     write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
 
     # writes the file storage_bids_DA.csv
-    write_DA_bids(dir_str, RT)
+    if bind_DA_offers_in_RT and RT:
+        DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+        DA_case_suffix = create_case_suffix(DA_dir_str, False, rt_tmps, rt_iter)
+        DA_dir_str.make_directories(DA_case_suffix)
+        write_DA_bids(DA_dir_str, RT, total_rt_tmps, default_write=False)
+    else:
+        write_DA_bids(dir_str, RT, total_rt_tmps, default_write=True)
 
     # create and run scenario (this is the big one)
     scenario = CreateAndRunScenario(

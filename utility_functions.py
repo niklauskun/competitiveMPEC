@@ -620,52 +620,81 @@ def create_case_suffix(directory, RT, rt_tmps, n_iter):
         return "_RT" + case_string
 
 
-def write_DA_bids(directory,RT):
-    directory = directory
+def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
+    """[summary]
+
+    Args:
+        directory ([class dir_str]): [description]
+        RT ([bool]): [description]
+
+    Returns:
+        None (goal is just to write csv)
+    """
     storage_list = []
-    storage_list2 = []
-    if RT:
+    out_df_cols = ["time", "Storage_Index", "discharge_offer", "charge_offer"]
+
+    if default_write:
+        # this just creates default bids to bind against, but they should never bind
+        print(
+            "Default write of storage_offers_DA.csv just to have a file (but constraint should be inactive)"
+        )
+        write_cols = out_df_cols
+        write_cols[0] = "timepoint"
+        bid_df = pd.read_csv(
+            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers.csv")
+        )
+        bid_df.columns = write_cols
+        bid_df.discharge_offer = bid_df.discharge_offer * 0  # makes all 0's for default
+        bid_df.charge_offer = bid_df.charge_offer * 0  # makes all 0's for default
+        bid_df.to_csv(
+            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+            index=False,
+        )
+        return None
+    elif RT:
         try:
             bid_df = pd.read_csv(
                 os.path.join(directory.RESULTS_DIRECTORY, "storage_dispatch.csv")
             )
         except FileNotFoundError:
-            print("NOTE: storage offer not exist")
-        bid_df.rename(columns={'Unnamed: 0':'Storage_Index'}, inplace = True)
+            errormsg = True
+        if errormsg:
+            raise Exception(
+                "DA case must be run prior to RT case if you wish to bind storage offers"
+            )
+        da_tmps = len(bid_df.time.unique())
+        bid_df.rename(columns={"Unnamed: 0": "Storage_Index"}, inplace=True)
         for esr in bid_df["Storage_Index"].unique():
-            subset_bid_df = (
-                bid_df[(bid_df.Storage_Index == esr)]
-                .copy()
+            subset_bid_df = bid_df[(bid_df.Storage_Index == esr)].copy().reset_index()
+            storage_tmp2 = pd.DataFrame()
+            storage_tmp2 = (
+                subset_bid_df[out_df_cols]
+                .loc[subset_bid_df[out_df_cols].index.repeat(int(rt_tmps / da_tmps))]
                 .reset_index()
             )
-            storage_list.append(
-                subset_bid_df[
-                    ["time", "Storage_Index", "discharge_offer", "charge_offer"]
-                ]
-            )
-            storage_tmp = pd.concat(storage_list, axis=0)
-            storage_tmp2 = pd.DataFrame()
-            for i in range(len(storage_tmp)):
-                a=storage_tmp.loc[i]
-                d=pd.DataFrame(a).T
-                storage_tmp2=storage_tmp2.append([d]*12)
-            for j in range(len(storage_tmp2)):
-                storage_tmp2.iloc[j,0] = j + 1
-            storage_list2.append(
-                storage_tmp2[
-                    ["time", "Storage_Index", "discharge_offer", "charge_offer"]
-                ]
-            )
-        storage_df = pd.concat(storage_list2, axis=0)
-        storage_df.sort_values("time", inplace=True)
-        storage_df.columns = [
-            "timepoint",
-            "Storage_Index",
-            "discharge_offer",
-            "charge_offer",
-        ]
+            storage_tmp2.time = [storage_tmp2.index[i] + 1 for i in storage_tmp2.index]
+            storage_list.append(storage_tmp2[out_df_cols])
+        storage_df = pd.concat(storage_list, axis=0)
+
+        # to be careful here, I create a sorter to ensure 313_Storage_1 always ends up first since it's the original
+        esr_list = []
+        for esr in bid_df["Storage_Index"].unique():
+            if esr != "313_STORAGE_1":
+                esr_list.append(esr)
+        sorter = ["313_STORAGE_1"] + esr_list
+
+        # Create the dictionary that defines the order for sorting
+        sorterIndex = dict(zip(sorter, range(len(sorter))))
+        # Generate a rank column that will be used to sort
+        storage_df["ESR_Rank"] = storage_df["Storage_Index"].map(sorterIndex)
+        # then sort
+        storage_df.sort_values(["time", "ESR_Rank"], inplace=True)
+        storage_df.drop("ESR_Rank", 1, inplace=True)  # drop the sorting col
+        write_cols = out_df_cols
+        write_cols[0] = "timepoint"
+        storage_df.columns = write_cols
         storage_df.to_csv(
             os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
             index=False,
         )
-        return storage_df.reset_index()
+        return None
