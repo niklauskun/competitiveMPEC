@@ -138,16 +138,19 @@ def scenario_inputs(inputs_directory):
     data.load(
         filename=os.path.join(inputs_directory, "storage_offers.csv"),
         param=(
-            model_competitive_test.dispatch_model.charge_max_offer,
-            model_competitive_test.dispatch_model.discharge_max_offer,
+            model_competitive_test.dispatch_model.ChargeMaxOffer,
+            model_competitive_test.dispatch_model.DischargeMaxOffer,
         ),
     )
 
     data.load(
         filename=os.path.join(inputs_directory, "storage_offers_DA.csv"),
         param=(
-            model_competitive_test.dispatch_model.discharge_offer,
-            model_competitive_test.dispatch_model.charge_offer,
+            model_competitive_test.dispatch_model.DischargeOffer,
+            model_competitive_test.dispatch_model.ChargeOffer,
+            model_competitive_test.dispatch_model.SOC,
+            model_competitive_test.dispatch_model.Charge,
+            model_competitive_test.dispatch_model.Discharge,
         ),
     )
 
