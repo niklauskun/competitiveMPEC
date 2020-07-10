@@ -42,12 +42,12 @@ case_folder = "test"  # andWind309
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = True, 48, 288
+RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
-bind_DA_offers_in_RT = True  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
+bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -65,21 +65,26 @@ deactivated_constraint_args = []  # list of constraint names to deactivate
 
 # an example that won't affect problem much is "OfferCapConstraint"
 # "OneCycleConstraint
-if not bind_DA_offers_in_RT or not RT:
-    print("deactivating offer constraint binds")
+if not bind_DA_offers_in_RT and not RT:
+    print("run DA case, deactivating offer and SOC constraint binds")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
-    deactivated_constraint_args.append("BindStartSOCConstratint")
-    deactivated_constraint_args.append("BindEndSOCConstraint")
-else:
-    # no offer mitigation allowed?
-    print("deactivating offer mitigation because RT offers are bound against DA")
+    deactivated_constraint_args.append("BindDASOCChangeConstraint")
+    deactivated_constraint_args.append("BindDAEndSOCConstraint")
+elif RT and not bind_DA_offers_in_RT:
+    print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
+    deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
+    deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
+    deactivated_constraint_args.append("SOCChangeRule")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
+elif RT and bind_DA_offers_in_RT:
+    print("run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA")
     deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    deactivated_constraint_args.append("SOCChangeRule")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
-    # deactivated_constraint_args.append("StorageDischargeDualConstraint")
-    # deactivated_constraint_args.append("StorageChargeDualConstraint")
-
+else:
+    raise NameError('case not found')
 
 # Directory structure, using existing files rather than creating case structure for now
 class DirStructure(object):

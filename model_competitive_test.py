@@ -155,15 +155,15 @@ dispatch_model.ChargeOffer = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
-dispatch_model.SOC = Param(
+dispatch_model.SOCInitDA = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
-dispatch_model.Charge = Param(
+dispatch_model.ChargeInitDA = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
-dispatch_model.Discharge = Param(
+dispatch_model.DischargeInitDA = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
@@ -891,10 +891,7 @@ def SOCChangeRule(model, t, s):
     if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
-            == model.SOC[model.ACTIVETIMEPOINTS[1],s] 
-            + model.DischargeEff[s] * model.Discharge[model.ACTIVETIMEPOINTS[1],s] 
-            - model.ChargeEff[s] * model.Charge[model.ACTIVETIMEPOINTS[1],s]
-            + model.sc[t, s] * model.ChargeEff[s]
+            == model.sc[t, s] * model.ChargeEff[s]
             - model.sd[t, s] * model.DischargeEff[s]
         )  # start half charged?
         # return model.soc[t,s] == -model.sd[t,s]
@@ -913,6 +910,40 @@ dispatch_model.SOCChangeConstraint = Constraint(
 )  # implements SOCChangeConstraint
 
 
+def BindDASOCChangeRule(model, t, s):
+    if t == model.FirstTimepoint[t]:
+        return (
+            model.soc[t, s]
+            == model.SOCInitDA[model.ACTIVETIMEPOINTS[1],s] 
+            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.DischargeEff[s]
+            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.ChargeEff[s]
+            + model.sc[t, s] * model.ChargeEff[s]
+            - model.sd[t, s] * model.DischargeEff[s]
+        )  # start half charged?
+        # return model.soc[t,s] == -model.sd[t,s]
+    else:
+        return (
+            model.soc[t, s]
+            == model.soc[t - 1, s]
+            + model.sc[t, s] * model.ChargeEff[s]
+            - model.sd[t, s] * model.DischargeEff[s]
+        )
+        # return model.soc[t,s] == model.soc[t-1,s] - model.sd[t,s]
+
+
+dispatch_model.BindDASOCChangeConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindDASOCChangeRule
+)  # implements SOCChangeConstraint
+
+def BindDAEndSOCRule(model, t, s):
+    return model.SOCInitDA[model.ACTIVETIMEPOINTS[-1],s] == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+
+
+dispatch_model.BindDAEndSOCConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindDAEndSOCRule
+)
+
+
 def SOCMaxRule(model, t, s):
     """Storage state of charge cannot exceed its max state of charge
 
@@ -927,15 +958,6 @@ def SOCMaxRule(model, t, s):
 dispatch_model.SOCMaxConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=SOCMaxRule
 )  # implements SOCMaxConstraint
-
-
-def BindEndSOCRule(model, t, s):
-    return model.SOC[model.ACTIVETIMEPOINTS[-1],s] == model.soc[model.ACTIVETIMEPOINTS[-1], s]
-
-
-dispatch_model.BindEndSOCConstraint = Constraint(
-    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindEndSOCRule
-)
 
 
 def BindFinalSOCRule(model, s):
