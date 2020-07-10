@@ -140,18 +140,30 @@ dispatch_model.HybridStorageIndex = Param(
 )
 
 # storage and time-indexed params
-dispatch_model.charge_max_offer = Param(
+dispatch_model.ChargeMaxOffer = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
-dispatch_model.discharge_max_offer = Param(
-    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
-)
-
-dispatch_model.discharge_offer = Param(
+dispatch_model.DischargeMaxOffer = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
-dispatch_model.charge_offer = Param(
+dispatch_model.DischargeOffer = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.ChargeOffer = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.SOC = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.Charge = Param(
+    dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
+)
+
+dispatch_model.Discharge = Param(
     dispatch_model.TIMEPOINTS, dispatch_model.STORAGE, within=Reals
 )
 
@@ -772,7 +784,7 @@ dispatch_model.REOfferCapConstraint = Constraint(
 # added by Luke 6.30.20
 # will eventually want to move lower down with other upper-level offer mitigation constraints
 def MitigateChargeOffer(model, t, s):
-    return model.charge_max_offer[t, s] >= model.socharge[t, s]
+    return model.ChargeMaxOffer[t, s] >= model.socharge[t, s]
 
 
 dispatch_model.MitigateChargeOfferConstraint = Constraint(
@@ -781,7 +793,7 @@ dispatch_model.MitigateChargeOfferConstraint = Constraint(
 
 
 def MitigateDischargeOffer(model, t, s):
-    return model.discharge_max_offer[t, s] >= model.sodischarge[t, s]
+    return model.DischargeMaxOffer[t, s] >= model.sodischarge[t, s]
 
 
 dispatch_model.MitigateDischargeOfferConstraint = Constraint(
@@ -793,7 +805,7 @@ def ForceBindDischargeOffer(model, t, s):
     """This constraint should only be active in RT cases, and only when user select it to be active
     It FORCES RT offers to equal DA offers from previously run case
     """
-    return model.discharge_offer[t, s] == model.sodischarge[t, s]
+    return model.DischargeOffer[t, s] == model.sodischarge[t, s]
 
 
 dispatch_model.ForceBindDischargeOfferConstraint = Constraint(
@@ -807,7 +819,7 @@ def ForceBindChargeOffer(model, t, s):
     """This constraint should only be active in RT cases, and only when user select it to be active
     It FORCES RT offers to equal DA offers from previously run case
     """
-    return model.charge_offer[t, s] == model.socharge[t, s]
+    return model.ChargeOffer[t, s] == model.socharge[t, s]
 
 
 dispatch_model.ForceBindChargeOfferConstraint = Constraint(
@@ -879,7 +891,10 @@ def SOCChangeRule(model, t, s):
     if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
-            == model.sc[t, s] * model.ChargeEff[s]
+            == model.SOC[model.ACTIVETIMEPOINTS[1],s] 
+            + model.DischargeEff[s] * model.Discharge[model.ACTIVETIMEPOINTS[1],s] 
+            - model.ChargeEff[s] * model.Charge[model.ACTIVETIMEPOINTS[1],s]
+            + model.sc[t, s] * model.ChargeEff[s]
             - model.sd[t, s] * model.DischargeEff[s]
         )  # start half charged?
         # return model.soc[t,s] == -model.sd[t,s]
@@ -912,6 +927,15 @@ def SOCMaxRule(model, t, s):
 dispatch_model.SOCMaxConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=SOCMaxRule
 )  # implements SOCMaxConstraint
+
+
+def BindEndSOCRule(model, t, s):
+    return model.SOC[model.ACTIVETIMEPOINTS[-1],s] == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+
+
+dispatch_model.BindEndSOCConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindEndSOCRule
+)
 
 
 def BindFinalSOCRule(model, s):

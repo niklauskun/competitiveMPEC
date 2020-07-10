@@ -631,7 +631,7 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
         None (goal is just to write csv)
     """
     storage_list = []
-    out_df_cols = ["time", "Storage_Index", "discharge_offer", "charge_offer"]
+    out_df_cols = ["time", "Storage_Index", "discharge_offer", "charge_offer", "soc", "charge", "discharge"]
 
     if default_write:
         # this just creates default bids to bind against, but they should never bind
@@ -640,16 +640,22 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
         )
         write_cols = out_df_cols
         write_cols[0] = "timepoint"
-        bid_df = pd.read_csv(
-            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers.csv")
-        )
-        bid_df.columns = write_cols
-        bid_df.discharge_offer = bid_df.discharge_offer * 0  # makes all 0's for default
-        bid_df.charge_offer = bid_df.charge_offer * 0  # makes all 0's for default
-        bid_df.to_csv(
-            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
-            index=False,
-        )
+        try:
+            bid_df = pd.read_csv(
+                os.path.join(directory.INPUTS_DIRECTORY, "storage_offers.csv")
+            )
+            bid_df['soc'] = 0
+            bid_df['charge'] = 0
+            bid_df['discharge'] = 0
+            bid_df.columns = write_cols
+            bid_df.discharge_offer = bid_df.discharge_offer * 0  # makes all 0's for default
+            bid_df.charge_offer = bid_df.charge_offer * 0  # makes all 0's for default
+            bid_df.to_csv(
+                os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+                index=False,
+            )
+        except FileNotFoundError:
+            print("Run mitigated offer case first")
         return None
     elif RT:
         try:

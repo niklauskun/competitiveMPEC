@@ -34,7 +34,7 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test78")
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
 
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
@@ -69,11 +69,14 @@ if not bind_DA_offers_in_RT or not RT:
     print("deactivating offer constraint binds")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
+    deactivated_constraint_args.append("BindStartSOCConstratint")
+    deactivated_constraint_args.append("BindEndSOCConstraint")
 else:
     # no offer mitigation allowed?
     print("deactivating offer mitigation because RT offers are bound against DA")
     deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
     # deactivated_constraint_args.append("StorageDischargeDualConstraint")
     # deactivated_constraint_args.append("StorageChargeDualConstraint")
 
