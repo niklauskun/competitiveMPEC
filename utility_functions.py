@@ -666,7 +666,6 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
             bid_df_RT.timepoint = [bid_df_RT.index[i] + 1 for i in bid_df_RT.index]
 
             # must also overwrite SOC
-            print(bid_df_RT)
             bid_df_RT.to_csv(
                 os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
                 index=False,
