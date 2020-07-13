@@ -1371,6 +1371,30 @@ class CreateRTSCase(object):
         )
         # print(gs_seg_df)
         return gs_seg_df
+    
+    def storage_pre(self):
+        storage_dict = {}
+        index_list = [
+            "time",
+            "Storage_Index",
+        ]
+        storage_dict[index_list[0]] = [
+            t
+            for t in range(1,len(self.timepoint_dict["timepoint"])+1)
+            for s in self.storage_dict["Storage_Index"]
+        ]
+        storage_dict[index_list[1]] = [
+            s
+            for t in range(len(self.timepoint_dict["timepoint"]))
+            for s in self.storage_dict["Storage_Index"]
+        ]
+        storage_pre_df = pd.DataFrame.from_dict(storage_dict)
+        storage_pre_df.to_csv(
+            os.path.join(
+                self.directory.RESULTS_INPUTS_DIRECTORY,
+                "storage_offer_pre.csv",
+            ), index=False
+        )
 
 
 def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
@@ -1584,6 +1608,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             "transmission_lines_hourly_rt", flow_multiplier=flow_multiplier
         )
         case.gs()
+        case.storage_pre()
 
         # the last file, gs_seg, takes awhile to create but also isn't indexed by time, so I create it only once and then
         # copy that first csv into all other folders when they are created

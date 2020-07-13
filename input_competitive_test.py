@@ -146,10 +146,10 @@ def scenario_inputs(inputs_directory):
         param=(
             model_competitive_test.dispatch_model.DischargeOffer,
             model_competitive_test.dispatch_model.ChargeOffer,
-            model_competitive_test.dispatch_model.SOC,
-            model_competitive_test.dispatch_model.Charge,
-            model_competitive_test.dispatch_model.Discharge,
+            model_competitive_test.dispatch_model.SOCInitDA,
+            model_competitive_test.dispatch_model.ChargeInitDA,
+            model_competitive_test.dispatch_model.DischargeInitDA,
         ),
     )
-
+    
     return data
