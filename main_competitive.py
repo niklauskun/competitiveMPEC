@@ -42,7 +42,7 @@ case_folder = "test"  # andWind309
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = False, 48, 288
+RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -75,16 +75,18 @@ elif RT and not bind_DA_offers_in_RT:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
-    deactivated_constraint_args.append("SOCChangeRule")
+    deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
 elif RT and bind_DA_offers_in_RT:
-    print("run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA")
+    print(
+        "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
+    )
     deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
-    deactivated_constraint_args.append("SOCChangeRule")
+    deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
 else:
-    raise NameError('case not found')
+    raise NameError("case not found")
 
 # Directory structure, using existing files rather than creating case structure for now
 class DirStructure(object):

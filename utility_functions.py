@@ -631,9 +631,18 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
         None (goal is just to write csv)
     """
     storage_list = []
-    out_df_cols = ["time", "Storage_Index", "discharge_offer", "charge_offer", "soc", "charge", "discharge"]
+    out_df_cols = [
+        "time",
+        "Storage_Index",
+        "discharge_offer",
+        "charge_offer",
+        "soc",
+        "charge",
+        "discharge",
+    ]
 
     if default_write:
+        print("RT is " + str(RT))
         # this just creates default bids to bind against, but they should never bind
         print(
             "Default write of storage_offers_DA.csv just to have a file (but constraint should be inactive)"
@@ -643,18 +652,30 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
         bid_df = pd.read_csv(
             os.path.join(directory.INPUTS_DIRECTORY, "storage_offer_pre.csv")
         )
-        bid_df['discharge_offer'] = 0
-        bid_df['charge_offer'] = 0
-        bid_df['soc'] = 0
-        bid_df['charge'] = 0
-        bid_df['discharge'] = 0
+        bid_df["discharge_offer"] = 0
+        bid_df["charge_offer"] = 0
+        bid_df["soc"] = 0
+        bid_df["charge"] = 0
+        bid_df["discharge"] = 0
         bid_df.columns = write_cols
         bid_df.discharge_offer = bid_df.discharge_offer * 0  # makes all 0's for default
         bid_df.charge_offer = bid_df.charge_offer * 0  # makes all 0's for default
-        bid_df.to_csv(
-        os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
-            index=False,
-        )
+        # if RT case without bound offers, run repetitions to get enough tmps
+        if RT:
+            bid_df_RT = pd.concat([bid_df] * 12, ignore_index=True)
+            bid_df_RT.timepoint = [bid_df_RT.index[i] + 1 for i in bid_df_RT.index]
+
+            # must also overwrite SOC
+            print(bid_df_RT)
+            bid_df_RT.to_csv(
+                os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+                index=False,
+            )
+        else:
+            bid_df.to_csv(
+                os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+                index=False,
+            )
         return None
     elif RT:
         try:
