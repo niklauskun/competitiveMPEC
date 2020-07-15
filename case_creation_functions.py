@@ -637,10 +637,8 @@ class CreateRTSCase(object):
         self.storage_dict[index_list[3]] = [
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
         ] * len(self.storage_dict[index_list[0]])
-        self.storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
-            self.storage_dict[index_list[0]]
-        )
-        self.storage_dict[index_list[5]] = [RTEff ** 0.5] * len(
+        self.storage_dict[index_list[4]] = [1.0] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[5]] = [RTEff] * len(
             self.storage_dict[index_list[0]]
         )
         self.storage_dict[index_list[6]] = list(
@@ -699,10 +697,8 @@ class CreateRTSCase(object):
         self.storage_dict[index_list[3]] = [
             duration_scalar * self.storage_data.at[1, "Max Volume GWh"] * 1000
         ] * len(self.storage_dict[index_list[0]])
-        self.storage_dict[index_list[4]] = [1.0 / RTEff ** 0.5] * len(
-            self.storage_dict[index_list[0]]
-        )
-        self.storage_dict[index_list[5]] = [RTEff ** 0.5] * len(
+        self.storage_dict[index_list[4]] = [1.0] * len(self.storage_dict[index_list[0]])
+        self.storage_dict[index_list[5]] = [RTEff] * len(
             self.storage_dict[index_list[0]]
         )
         self.storage_dict[index_list[6]] = list(
@@ -1371,7 +1367,7 @@ class CreateRTSCase(object):
         )
         # print(gs_seg_df)
         return gs_seg_df
-    
+
     def storage_pre(self):
         storage_dict = {}
         index_list = [
@@ -1380,7 +1376,7 @@ class CreateRTSCase(object):
         ]
         storage_dict[index_list[0]] = [
             t
-            for t in range(1,len(self.timepoint_dict["timepoint"])+1)
+            for t in range(1, len(self.timepoint_dict["timepoint"]) + 1)
             for s in self.storage_dict["Storage_Index"]
         ]
         storage_dict[index_list[1]] = [
@@ -1391,9 +1387,9 @@ class CreateRTSCase(object):
         storage_pre_df = pd.DataFrame.from_dict(storage_dict)
         storage_pre_df.to_csv(
             os.path.join(
-                self.directory.RESULTS_INPUTS_DIRECTORY,
-                "storage_offer_pre.csv",
-            ), index=False
+                self.directory.RESULTS_INPUTS_DIRECTORY, "storage_offer_pre.csv",
+            ),
+            index=False,
         )
 
 
