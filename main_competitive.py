@@ -188,7 +188,7 @@ for counter, s in enumerate(scenario_list):
     write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
 
     # writes the file storage_bids_DA.csv
-    if bind_DA_offers_in_RT and RT:
+    if RT:  # bind_DA_offers_in_RT and
         DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
         DA_case_suffix = create_case_suffix(DA_dir_str, False, rt_tmps, rt_iter)
         DA_dir_str.make_directories(DA_case_suffix)

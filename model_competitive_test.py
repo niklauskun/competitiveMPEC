@@ -94,6 +94,7 @@ dispatch_model.GrossLoad = Param(
 dispatch_model.ReferenceBus = Param(
     dispatch_model.TIMEPOINTS, within=dispatch_model.ZONES
 )
+dispatch_model.Hours = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
 
 # active timepoint-indexed params
 dispatch_model.FirstTimepoint = Param(
@@ -914,9 +915,9 @@ def BindDASOCChangeRule(model, t, s):
     if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
-            == model.SOCInitDA[model.ACTIVETIMEPOINTS[1],s] 
-            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.DischargeEff[s]
-            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.ChargeEff[s]
+            == model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s]
+            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
             + model.sc[t, s] * model.ChargeEff[s]
             - model.sd[t, s] * model.DischargeEff[s]
         )  # start half charged?
@@ -935,8 +936,12 @@ dispatch_model.BindDASOCChangeConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindDASOCChangeRule
 )  # implements SOCChangeConstraint
 
+
 def BindDAEndSOCRule(model, t, s):
-    return model.SOCInitDA[model.ACTIVETIMEPOINTS[-1],s] == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    return (
+        model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
+        == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    )
 
 
 dispatch_model.BindDAEndSOCConstraint = Constraint(
