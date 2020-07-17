@@ -41,11 +41,11 @@ case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = True, 48, 288
+MPEC = False  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
-show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
+show_plots = True  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
 
@@ -216,7 +216,7 @@ for counter, s in enumerate(scenario_list):
 
     # show diagnostic plots if you wanted to
     if show_plots:
-        scenario.diagnostic_plots()
+        scenario.diagnostic_plots(rt_tmps, rt_iter)
 
     end_time = time.time() - start_time
     print("time elapsed during run is " + str(round(end_time, 2)) + " seconds")

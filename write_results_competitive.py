@@ -485,13 +485,13 @@ def export_lines(
                     format_6f(instance.dual[instance.TxToConstraint[t, line]])
                 )
             results_transmission_line_flow.append(
-                format_6f(instance.txmw[t, line].value)
+                format_6f(instance.txmwh[t, line].value)
             )
             # dc_opf_dual.append(format_6f(instance.dual[instance.DCOPFConstraint[t,line]]))
     col_names = [
-        "flow (MW)",
-        "congestion price from ($/MW)",
-        "congestion price to ($/MW)",
+        "flow (MWh)",
+        "congestion price from ($/MWh)",
+        "congestion price to ($/MWh)",
     ]
     df = pd.DataFrame(
         data=np.column_stack(

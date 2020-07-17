@@ -396,7 +396,7 @@ dispatch_model.nucgd = Var(
 )
 
 
-dispatch_model.txmw = Var(
+dispatch_model.txmwh = Var(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     within=Reals,
@@ -1006,7 +1006,7 @@ def TxFromRule(model, t, line):
         line {str} -- transmission line index
     """
     return (
-        model.txmw[t, line] >= model.TransmissionFromCapacity[t, line] * model.Hours[t]
+        model.txmwh[t, line] >= model.TransmissionFromCapacity[t, line] * model.Hours[t]
     )
 
 
@@ -1024,7 +1024,9 @@ def TxToRule(model, t, line):
         t {int} -- timepoint index
         line {str} -- transmission line index
     """
-    return model.TransmissionToCapacity[t, line] * model.Hours[t] >= model.txmw[t, line]
+    return (
+        model.TransmissionToCapacity[t, line] * model.Hours[t] >= model.txmwh[t, line]
+    )
 
 
 dispatch_model.TxToConstraint = Constraint(
@@ -1104,7 +1106,7 @@ def DCOPFRule(model, t, line):
     """
     zone_to = model.TransmissionTo[t, line]
     zone_from = model.TransmissionFrom[t, line]
-    return model.txmw[t, line] == model.Hours[t] * model.Susceptance[line] * (
+    return model.txmwh[t, line] == model.Hours[t] * model.Susceptance[line] * (
         model.va[t, zone_to] - model.va[t, zone_from]
     )
 
@@ -1133,9 +1135,9 @@ def LoadRule(model, t, z):
     for line in model.TRANSMISSION_LINE:
         if model.TransmissionTo[t, line] == z or model.TransmissionFrom[t, line] == z:
             if model.TransmissionTo[t, line] == z:
-                imports_exports += model.txmw[t, line]
+                imports_exports += model.txmwh[t, line]
             elif model.TransmissionFrom[t, line] == z:
-                imports_exports -= model.txmw[t, line]
+                imports_exports -= model.txmwh[t, line]
             # add additional note to dec import/exports by line losses
             # no, this will just be done as a hurdle rate
     for g in model.GENERATORS:
@@ -1606,7 +1608,7 @@ def BindMaxTransmissionComplementarity(model, t, line):
         line {str} -- transmission line index
     """
     return complements(
-        model.TransmissionToCapacity[t, line] * model.Hours[t] - model.txmw[t, line]
+        model.TransmissionToCapacity[t, line] * model.Hours[t] - model.txmwh[t, line]
         >= 0,
         model.transmissionmax_dual[t, line] >= 0,
     )
@@ -1629,7 +1631,7 @@ def BindMinTransmissionComplementarity(model, t, line):
         line {str} -- transmission line index
     """
     return complements(
-        -model.TransmissionFromCapacity[t, line] * model.Hours[t] + model.txmw[t, line]
+        -model.TransmissionFromCapacity[t, line] * model.Hours[t] + model.txmwh[t, line]
         >= 0,
         model.transmissionmin_dual[t, line] >= 0,
     )
