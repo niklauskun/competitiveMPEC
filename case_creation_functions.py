@@ -535,7 +535,7 @@ class CreateRTSCase(object):
             * self.gen_data[self.gen_data["Unit Type"].isin(self.gentypes)][
                 "Ramp Rate MW/Min"
             ].values
-        ) / 12
+        )
         self.gen_data.loc[:, "CO2/MWH"] = (
             self.gen_data.loc[:, "Emissions CO2 Lbs/MMBTU"]
             * self.lb_to_tonne
