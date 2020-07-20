@@ -94,6 +94,7 @@ dispatch_model.GrossLoad = Param(
 dispatch_model.ReferenceBus = Param(
     dispatch_model.TIMEPOINTS, within=dispatch_model.ZONES
 )
+dispatch_model.Hours = Param(dispatch_model.TIMEPOINTS, within=NonNegativeReals)
 
 # active timepoint-indexed params
 dispatch_model.FirstTimepoint = Param(
@@ -395,7 +396,7 @@ dispatch_model.nucgd = Var(
 )
 
 
-dispatch_model.txmw = Var(
+dispatch_model.txmwh = Var(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.TRANSMISSION_LINE,
     within=Reals,
@@ -759,7 +760,8 @@ dispatch_model.totaldispatch = Expression(
 
 def NonUCDispatchRule(model, t, g):
     return (
-        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] >= model.nucgd[t, g]
+        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] * model.Hours[t]
+        >= model.nucgd[t, g]
     )
 
 
@@ -849,7 +851,7 @@ def HybirdCapacityRule(model, t, s):
         if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
             hybrid_dispatch += model.sd[t, s]
             hybrid_capacity += model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
-    return hybrid_capacity >= hybrid_dispatch + model.sd[t, s]
+    return hybrid_capacity * model.Hours[t] >= hybrid_dispatch + model.sd[t, s]
 
 
 dispatch_model.HybirdCapacityConstraint = Constraint(
@@ -914,9 +916,10 @@ def BindDASOCChangeRule(model, t, s):
     if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
-            == model.SOCInitDA[model.ACTIVETIMEPOINTS[1],s] 
-            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.DischargeEff[s]
-            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1],s] * model.ChargeEff[s]
+            == model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+            - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
+            + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+            * model.DischargeEff[s]
             + model.sc[t, s] * model.ChargeEff[s]
             - model.sd[t, s] * model.DischargeEff[s]
         )  # start half charged?
@@ -935,8 +938,12 @@ dispatch_model.BindDASOCChangeConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindDASOCChangeRule
 )  # implements SOCChangeConstraint
 
+
 def BindDAEndSOCRule(model, t, s):
-    return model.SOCInitDA[model.ACTIVETIMEPOINTS[-1],s] == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    return (
+        model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
+        == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    )
 
 
 dispatch_model.BindDAEndSOCConstraint = Constraint(
@@ -998,7 +1005,9 @@ def TxFromRule(model, t, line):
         t {int} -- timepoint index
         line {str} -- transmission line index
     """
-    return model.txmw[t, line] >= model.TransmissionFromCapacity[t, line]
+    return (
+        model.txmwh[t, line] >= model.TransmissionFromCapacity[t, line] * model.Hours[t]
+    )
 
 
 dispatch_model.TxFromConstraint = Constraint(
@@ -1015,7 +1024,9 @@ def TxToRule(model, t, line):
         t {int} -- timepoint index
         line {str} -- transmission line index
     """
-    return model.TransmissionToCapacity[t, line] >= model.txmw[t, line]
+    return (
+        model.TransmissionToCapacity[t, line] * model.Hours[t] >= model.txmwh[t, line]
+    )
 
 
 dispatch_model.TxToConstraint = Constraint(
@@ -1095,7 +1106,7 @@ def DCOPFRule(model, t, line):
     """
     zone_to = model.TransmissionTo[t, line]
     zone_from = model.TransmissionFrom[t, line]
-    return model.txmw[t, line] == model.Susceptance[line] * (
+    return model.txmwh[t, line] == model.Hours[t] * model.Susceptance[line] * (
         model.va[t, zone_to] - model.va[t, zone_from]
     )
 
@@ -1124,9 +1135,9 @@ def LoadRule(model, t, z):
     for line in model.TRANSMISSION_LINE:
         if model.TransmissionTo[t, line] == z or model.TransmissionFrom[t, line] == z:
             if model.TransmissionTo[t, line] == z:
-                imports_exports += model.txmw[t, line]
+                imports_exports += model.txmwh[t, line]
             elif model.TransmissionFrom[t, line] == z:
-                imports_exports -= model.txmw[t, line]
+                imports_exports -= model.txmwh[t, line]
             # add additional note to dec import/exports by line losses
             # no, this will just be done as a hurdle rate
     for g in model.GENERATORS:
@@ -1139,7 +1150,10 @@ def LoadRule(model, t, z):
             # zonal_storage += model.sd[t, s]
     # full constraint, with tx flow now
     # (sum(sum(model.gsd[t,g,z,gs] for gs in model.GENERATORSEGMENTS) for g in model.GENERATORS)+\
-    return zonal_generation + imports_exports + zonal_storage == model.GrossLoad[t, z]
+    return (
+        zonal_generation + imports_exports + zonal_storage
+        == model.GrossLoad[t, z] * model.Hours[t]
+    )
 
 
 dispatch_model.LoadConstraint = Constraint(
@@ -1160,7 +1174,10 @@ def CapacityMaxRule(model, t, g):
         g {str} -- generator index
     """
     return (
-        model.CapacityTime[t, g] * model.gopstat[t, g] * model.ScheduledAvailable[t, g]
+        model.CapacityTime[t, g]
+        * model.gopstat[t, g]
+        * model.ScheduledAvailable[t, g]
+        * model.Hours[t]
         >= model.gd[t, g]
     )
 
@@ -1180,7 +1197,7 @@ def CapacityMinRule(model, t, g):
         t {int} -- timepoint index
         g {str} -- generator index
     """
-    return model.gd[t, g] >= model.gpmin[t, g]
+    return model.gd[t, g] >= model.gpmin[t, g] * model.Hours[t]
 
 
 dispatch_model.PminConstraint = Constraint(
@@ -1201,7 +1218,9 @@ def GeneratorSegmentDispatchMax(model, t, g, gs):
         g {str} -- generator index
         gs {int} -- generator segment index
     """
-    return model.availablesegmentcapacity[t, g, gs] >= model.gsd[t, g, gs]
+    return (
+        model.availablesegmentcapacity[t, g, gs] * model.Hours[t] >= model.gsd[t, g, gs]
+    )
 
 
 dispatch_model.GeneratorSegmentMaxConstraint = Constraint(
@@ -1230,9 +1249,9 @@ def GeneratorRampUpRule(model, t, g):
     else:
         return (
             model.gd[t - 1, g]
-            - model.gpmin[t - 1, g]
-            + model.RampRate[g] * model.gopstat[t - 1, g]
-            >= model.gd[t, g] - model.gpmin[t, g]
+            - model.gpmin[t - 1, g] * model.Hours[t]
+            + model.RampRate[g] * model.gopstat[t - 1, g] * model.Hours[t]
+            >= model.gd[t, g] - model.gpmin[t, g] * model.Hours[t]
         )
 
 
@@ -1255,10 +1274,10 @@ def GeneratorRampDownRule(model, t, g):
         return Constraint.Skip
     else:
         return (
-            model.gd[t, g] - model.gpmin[t, g]
+            model.gd[t, g] - model.gpmin[t, g] * model.Hours[t]
             >= model.gd[t - 1, g]
-            - model.gpmin[t - 1, g]
-            - model.RampRate[g] * model.gopstat[t, g]
+            - model.gpmin[t - 1, g] * model.Hours[t]
+            - model.RampRate[g] * model.gopstat[t, g] * model.Hours[t]
         )
 
 
@@ -1469,21 +1488,25 @@ def BindComittmentDual(model, t, g):
         - model.ScheduledAvailable[t, g]
         * model.CapacityTime[t, g]
         * model.gendispatchmax_dual[t, g]
+        * model.Hours[t]
         + model.ScheduledAvailable[t, g]
         * model.CapacityTime[t, g]
         * model.gendispatchmin_dual[t, g]
         * model.Pmin[g]
+        * model.Hours[t]
         + model.startupshutdown_dual[t, g]
         - (
             model.RampRate[g]
             + model.Pmin[g] * model.ScheduledAvailable[t, g] * model.CapacityTime[t, g]
         )
         * model.rampmax_dual[t, g]
+        * model.Hours[t]
         - (
             model.RampRate[g]
             - model.Pmin[g] * model.ScheduledAvailable[t, g] * model.CapacityTime[t, g]
         )
         * model.rampmin_dual[t, g]
+        * model.Hours[t]
         == 0
     )
 
@@ -1639,7 +1662,8 @@ def BindMaxTransmissionComplementarity(model, t, line):
         line {str} -- transmission line index
     """
     return complements(
-        model.TransmissionToCapacity[t, line] - model.txmw[t, line] >= 0,
+        model.TransmissionToCapacity[t, line] * model.Hours[t] - model.txmwh[t, line]
+        >= 0,
         model.transmissionmax_dual[t, line] >= 0,
     )
 
@@ -1661,7 +1685,8 @@ def BindMinTransmissionComplementarity(model, t, line):
         line {str} -- transmission line index
     """
     return complements(
-        -model.TransmissionFromCapacity[t, line] + model.txmw[t, line] >= 0,
+        -model.TransmissionFromCapacity[t, line] * model.Hours[t] + model.txmwh[t, line]
+        >= 0,
         model.transmissionmin_dual[t, line] >= 0,
     )
 
@@ -1703,7 +1728,10 @@ dispatch_model.MinVoltageAngleComplementarity = Complementarity(
 
 def BindMaxDispatchComplementarity(model, t, g):
     return complements(
-        model.CapacityTime[t, g] * model.gopstat[t, g] * model.ScheduledAvailable[t, g]
+        model.CapacityTime[t, g]
+        * model.gopstat[t, g]
+        * model.ScheduledAvailable[t, g]
+        * model.Hours[t]
         - model.gd[t, g]
         >= 0,
         model.gendispatchmax_dual[t, g] >= 0,
@@ -1719,7 +1747,8 @@ dispatch_model.MaxDispatchComplementarity = Complementarity(
 
 def BindMinDispatchComplementarity(model, t, g):
     return complements(
-        model.gd[t, g] - model.gpmin[t, g] >= 0, model.gendispatchmin_dual[t, g] >= 0,
+        model.gd[t, g] - model.gpmin[t, g] * model.Hours[t] >= 0,
+        model.gendispatchmin_dual[t, g] >= 0,
     )
 
 
@@ -1732,7 +1761,8 @@ dispatch_model.MinDispatchComplementarity = Complementarity(
 
 def BindMaxSegmentComplementarity(model, t, g, gs):
     return complements(
-        model.availablesegmentcapacity[t, g, gs] - model.gsd[t, g, gs] >= 0,
+        model.availablesegmentcapacity[t, g, gs] * model.Hours[t] - model.gsd[t, g, gs]
+        >= 0,
         model.gensegmentmax_dual[t, g, gs] >= 0,
     )
 
@@ -1765,10 +1795,10 @@ def BindMaxRampComplementarity(model, t, g):
     else:
         return complements(
             model.gd[t - 1, g]
-            - model.gpmin[t - 1, g]
-            + model.RampRate[g] * model.gopstat[t - 1, g]
+            - model.gpmin[t - 1, g] * model.Hours[t]
+            + model.RampRate[g] * model.gopstat[t - 1, g] * model.Hours[t]
             - model.gd[t, g]
-            + model.gpmin[t, g]
+            + model.gpmin[t, g] * model.Hours[t]
             >= 0,
             model.rampmax_dual[t, g] >= 0,
         )
@@ -1788,10 +1818,10 @@ def BindMinRampComplementarity(model, t, g):
     else:
         return complements(
             model.gd[t, g]
-            - model.gpmin[t, g]
+            - model.gpmin[t, g] * model.Hours[t]
             - model.gd[t - 1, g]
-            + model.gpmin[t - 1, g]
-            + model.RampRate[g] * model.gopstat[t, g]
+            + model.gpmin[t - 1, g] * model.Hours[t]
+            + model.RampRate[g] * model.gopstat[t, g] * model.Hours[t]
             >= 0,
             model.rampmin_dual[t, g] >= 0,
         )
@@ -1806,7 +1836,8 @@ dispatch_model.MinRampComplementarity = Complementarity(
 
 def BindMaxNonUCComplementarity(model, t, g):
     return complements(
-        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] - model.nucgd[t, g]
+        model.CapacityTime[t, g] * model.ScheduledAvailable[t, g] * model.Hours[t]
+        - model.nucgd[t, g]
         >= 0,
         model.nucdispatchmax_dual[t, g] >= 0,
     )
@@ -2073,6 +2104,7 @@ def objective_profit_dual(model):
             sum(
                 sum(
                     -model.availablesegmentcapacity[t, g, gs]
+                    * model.Hours[t]
                     * model.gensegmentmax_dual[t, g, gs]
                     for t in model.ACTIVETIMEPOINTS
                 )
@@ -2085,6 +2117,7 @@ def objective_profit_dual(model):
                 -model.CapacityTime[t, g]
                 * model.ScheduledAvailable[t, g]
                 * model.nucdispatchmax_dual[t, g]
+                * model.Hours[t]
                 for t in model.ACTIVETIMEPOINTS
             )
             for g in model.NON_STRATEGIC_GENERATORS
@@ -2126,6 +2159,7 @@ def objective_profit_dual(model):
         - sum(
             sum(
                 model.TransmissionToCapacity[t, line]
+                * model.Hours[t]
                 * model.transmissionmax_dual[t, line]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2134,6 +2168,7 @@ def objective_profit_dual(model):
         + sum(
             sum(
                 model.TransmissionFromCapacity[t, line]
+                * model.Hours[t]
                 * model.transmissionmin_dual[t, line]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2155,7 +2190,7 @@ def objective_profit_dual(model):
         )
         + sum(
             sum(
-                (model.GrossLoad[t, z]) * model.zonalprice[t, z]
+                (model.GrossLoad[t, z] * model.Hours[t]) * model.zonalprice[t, z]
                 for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
@@ -2184,6 +2219,7 @@ def objective_profit_dual_pre(model):
             sum(
                 sum(
                     -model.availablesegmentcapacity[t, g, gs]
+                    * model.Hours[t]
                     * model.gensegmentmax_dual[t, g, gs]
                     for t in model.ACTIVETIMEPOINTS
                 )
@@ -2196,6 +2232,7 @@ def objective_profit_dual_pre(model):
                 -model.CapacityTime[t, g]
                 * model.ScheduledAvailable[t, g]
                 * model.nucdispatchmax_dual[t, g]
+                * model.Hours[t]
                 for t in model.ACTIVETIMEPOINTS
             )
             for g in model.NUC_GENS
@@ -2237,6 +2274,7 @@ def objective_profit_dual_pre(model):
         - sum(
             sum(
                 model.TransmissionToCapacity[t, line]
+                * model.Hours[t]
                 * model.transmissionmax_dual[t, line]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2245,6 +2283,7 @@ def objective_profit_dual_pre(model):
         + sum(
             sum(
                 model.TransmissionFromCapacity[t, line]
+                * model.Hours[t]
                 * model.transmissionmin_dual[t, line]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2266,7 +2305,7 @@ def objective_profit_dual_pre(model):
         )
         + sum(
             sum(
-                (model.GrossLoad[t, z]) * model.zonalprice[t, z]
+                (model.GrossLoad[t, z] * model.Hours[t]) * model.zonalprice[t, z]
                 for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES

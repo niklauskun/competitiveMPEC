@@ -71,7 +71,10 @@ def scenario_inputs(inputs_directory):
     data.load(
         filename=os.path.join(inputs_directory, "timepoints_index.csv"),
         index=model_competitive_test.dispatch_model.TIMEPOINTS,
-        param=(model_competitive_test.dispatch_model.ReferenceBus,),
+        param=(
+            model_competitive_test.dispatch_model.ReferenceBus,
+            model_competitive_test.dispatch_model.Hours,
+        ),
     )
 
     data.load(
@@ -151,5 +154,5 @@ def scenario_inputs(inputs_directory):
             model_competitive_test.dispatch_model.DischargeInitDA,
         ),
     )
-    
+
     return data

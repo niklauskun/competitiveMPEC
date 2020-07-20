@@ -535,7 +535,7 @@ class CreateRTSCase(object):
             * self.gen_data[self.gen_data["Unit Type"].isin(self.gentypes)][
                 "Ramp Rate MW/Min"
             ].values
-        ) / 12
+        )
         self.gen_data.loc[:, "CO2/MWH"] = (
             self.gen_data.loc[:, "Emissions CO2 Lbs/MMBTU"]
             * self.lb_to_tonne
@@ -797,11 +797,7 @@ class CreateRTSCase(object):
 
     def timepoints(self, filename):
         self.timepoint_dict = {}
-        index_list = [
-            "timepoint",
-            "reference_bus",
-        ]
-
+        index_list = ["timepoint", "reference_bus", "hours"]
         self.timepoint_dict[index_list[0]] = list(range(1, self.hours + 1))
 
         if self.retained_bus_list == []:
@@ -812,14 +808,14 @@ class CreateRTSCase(object):
             self.timepoint_dict[index_list[1]] = [self.retained_bus_list[0]] * len(
                 self.timepoint_dict[index_list[0]]
             )
+        self.timepoint_dict[index_list[2]] = [1] * len(
+            self.timepoint_dict[index_list[0]]
+        )  # DA assumed hourly resolution
         self.dict_to_csv(filename, self.timepoint_dict, index="timepoint")
 
     def timepoints_rt(self, filename):
         self.timepoint_rt_dict = {}
-        index_list = [
-            "timepoint",
-            "reference_bus",
-        ]
+        index_list = ["timepoint", "reference_bus", "hours"]
 
         self.timepoint_rt_dict[index_list[0]] = list(range(1, self.periods + 1))
 
@@ -831,6 +827,11 @@ class CreateRTSCase(object):
             self.timepoint_rt_dict[index_list[1]] = [self.retained_bus_list[0]] * len(
                 self.timepoint_rt_dict[index_list[0]]
             )
+        self.timepoint_rt_dict[index_list[2]] = [
+            float(self.hours) / float(self.periods)
+        ] * len(
+            self.timepoint_rt_dict[index_list[0]]
+        )  # DA assumed hourly resolution
         self.dict_to_csv(filename, self.timepoint_rt_dict, index="timepoint")
 
     def zones(self, filename):

@@ -325,22 +325,23 @@ class CreateAndRunScenario(object):
             [dict] -- dictionary with formatted case results for plotting
         """
         results = {}  # create dict for storing results
-        results["tmps"] = [t for t in self.instance.TIMEPOINTS]
+        results["tmps"] = [t for t in self.instance.ACTIVETIMEPOINTS]
+        tmp_scalar = len(self.instance.TIMEPOINTS) / 24.0  # 24 hours in day
 
         results["dispatch"] = [
-            self.instance.gd[t, g]()
-            for t in self.instance.TIMEPOINTS
+            self.instance.gd[t, g]() * tmp_scalar
+            for t in self.instance.ACTIVETIMEPOINTS
             for g in self.instance.GENERATORS
         ]
 
         results["starts"] = [
             self.instance.gup[t, g].value
-            for t in self.instance.TIMEPOINTS
+            for t in self.instance.ACTIVETIMEPOINTS
             for g in self.instance.GENERATORS
         ]
         results["shuts"] = [
-            self.instance.gsd[t, g].value
-            for t in self.instance.TIMEPOINTS
+            self.instance.gdn[t, g].value
+            for t in self.instance.ACTIVETIMEPOINTS
             for g in self.instance.GENERATORS
         ]
 
@@ -350,11 +351,12 @@ class CreateAndRunScenario(object):
             [],
             [],
         )
-        for t in self.instance.TIMEPOINTS:
+
+        for t in self.instance.ACTIVETIMEPOINTS:
             for z in self.instance.ZONES:
-                results["wind"].append(self.instance.windgen[t, z].value)
-                results["solar"].append(self.instance.solargen[t, z].value)
-                results["curtailment"].append(self.instance.curtailment[t, z].value)
+                # results["wind"].append(self.instance.windgen[t, z].value)
+                # results["solar"].append(self.instance.solargen[t, z].value)
+                # results["curtailment"].append(self.instance.curtailment[t, z].value)
                 if self.solution_type == "LP":
                     results["lmps"].append(
                         self.instance.dual[self.instance.LoadConstraint[t, z]]
@@ -364,10 +366,14 @@ class CreateAndRunScenario(object):
 
         return results  # dict only
 
-    def diagnostic_plots(self):
+    def diagnostic_plots(self, tmps, rt_iter):
         """ creates two plots. (1) Generation by fuel. (2) LMP by bus
         There are a few hardcoded assumptions that will break if generator types are renamed 
         """
+        if self.is_RT:
+            xlabstart = tmps * (rt_iter - 1) + 1
+        else:
+            xlabstart = 1
         results_dict = self.format_solution_for_plots()
         lmp_duals_np = np.reshape(
             results_dict["lmps"],
@@ -386,15 +392,20 @@ class CreateAndRunScenario(object):
             {
                 "Dispatch": results_dict["dispatch"],
                 "FuelID": list(gens["Category"].values) * (len(results_dict["tmps"])),
-                "Hours": [
+                "Timepoint": [
                     i
-                    for i in list(range(1, len(results_dict["tmps"]) + 1))
+                    for i in list(
+                        range(xlabstart, xlabstart + len(results_dict["tmps"]))
+                    )
                     for z in range(len(list(gens["Category"].values)))
                 ],
             }
         )
         plot_df_grouped = (
-            plot_df.groupby(["FuelID", "Hours"]).sum().reset_index().set_index("Hours")
+            plot_df.groupby(["FuelID", "Timepoint"])
+            .sum()
+            .reset_index()
+            .set_index("Timepoint")
         )
         fig, ax = plt.subplots()  # figsize=(9, 6)
         df_pivot = plot_df_grouped.pivot(columns="FuelID", values="Dispatch")
@@ -419,10 +430,11 @@ class CreateAndRunScenario(object):
         # df_pivot.to_csv('checkpivot.csv'), write to check if needed
 
         df_pivot.plot.area(ax=ax, color=[c for c in col_name_colors.values()])
+        plt.ylabel("MW")
         plt.show()
 
         # Your x and y axis
-        x = range(1, len(results_dict["tmps"]) + 1)
+        x = range(xlabstart, xlabstart + len(results_dict["tmps"]))
         # y is made above
 
         # and finally, plot the energy LMP dual
@@ -432,7 +444,7 @@ class CreateAndRunScenario(object):
             plt.plot(x, lmp_duals_np[:, z], color=lmp_palette[z])
             legend_label.append("Zone " + str(zones["zone"][z]))
         plt.ylabel("LMP ($/MWh)")
-        plt.xlabel("Hour")
+        plt.xlabel("Timepoint")
         plt.show()
 
 

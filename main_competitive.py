@@ -41,11 +41,11 @@ case_folder = "test"  # andWind309
 
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
-MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+MPEC = False  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
-show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
+show_plots = True  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
 
@@ -54,7 +54,7 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.01,
+    "mip_tolerances_mipgap": 0.001,
     "dettimelimit": 100000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
@@ -188,7 +188,7 @@ for counter, s in enumerate(scenario_list):
     write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
 
     # writes the file storage_bids_DA.csv
-    if bind_DA_offers_in_RT and RT:
+    if RT:  # bind_DA_offers_in_RT and
         DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
         DA_case_suffix = create_case_suffix(DA_dir_str, False, rt_tmps, rt_iter)
         DA_dir_str.make_directories(DA_case_suffix)
@@ -216,7 +216,7 @@ for counter, s in enumerate(scenario_list):
 
     # show diagnostic plots if you wanted to
     if show_plots:
-        scenario.diagnostic_plots()
+        scenario.diagnostic_plots(rt_tmps, rt_iter)
 
     end_time = time.time() - start_time
     print("time elapsed during run is " + str(round(end_time, 2)) + " seconds")
