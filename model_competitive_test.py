@@ -742,7 +742,7 @@ def GeneratorTotalDispatchRule(model, t, g):
     if g in model.HYBRID_GENS:
         return 0
     else:
-        return model.gd[t, g]
+        return model.gd[t,g]
 
 
 dispatch_model.totaldispatch = Expression(
@@ -849,7 +849,7 @@ def HybirdCapacityRule(model, t, s):
         hybrid_dispatch = 0
         hybrid_capacity = 0
         if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
-            hybrid_dispatch += model.sd[t, s]
+            hybrid_dispatch += model.nucgd[t, s]
             hybrid_capacity += model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
     return hybrid_capacity * model.Hours[t] >= hybrid_dispatch + model.sd[t, s]
 
