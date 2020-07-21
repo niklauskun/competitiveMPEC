@@ -159,14 +159,13 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
   
   dispatch <- results[["dispatch"]]
   gens <- results[["gens"]]
-  
   offer <- results[['offer']]
   #print(offer)
   #offer$SegmentEmissions
 
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
   offer$genID <- gsub("-\\d","",offer[,1])
-  offer$area <- offer$Zone
+  offer$area <- substr(offer$Zone,start=1,stop=3)
 
   offer <- merge(offer, gens[,c("Name", "Category")], by.x="genID", by.y="Name", all.x=T)
 
@@ -193,7 +192,7 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
   # subset dispatch output to single day (include columns for date and case as well)
   dispatch <- dispatch[, c(1:(hours+1), dim(dispatch)[2])]
   colnames(dispatch) <- c("id", 0:(hours-1), "date")
-  dispatch$zone <- dispatch[,1]
+  dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
   dispatch$plant <- gsub("[[:print:]]*-", "", dispatch[,1])
   
   dispatch[,"id"] <- NULL
@@ -251,12 +250,12 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
           legend.position = "bottom",
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
           axis.title.y = element_text(size=32),
-          axis.text.x= element_text(size=16),
+          axis.text.x= element_text(size=8),
           axis.text.y= element_text(size=16),
           strip.text.x = element_text(size = 24)) +
     ggtitle(paste("Generation by fuel for", plotTitle))
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
-  ggsave(paste0("dispatch ", plotTitle, ".png"), width=20, height=12)
+  ggsave(paste0("dispatch ", plotTitle, ".png"), width=40, height=12)
   
   return(list(fuelDispatch,fuelemissions))
 }
@@ -369,6 +368,7 @@ compareTotalGeneratorCost <- function(generatordflist,plotTitle='hi',resolution=
 plotStorage <- function(results, dates, plotTitle, hours=24){
   storage_dispatch <- results[["storage"]]
   storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H")
+  storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
   
   #Luke's plotting code (active)
   ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill="SOC")) + geom_area(alpha=0.5) + 
@@ -574,7 +574,7 @@ cleanDispatchCost <- function(results,dates,type='NA',filter='None',hour=24){
   return(DispatchCost)
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1)
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 #dates2 <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=1)
 
 
