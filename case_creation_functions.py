@@ -575,18 +575,18 @@ class CreateRTSCase(object):
         scheduled_dict[index_list[0]] = [
             e
             for e in list(range(1, self.periods + 1))
-            for i in range(len(self.generators_rt_dict["Gen_Index"]))
+            for i in range(len(self.generators_dict["Gen_Index"]))
         ]
         scheduled_dict[index_list[1]] = (
-            list(self.generators_rt_dict["Gen_Index"]) * self.periods
+            list(self.generators_dict["Gen_Index"]) * self.periods
         )
         scheduled_dict[index_list[2]] = [1] * len(scheduled_dict[index_list[1]])
 
         gen_cap_list = []
         for h in range(self.period_begin, self.period_end):
             for gen, capacity in zip(
-                self.generators_rt_dict["Gen_Index"],
-                self.generators_rt_dict["Capacity"],
+                self.generators_dict["Gen_Index"],
+                self.generators_dict["Capacity"],
             ):
                 if gen in self.hydro_data_rt.columns:
                     gen_cap_list.append(self.hydro_data_rt.at[h, gen])
@@ -602,7 +602,7 @@ class CreateRTSCase(object):
                     gen_cap_list.append(capacity)
         scheduled_dict[index_list[3]] = gen_cap_list
         scheduled_dict[index_list[4]] = (
-            list(self.generators_rt_dict["Fuel_Cost"]) * self.periods
+            list(self.generators_dict["Fuel_Cost"]) * self.periods
         )
         self.dict_to_csv(filename, scheduled_dict, index="timepoint")
 
@@ -1062,19 +1062,19 @@ class CreateRTSCase(object):
         gs_seg_dict[index_list[0]] = [
             t
             for t in first_tmp
-            for gen in self.generators_rt_dict["Gen_Index"]
+            for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[1]] = [
             gen
             for t in first_tmp
-            for gen in self.generators_rt_dict["Gen_Index"]
+            for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
         gs_seg_dict[index_list[2]] = [
             gs
             for t in first_tmp
-            for gen in self.generators_rt_dict["Gen_Index"]
+            for gen in self.generators_dict["Gen_Index"]
             for gs in self.gs_list
         ]
 
@@ -1372,28 +1372,9 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
             no_load_cost_scalar=no_load_cost_scalar,
             pmin_scalar=pmin_scalar,
         )
-        case.generators_rt(
-            "generators_rt",
-            owned_gen_list=owned_gens,
-            nuc_gen_list=nuc_gens,
-            hybrid_gen_list=hybrid_gens,
-            retained_bus_list=retained_bus,
-            start_cost_scalar=start_cost_scalar,
-            no_load_cost_scalar=no_load_cost_scalar,
-            pmin_scalar=pmin_scalar,
-        )
         case.generators_descriptive("generators_descriptive")
         case.storage(
             "storage_resources",
-            owned_storage_list=owned_storage,
-            hybrid_storage_list=hybrid_storage,
-            capacity_scalar=capacity_scalar,
-            duration_scalar=duration_scalar,
-            busID=storage_bus,
-            RTEff=RTEfficiency,
-        )  # size_scalar=0
-        case.storage_rt(
-            "storage_resources_rt",
             owned_storage_list=owned_storage,
             hybrid_storage_list=hybrid_storage,
             capacity_scalar=capacity_scalar,
