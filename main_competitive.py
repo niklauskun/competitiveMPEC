@@ -34,7 +34,7 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test715")
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
 
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309

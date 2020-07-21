@@ -23,7 +23,7 @@ def scenario_inputs(inputs_directory):
     data = DataPortal()
 
     data.load(
-        filename=os.path.join(inputs_directory, "generators_rt.csv"),
+        filename=os.path.join(inputs_directory, "generators.csv"),
         index=model_competitive_test.dispatch_model.GENERATORS,
         param=(
             model_competitive_test.dispatch_model.capacity,
@@ -43,7 +43,7 @@ def scenario_inputs(inputs_directory):
     )
 
     data.load(
-        filename=os.path.join(inputs_directory, "storage_resources_rt.csv"),
+        filename=os.path.join(inputs_directory, "storage_resources.csv"),
         index=model_competitive_test.dispatch_model.STORAGE,
         param=(
             model_competitive_test.dispatch_model.DischargeMax,

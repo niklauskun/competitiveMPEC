@@ -742,7 +742,7 @@ def GeneratorTotalDispatchRule(model, t, g):
     if g in model.HYBRID_GENS:
         return 0
     else:
-        return model.gd[t, g]
+        return model.gd[t,g]
 
 
 dispatch_model.totaldispatch = Expression(
@@ -849,7 +849,7 @@ def HybirdCapacityRule(model, t, s):
         hybrid_dispatch = 0
         hybrid_capacity = 0
         if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
-            hybrid_dispatch += model.sd[t, s]
+            hybrid_dispatch += model.nucgd[t, s]
             hybrid_capacity += model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
     return hybrid_capacity * model.Hours[t] >= hybrid_dispatch + model.sd[t, s]
 
@@ -1386,7 +1386,7 @@ def BindStorageDischargeDual(model, t, s):
 
 dispatch_model.StorageDischargeDualConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS,
-    dispatch_model.STORAGE,
+    dispatch_model.STRATEGIC_STORAGE,
     rule=BindStorageDischargeDual,
     name="StorageDischargeDual",
 )
@@ -1413,9 +1413,63 @@ def BindStorageChargeDual(model, t, s):
 
 dispatch_model.StorageChargeDualConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS,
-    dispatch_model.STORAGE,
+    dispatch_model.STRATEGIC_STORAGE,
     rule=BindStorageChargeDual,
     name="StorageChargeDual",
+)
+
+
+def BindNSStorageDischargeDual(model, t, s):
+    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        s {str} -- storage index
+    """
+    return (
+        + model.ChargeMax[s] * model.storagetight_dual[t, s]
+        - model.discharge_dual[t, s]
+        - model.DischargeEff[s] * model.socmax_dual[t, s]
+        + model.DischargeEff[s] * model.socmin_dual[t, s]
+        - model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+# + model.onecycle_dual[s]
+
+dispatch_model.StorageNSDischargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=BindNSStorageDischargeDual,
+    name="StorageNSDischargeDual",
+)
+
+
+def BindNSStorageChargeDual(model, t, s):
+    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        s {str} -- storage index
+    """
+    return (
+        + model.DischargeMax[s] * model.storagetight_dual[t, s]
+        - model.charge_dual[t, s]
+        + model.ChargeEff[s] * model.socmax_dual[t, s]
+        - model.ChargeEff[s] * model.socmin_dual[t, s]
+        + model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+dispatch_model.StorageNSChargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=BindNSStorageChargeDual,
+    name="StorageNSChargeDual",
 )
 
 
@@ -1917,28 +1971,6 @@ dispatch_model.OfferMinConstraint = Constraint(
 )
 
 
-def StorageOfferCap(model, t, s):
-    return 0 == model.sodischarge[t, s]
-
-
-dispatch_model.StorageOfferCapConstraint = Constraint(
-    dispatch_model.ACTIVETIMEPOINTS,
-    dispatch_model.NON_STRATEGIC_STORAGE,
-    rule=StorageOfferCap,
-)
-
-
-def StorageOfferCap2(model, t, s):
-    return 0 == model.socharge[t, s]
-
-
-dispatch_model.StorageOfferCap2Constraint = Constraint(
-    dispatch_model.ACTIVETIMEPOINTS,
-    dispatch_model.NON_STRATEGIC_STORAGE,
-    rule=StorageOfferCap2,
-)
-
-
 def MarketPriceCap(model, t, z):
     """ Caps bus price at $2000/MWh. This is about where the energy price cap is in most RTOs
     other than ERCOT under normal operations without scarcity adders. The purpose here is just
@@ -2092,6 +2124,13 @@ def objective_profit_dual(model):
         )
         - sum(
             sum(
+                model.DischargeMax[s] * model.ChargeMax[s] * model.storagetight_dual[t, s]
+                for t in model.ACTIVETIMEPOINTS
+            )
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            sum(
                 model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2197,6 +2236,13 @@ def objective_profit_dual_pre(model):
                 for t in model.ACTIVETIMEPOINTS
             )
             for g in model.NUC_GENS
+        )
+        - sum(
+            sum(
+                model.DischargeMax[s] * model.ChargeMax[s] * model.storagetight_dual[t, s]
+                for t in model.ACTIVETIMEPOINTS
+            )
+            for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
             sum(
