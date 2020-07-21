@@ -470,16 +470,11 @@ class StorageOfferMitigation(object):
     ):
         self.case_directory = case_directory
         self.mitigation_flag = mitigation_flag
-        if is_RT:
-            self.storage_df = pd.read_csv(
-                os.path.join(
-                    case_directory.INPUTS_DIRECTORY, "storage_resources_rt.csv"
-                )
+        self.storage_df = pd.read_csv(
+            os.path.join(
+                case_directory.INPUTS_DIRECTORY, "storage_resources.csv"
             )
-        else:
-            self.storage_df = pd.read_csv(
-                os.path.join(case_directory.INPUTS_DIRECTORY, "storage_resources.csv")
-            )  # storage_df
+        )
         try:
             self.prices_df = pd.read_csv(
                 os.path.join(case_directory.RESULTS_DIRECTORY, "zonal_prices.csv")

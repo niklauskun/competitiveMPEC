@@ -650,6 +650,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_charge = []
     storage_discharge = []
     storage_totaldischarge = []
+    storage_dispatch = []
     soc = []
     storage_offer = []
     max_storage_offer = []

@@ -742,7 +742,7 @@ def GeneratorTotalDispatchRule(model, t, g):
     if g in model.HYBRID_GENS:
         return 0
     else:
-        return model.gd[t,g]
+        return model.gd[t, g]
 
 
 dispatch_model.totaldispatch = Expression(
@@ -870,7 +870,7 @@ def StorageTightRule(model, t, s):
         s {str} -- storage resource index
     """
     return (
-        model.ChargeMax[s] * model.DischargeMax[s]
+        model.ChargeMax[s] * model.DischargeMax[s] * model.Hours[t]
         >= model.ChargeMax[s] * model.sd[t, s] + model.DischargeMax[s] * model.sc[t, s]
     )
 
@@ -1579,7 +1579,7 @@ dispatch_model.FlowDualConstraint = Constraint(
 
 def BindStorageTightComplementarity(model, t, s):
     return complements(
-        model.DischargeMax[s] * model.ChargeMax[s]
+        model.DischargeMax[s] * model.ChargeMax[s] * model.Hours[t]
         - model.DischargeMax[s] * model.sc[t, s]
         - model.ChargeMax[s] * model.sd[t, s]
         >= 0,
