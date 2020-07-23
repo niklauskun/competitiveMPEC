@@ -37,8 +37,34 @@ readFiles <- function(filename, dates, dateWD, subFolder="results_DA"){
   return(fullDF)
 }
 
+readFilesRT <- function(filename, dates, dateWD, tmps, slicer){
+  for(i in 1:length(dates)){
+    for(j in 1:slicer){
+      date <- dates[i]
+      subFolder <- paste("results_RT", tmps * (j - 1) + 1, tmps * j, sep="_")
+      dateString <- paste(as.character(format(date, "%m")), as.character(format(date, "%d")), as.numeric(format(date, "%Y")), sep=".")
+      setwd(paste(dateWD, dateString, subFolder, sep="/"))
+    
+      # load file
+      dftmp <- read.csv(filename)
+      dftmp$date <- date
+      if(j == 1){
+        df <- dftmp
+      } else{
+        df <- rbind(df, dftmp)
+      }
+    }
+    if(i == 1){
+      fullDF <- df
+    } else{
+      fullDF <- rbind(fullDF, df)
+    }
+  }
+  return(fullDF)
+}
+
+
 loadResults <- function(dates,folder){
-  
   dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
   dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
   dateResultsWD<-paste(baseWD, folder, sep="/")
@@ -67,7 +93,7 @@ loadResults <- function(dates,folder){
   gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
   #emissions <- readFiles("generator_segment_marginalcost.csv", dates, dateResultsWD, subFolder="inputs")
-  
+
   # some formatting
   #gens <- gens[!duplicated(gens),] # remove duplicate generators
   #gens <- gens[,c("Name", "Zone", "Category")]  # subset generator columns
@@ -81,10 +107,29 @@ loadResults <- function(dates,folder){
   return(results)
 }
 
+loadResultsRT <- function(dates,folder){
+  dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
+  dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
+  dateResultsWD<-paste(baseWD, folder, sep="/")
+
+  gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
+  zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
+  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD, tmps = 48, slicer = 6)
+  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD, tmps = 48, slicer = 6)
+  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD, tmps = 48, slicer = 6)
+  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD, tmps = 48, slicer = 6)
+  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD, tmps = 48, slicer = 6)
+
+  # return resultsRT
+  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT)
+  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer")
+  return(resultsRT)
+}
+
 # helper function to load data from all four cases
 loadAllCases <- function(dates,folder="test"){
   results <- loadResults(dates,folder)
-  return(results)
+  return(results,resultsRT)
 }
 
 aggregateCaseData <- function(results, targetData){
@@ -106,6 +151,37 @@ plotPrices <- function(results,dates,plotTitle,hours=24){
   prices$zone <- paste0("Area ",prices$zone)
   prices$busID <- substr(prices[,1],start=2,stop=3)
   prices$datetime <- as.POSIXct(with(prices, paste(date, hour)), format = "%Y-%m-%d %H")
+  prices$X <- as.character(prices$X)
+  
+  #Luke's plotting code (active)
+  ggplot(data=prices, aes(x=datetime, y=LMP, color=busID)) + geom_line(lwd=1.5) + 
+    facet_wrap(~zone, nrow=1) + 
+    theme_classic() + ylab("$/MWh") + xlab("") +
+    scale_x_datetime() +
+    guides(colour=guide_legend(title="Bus: ", nrow=5))+
+    theme(legend.text = element_text(size=24),
+          legend.title = element_text(size=30),
+          legend.position = "bottom",
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          axis.title.y = element_text(size=32),
+          axis.text.x= element_text(size=16),
+          axis.text.y= element_text(size=16),
+          strip.text.x = element_text(size = 24)) +
+    ggtitle(paste("LMP by Bus for", plotTitle))
+  
+  setwd(paste(baseWD, "post_processing", "figures", sep="/"))
+  ggsave(paste0("prices ", plotTitle, ".png"), width=20, height=8)
+  
+  return(prices)
+}
+
+plotPricesRT <- function(results,dates,plotTitle,hours=24,slice=12){
+  prices <- results[['modelLMP']]
+  prices$zone <- substr(prices[,1],start=1,stop=1)
+  prices$zone <- paste0("Area ",prices$zone)
+  prices$busID <- substr(prices[,1],start=2,stop=3)
+  prices$time <- paste(prices$hour%/%slice,prices$hour%%slice*5,sep=":")
+  prices$datetime <- as.POSIXct(with(prices, paste(date, time)), format = "%Y-%m-%d %H:%M")
   prices$X <- as.character(prices$X)
   
   #Luke's plotting code (active)
@@ -365,19 +441,53 @@ compareTotalGeneratorCost <- function(generatordflist,plotTitle='hi',resolution=
 
 
 #storage dispatch
+plotStorageRT <- function(results, dates, plotTitle, hours=24,slice=12){
+  storage_dispatch <- results[["storage"]]
+  storage_dispatch$time <- paste(storage_dispatch$time%/%slice,storage_dispatch$time%%slice*5,sep=":")
+  storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H:%M")
+  storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
+  storage_dispatch$X <- factor(storage_dispatch$X)
+  storage_dispatch$node <- factor(storage_dispatch$node)
+  
+  #Luke's plotting code (active)
+  ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill=X)) + geom_area(alpha=0.5) + 
+    geom_line(aes(datetime, dispatch, color=X),lwd=3) +
+    geom_line(aes(datetime, lmp, color=node),lwd=2,linetype='dashed') +
+    theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
+    scale_x_datetime() +
+    #scale_color_grey() +     define line colors here
+    scale_fill_grey() +
+    guides(color=guide_legend(nrow=1)) +
+    theme(legend.text = element_text(size=32),
+          legend.position = 'bottom',
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          axis.title.y = element_text(size=32),
+          axis.text.x= element_text(size=20),
+          axis.text.y= element_text(size=20)) +
+    ggtitle(paste("Storage Dispatch ", plotTitle))
+  
+  setwd(paste(baseWD, "post_processing", "figures", sep="/"))
+  ggsave(paste0("storage dispatch ", plotTitle, ".png"), width=20, height=12)
+  
+  return(storage_dispatch)
+}
+
+#storage dispatch
 plotStorage <- function(results, dates, plotTitle, hours=24){
   storage_dispatch <- results[["storage"]]
   storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H")
   storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
+  storage_dispatch$X <- factor(storage_dispatch$X)
+  storage_dispatch$node <- factor(storage_dispatch$node)
   
   #Luke's plotting code (active)
-  ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill="SOC")) + geom_area(alpha=0.5) + 
-    geom_line(aes(datetime, dispatch,color='Storage Dispatch'),lwd=3) +
-    geom_line(aes(datetime, lmp,color='LMP'),lwd=2,linetype='dashed') +
+  ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill=X)) + geom_area(alpha=0.5) + 
+    geom_line(aes(datetime, dispatch, color=X),lwd=3) +
+    geom_line(aes(datetime, lmp, color=node),lwd=2,linetype='dashed') +
     theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
     scale_x_datetime() +
-    scale_color_manual(name = "", values = c("Storage Dispatch" = "black", "LMP" = "red")) +
-    scale_fill_manual(name="",values=c("SOC"="gray50")) +
+    #scale_color_grey() +     define line colors here
+    scale_fill_grey() +
     guides(color=guide_legend(nrow=1)) +
     theme(legend.text = element_text(size=32),
           legend.position = 'bottom',
@@ -579,6 +689,7 @@ dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=
 
 
 results1 <- loadResults(dates1,folder='test')
+results1RT  <- loadResultsRT(dates1,folder='test')
 #results1competitive <- loadAllCases(dates1,folder="competitive")
 
 #results1CO2 <- loadAllCases(dates1,folder='baseCO230')
@@ -587,6 +698,10 @@ results1 <- loadResults(dates1,folder='test')
 d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019')
 d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019')
 d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019')
+
+d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+d2RT <- plotPricesRT(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+d3RT <- plotStorageRT(results1RT,dates1,plotTitle='Jan 1 2019 RT')
 
 c1 <- plotDispatch(results1competitive,dates1,plotTitle='Jan 1-30 2019 competitive')
 c2 <- plotPrices(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
