@@ -42,7 +42,7 @@ readFiles <- function(filename, dates, dateWD, subFolder="results_DA"){
   return(fullDF)
 }
 
-readFilesRT <- function(filename, dates, dateWD){
+readFilesRT <- function(filename, dates, dateWD,isDispatch){
   for(i in 1:length(dates)){
     for(j in 1:slicer){
       date <- dates[i]
@@ -53,12 +53,17 @@ readFilesRT <- function(filename, dates, dateWD){
       # load file
       dftmp <- read.csv(filename)
       dftmp$date <- date
+      if(isDispatch == TRUE){
+        colnames(dftmp) <- c("plant", (tmps * (j - 1) + 1) : (tmps * j), "date")
+        dftmp <- melt(dftmp, id.vars=c("plant","date"))
+        colnames(dftmp) <- c("plant", "date", "time", "MW")
+      }
       if(j == 1){
         df <- dftmp
       } else{
         df <- rbind(df, dftmp)
+        }
       }
-    }
     if(i == 1){
       fullDF <- df
     } else{
@@ -119,11 +124,11 @@ loadResultsRT <- function(dates,folder){
 
   gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
-  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD)
-  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD)
-  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD)
-  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD)
-  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD)
+  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD, FALSE)
+  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD, FALSE)
+  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD, FALSE)
+  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD, TRUE)
+  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD, FALSE)
 
   # return resultsRT
   resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT)
@@ -187,8 +192,17 @@ plotPrices <- function(results,dates,plotTitle,isRT,hours=24){
 }
 
 compareplotPrices <- function(prices_df1,prices_df2){
-  pricesdelta_df <- prices_df1[,c("datetime","zone","busID")]
-  pricesdelta_df$LMP <- prices_df1$LMP - prices_df2$LMP
+  prices_df1$datetime <- prices_df1$datetime - 3600 + 3600/slice
+  tmp <- prices_df1
+  for(j in 1:slice){
+    if(j != 1){
+    tmp$datetime <- tmp$datetime + 3600/slice
+      prices_df1 <- rbind(prices_df1, tmp)
+    }
+  }
+
+  pricesdelta_df <- merge(prices_df1, prices_df2, by = c("datetime","zone","busID"))
+  pricesdelta_df$LMP <- pricesdelta_df$LMP.x - pricesdelta_df$LMP.y
   
   #Luke's plotting code (active)
   ggplot(data=pricesdelta_df, aes(x=datetime, y=LMP, color=busID)) + geom_line(lwd=1.5) + 
@@ -208,7 +222,6 @@ compareplotPrices <- function(prices_df1,prices_df2){
   
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
   ggsave(paste0("prices delta",".png"), width=20, height=8)
-  
 }
 
 plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
@@ -230,7 +243,12 @@ plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
   # summarize by fuel type
   fuelemissions <- ddply(offer, ~ date + hour + area, summarise, Emissions = sum(SegmentEmissions))
   fuelemissions$area <- factor(fuelemissions$area)
-  fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, hour)), format = "%Y-%m-%d %H")
+  if(isRT == TRUE){
+    fuelemissions$time <- paste(fuelemissions$hour%/%slice,fuelemissions$hour%%slice*5,sep=":")
+    fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, time)), format = "%Y-%m-%d %H:%M")
+  }else{
+    fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, hour)), format = "%Y-%m-%d %H")
+  }
 
   #then melt into same format as fueldf
   
@@ -246,16 +264,17 @@ plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
   #print(fuelemissions)
 
   # subset dispatch output to single day (include columns for date and case as well)
-  dispatch <- dispatch[, c(1:(hours+1), dim(dispatch)[2])]
-  colnames(dispatch) <- c("id", 0:(hours-1), "date")
-  dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
-  dispatch$plant <- gsub("[[:print:]]*-", "", dispatch[,1])
+  if(isRT == FALSE){
+    dispatch <- dispatch[, c(1:(hours+1), dim(dispatch)[2])]
+    colnames(dispatch) <- c("plant", 0:(hours-1), "date")
+    dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
+    dispatch <- melt(dispatch, id.vars=c("plant","date", "zone"))
+    colnames(dispatch) <- c("plant", "date", "zone", "time", "MW")
+  }else{
+    dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
+    dispatch$MW <- dispatch$MW*slice
+  }
   
-  dispatch[,"id"] <- NULL
-  
-  dispatch <- melt(dispatch, id.vars=c("date", "zone", "plant"))
-
-  colnames(dispatch) <- c("date", "zone", "plant", "hour", "MW")
   #print(dispatch)
   
   # drop rows with zero generation
@@ -267,9 +286,15 @@ plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
   dispatch <- dispatch[!duplicated(dispatch), ]
   
   # summarize by fuel type
-  fuelDispatch <- ddply(dispatch, ~ date + hour + zone + Category, summarise, MW = sum(MW))
+  fuelDispatch <- ddply(dispatch, ~ date + time + zone + Category, summarise, MW = sum(MW))
   fuelDispatch$zone <- factor(fuelDispatch$zone)
-  fuelDispatch$datetime <- as.POSIXct(with(fuelDispatch, paste(date, hour)), format = "%Y-%m-%d %H")
+  if(isRT == TRUE){
+    fuelDispatch$time <- as.numeric(fuelDispatch$time)
+    fuelDispatch$time <- paste(fuelDispatch$time%/%slice,fuelDispatch$time%%slice*5,sep=":")
+    fuelDispatch$datetime <- as.POSIXct(with(fuelDispatch, paste(date, time)), format = "%Y-%m-%d %H:%M")
+  }else{
+    fuelDispatch$datetime <- as.POSIXct(with(fuelDispatch, paste(date, time)), format = "%Y-%m-%d %H")
+  }
   
   fuelDispatch$Category <- factor(fuelDispatch$Category, levels = c("Sync_Cond","Solar RTPV","Solar PV","CSP","Wind",
                                                                     "Oil ST","Oil CT","Gas CT","Gas CC",
@@ -313,14 +338,23 @@ plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
   ggsave(paste0("dispatch ", plotTitle, ".png"), width=40, height=12)
   
-  return(list(fuelDispatch,fuelemissions))
+  return(fuelDispatch)
 }
 #plotDispatch(results1,dates1,plotTitle='test')
 #compare conventional dispatch
 
 compareplotDispatch <- function(dispatch_df1,dispatch_df2){
-  dispatchdelta_df <- dispatch_df1[,c("datetime","Category","zone")]
-  dispatchdelta_df$MW <- dispatch_df1$MW - dispatch_df2$MW
+  tmp <- dispatch_df1
+  tmp$datetime <- tmp$datetime - 3600 +3600/slice
+  for(j in 1:slice){
+    if(j != 1){
+      tmp$datetime <- tmp$datetime + 3600/slice
+      dispatch_df1 <- rbind(dispatch_df1, tmp)
+    }
+  }
+  
+  dispatchdelta_df <- merge(dispatch_df1, dispatch_df2, by = c("datetime","Category","zone"))
+  dispatchdelta_df$MW <- dispatchdelta_df$MW.x - dispatchdelta_df$MW.y
   
   dispatchdelta_df$Category <- factor(dispatchdelta_df$Category, levels = c("Sync_Cond","Solar RTPV","Solar PV","CSP","Wind",
                                                                     "Oil ST","Oil CT","Gas CT","Gas CC",
@@ -425,15 +459,17 @@ plotStorage <- function(results, dates, plotTitle, isRT, hours=24){
   if(isRT == TRUE){
     storage_dispatch$time <- paste(storage_dispatch$time%/%slice,storage_dispatch$time%%slice*5,sep=":")
     storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H:%M")
+    storage_dispatch$dispatch <- slice * (storage_dispatch$discharge-storage_dispatch$charge)
   }else{
     storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H")
+    storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
   }
-  storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
   storage_dispatch$X <- factor(storage_dispatch$X)
   storage_dispatch$node <- factor(storage_dispatch$node)
   
   #Luke's plotting code (active)
   ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill=X)) + geom_area(alpha=0.5) + 
+    facet_wrap(~X, nrow=1, scales = "free") +
     geom_line(aes(datetime, dispatch, color=X),lwd=3) +
     geom_line(aes(datetime, lmp, color=node),lwd=2,linetype='dashed') +
     theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
@@ -457,12 +493,22 @@ plotStorage <- function(results, dates, plotTitle, isRT, hours=24){
 
 #compare storage dispatch
 compareplotStorage <- function(storage_df1,storage_df2,plotTitle='NA'){
-  storagedelta_df <- storage_df1[,c("X","time","date","datetime")]
-  storagedelta_df$dispatch <- storage_df1$dispatch - storage_df2$dispatch
-  storagedelta_df$soc <- storage_df1$soc - storage_df2$soc
-  storagedelta_df$lmp <- storage_df1$lmp - storage_df2$lmp
+  tmp <- storage_df1
+  tmp$datetime <- tmp$datetime - 3600 + 3600/slice
+  for(j in 1:slice){
+    if(j != 1){
+      tmp$datetime <- tmp$datetime + 3600/slice
+      storage_df1 <- rbind(storage_df1, tmp)
+    }
+  }
+  storagedelta_df <- merge(storage_df1, storage_df2, by = c("X","datetime"))
+  
+  storagedelta_df$dispatch <- storagedelta_df$dispatch.x - storagedelta_df$dispatch.y
+  storagedelta_df$soc <- storagedelta_df$soc.x - storagedelta_df$soc.y
+  storagedelta_df$lmp <- storagedelta_df$lmp.x - storagedelta_df$lmp.y
   
   ggplot(data=storagedelta_df, aes(x=datetime, y=soc, fill="SOC")) + geom_area(alpha=0.5) + 
+    facet_wrap(~X, nrow=1, scales = "free") +
     geom_line(aes(datetime, dispatch,color='Storage Dispatch'),lwd=3) +
     geom_line(aes(datetime, lmp,color='LMP'),lwd=2,linetype='dashed') +
     theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
@@ -655,18 +701,18 @@ d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
 d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
 d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
 
-c1 <- plotDispatch(results1competitive,dates1,plotTitle='Jan 1-30 2019 competitive')
-c2 <- plotPrices(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
-c3 <- plotStorage(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
+#c1 <- plotDispatch(results1competitive,dates1,plotTitle='Jan 1-30 2019 competitive')
+#c2 <- plotPrices(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
+#c3 <- plotStorage(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
 
-CO21 <- plotDispatch(results1CO2,dates1,plotTitle='Jan 1-30 2019 CO2')
-CO21competitive <- plotDispatch(results1CO2competitive,dates1,plotTitle='Jan 1-30 2019 CO2')
+# <- plotDispatch(results1CO2,dates1,plotTitle='Jan 1-30 2019 CO2')
+#CO21competitive <- plotDispatch(results1CO2competitive,dates1,plotTitle='Jan 1-30 2019 CO2')
 
 #fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, hour)), format = "%Y-%m-%d %H")
-compareplotDispatch(d1,c1)
-compareplotPrices(d2,c2)
-compareplotStorage(d3,c3)
-compareStorageHeatplot(list(d3,c3))
+compareplotDispatch(d1,d1RT)
+compareplotPrices(d2,d2RT)
+compareplotStorage(d3,d3RT)
+compareStorageHeatplot(list(d3,d3RT))
 
 
 caselist <- list(d1[[2]],c1[[2]],CO21[[2]],CO21competitive[[2]])
