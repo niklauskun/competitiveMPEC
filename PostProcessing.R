@@ -95,6 +95,7 @@ loadResults <- function(dates,folder){
   modelLMP <- readFiles("zonal_prices.csv", dates, dateResultsWD)
   txFlows <- readFiles("tx_flows.csv", dates, dateResultsWD)
   offer <- readFiles("generator_segment_offer.csv", dates, dateResultsWD)
+  nucoffer <- readFiles("nuc_offer.csv", dates, dateResultsWD)
   dispatch <- readFiles("generator_dispatch.csv", dates, dateResultsWD)
   storage <- readFiles("storage_dispatch.csv", dates, dateResultsWD)
   #VRE <- readFiles("renewable_generation.csv", dates, dateResultsWD)
@@ -103,6 +104,7 @@ loadResults <- function(dates,folder){
   gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
   storageresources <- readFiles("storage_resources.csv", dates, dateResultsWD, subFolder="inputs")
+  generatorresources <- readFiles("generators.csv", dates, dateResultsWD, subFolder="inputs")
   #emissions <- readFiles("generator_segment_marginalcost.csv", dates, dateResultsWD, subFolder="inputs")
 
   # some formatting
@@ -113,8 +115,8 @@ loadResults <- function(dates,folder){
   #modelLMP <- modelLMP[,c("X","hour","LMP","date")]
   
   # return results
-  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, storageresources)
-  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "storageresources")
+  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, nucoffer, storageresources, generatorresources)
+  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources")
   return(results)
 }
 
@@ -126,15 +128,17 @@ loadResultsRT <- function(dates,folder){
   gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
   storageresources <- readFiles("storage_resources.csv", dates, dateResultsWD, subFolder="inputs")
+  generatorresources <- readFiles("generators.csv", dates, dateResultsWD, subFolder="inputs")
   modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD, FALSE)
   txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD, FALSE)
   offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD, FALSE)
+  nucofferRT <- readFilesRT("nuc_offer.csv", dates, dateResultsWD, FALSE)
   dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD, TRUE)
   storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD, FALSE)
 
   # return resultsRT
-  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, storageresources)
-  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "storageresources")
+  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, nucofferRT, storageresources, generatorresources)
+  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources")
   return(resultsRT)
 }
 
@@ -629,7 +633,7 @@ cleanOffer <- function(results,dates,hours=24){
   return(profits)
 }
 
-compareGeneratorProfit <- function(generatordflist,plotTitle='hi'){
+compareGeneratorProfit <- function(generatordflist,plotTitle='hi',resolution='NA'){
   #eventually probably a list of dfs as input
   #print(names(generatordflist))
   for (i in 1:length(generatordflist)){
@@ -638,10 +642,12 @@ compareGeneratorProfit <- function(generatordflist,plotTitle='hi'){
   gendf <- do.call("rbind", generatordflist)
   
   if (resolution=='month'){
-    storagedf$date <- month(storagedf$date)
+    gendf$date <- month(gendf$date)
   }
   
-  ggplot(data=gendf, aes(x=date, y=Profits, fill=label)) +
+  gendf <- ddply(gendf, ~ date + label, summarise, profit = sum(Profit))
+  
+  ggplot(data=gendf, aes(x=date, y=profit, fill=label)) +
     geom_bar(stat='identity',position='dodge') + 
     theme_classic() + ylab("Profit($)") + xlab("") +
     theme(legend.text = element_text(size=32),
@@ -690,6 +696,28 @@ cleanDispatchCost <- function(results,dates,type='NA',filter='None',hour=24){
   return(DispatchCost)
 }
 
+cleanDispatchProfit <- function(results,dates,type='NA',filter='None',hour=24){
+  gc <- results[['generatorresources']]$Gen_Index[results[['generatorresources']]$GencoIndex == 1]
+  offer <- results[['offer']]
+  offer <- offer[,c("X","SegmentDispatch","LMP","date")]
+  nucoffer <- results[['nucoffer']]
+  nucoffer <- nucoffer[,c("X","dispatch","lmp","date")]
+  colnames(nucoffer)=c("X","SegmentDispatch","LMP","date")
+  offer <- rbind(offer, nucoffer)
+  #print(offer)
+  offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
+  #Here is the error, I can't get nucoffer rows with surfix greater than 9.
+  offer$genID <- gsub("-\\d","",offer[,1])
+  offer <- offer[offer$genID==gc,]
+  offer$dispatchprofit <- offer$SegmentDispatch * offer$LMP
+  #print(offer)
+  if (filter!='None'){
+    offer <- offer[offer$genID==filter,]
+  }
+  DispatchProfit <- ddply(offer,~date,summarise,Profit=sum(dispatchprofit))
+  return(DispatchProfit)
+}
+
 dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 #dates2 <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=1)
 
@@ -729,6 +757,10 @@ compareStorageProfit(caselist,plotTitle='test',resolution='month')
 caselist <- list(cleanDispatchCost(results1,dates1),cleanDispatchCost(results1RT,dates1))
 names(caselist) <- c('day-ahead','real-time')
 compareTotalGeneratorCost(caselist,plotTitle='test',resolution='month')
+
+caselist <- list(cleanDispatchProfit(results1,dates1),cleanDispatchProfit(results1RT,dates1))
+names(caselist) <- c('day-ahead','real-time')
+compareGeneratorProfit(caselist,plotTitle='test',resolution='month')
 
 caselist <- list(d1[[2]],c1[[2]],CO21[[2]],CO21competitive[[2]])
 names(caselist) <- c('base','competitive','baseCO2','competitiveCO2')
