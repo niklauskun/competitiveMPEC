@@ -1428,7 +1428,7 @@ def BindNSStorageDischargeDual(model, t, s):
         s {str} -- storage index
     """
     return (
-        + model.ChargeMax[s] * model.storagetight_dual[t, s]
+        +model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
         - model.DischargeEff[s] * model.socmax_dual[t, s]
         + model.DischargeEff[s] * model.socmin_dual[t, s]
@@ -1456,7 +1456,7 @@ def BindNSStorageChargeDual(model, t, s):
         s {str} -- storage index
     """
     return (
-        + model.DischargeMax[s] * model.storagetight_dual[t, s]
+        +model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
         + model.ChargeEff[s] * model.socmax_dual[t, s]
         - model.ChargeEff[s] * model.socmin_dual[t, s]
@@ -2023,12 +2023,16 @@ def objective_rule(model):
             sum(model.gup[t, g] for t in model.ACTIVETIMEPOINTS) * model.StartCost[g]
             for g in model.GENERATORS
         )
+        + sum(
+            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+        )  # charge penalty
     )
 
     # DESCRIPTION OF OBJECTIVE
     # (1) dispatch cost
     # (2) no load cost of committed gen
     # (3) start up costs when generators brought online
+    # (4) penalty for storage charging
 
 
 dispatch_model.TotalCost = Objective(rule=objective_rule, sense=minimize)
@@ -2060,6 +2064,9 @@ def objective_rule2(model):
         )
         for gs in model.GENERATORSEGMENTS
     )
+    -sum(
+        sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+    )  # charge penalty
     # DESCRIPTION OF OBJECTIVE
     # (1) dispatch cost
 
@@ -2124,7 +2131,9 @@ def objective_profit_dual(model):
         )
         - sum(
             sum(
-                model.DischargeMax[s] * model.ChargeMax[s] * model.storagetight_dual[t, s]
+                model.DischargeMax[s]
+                * model.ChargeMax[s]
+                * model.storagetight_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
@@ -2195,6 +2204,9 @@ def objective_profit_dual(model):
             )
             for z in model.ZONES
         )
+        - sum(
+            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+        )  # charge penalty
     )
 
 
@@ -2239,7 +2251,9 @@ def objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                model.DischargeMax[s] * model.ChargeMax[s] * model.storagetight_dual[t, s]
+                model.DischargeMax[s]
+                * model.ChargeMax[s]
+                * model.storagetight_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
@@ -2310,6 +2324,9 @@ def objective_profit_dual_pre(model):
             )
             for z in model.ZONES
         )
+        - sum(
+            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+        )  # charge penalty
     )
 
 
