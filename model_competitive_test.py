@@ -2195,6 +2195,13 @@ def objective_profit_dual(model):
             )
             for z in model.ZONES
         )
+        -sum(
+            sum(
+                model.sc[t, s]
+                for t in model.ACTIVETIMEPOINTS
+            )
+            for s in model.STORAGE
+        )
     )
 
 
@@ -2309,6 +2316,13 @@ def objective_profit_dual_pre(model):
                 for t in model.ACTIVETIMEPOINTS
             )
             for z in model.ZONES
+        )
+        -sum(
+            sum(
+                model.sc[t, s]
+                for t in model.ACTIVETIMEPOINTS
+            )
+            for s in model.STORAGE
         )
     )
 

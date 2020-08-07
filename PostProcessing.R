@@ -707,7 +707,7 @@ cleanDispatchProfit <- function(results,dates,type='NA',filter='None',hour=24){
   #print(offer)
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
   #Here is the error, I can't get nucoffer rows with surfix greater than 9.
-  offer$genID <- gsub("-\\d","",offer[,1])
+  offer$genID <- gsub("-\\d+","",offer[,1])
   offer <- offer[offer$genID==gc,]
   offer$dispatchprofit <- offer$SegmentDispatch * offer$LMP
   #print(offer)
