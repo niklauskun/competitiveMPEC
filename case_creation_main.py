@@ -37,7 +37,7 @@ data_class.add_unit(
 )  # [323, 301, 301], ["322_HYDRO_1", "303_WIND_1", "313_STORAGE_1"]
 
 # inputs for running
-start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
+start = datetime.datetime.strptime("01-03-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
     "04-01-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
