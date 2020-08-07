@@ -1,0 +1,320 @@
+RT is False
+Default write of storage_offers_DA.csv just to have a file (but constraint should be inactive)
+Reading model...
+...model read.
+creating competitive generators file...
+...competitive generators recorded.
+Loading data...
+.. day-ahead data read.
+Compiling instance...
+...instance created.
+Creating Offer Mitigation (model will solve as dispatch if TRUE)...
+NOTE: storage offers will not be mitigated
+...storage offer mitigation file created
+Converting model to MPEC...
+...converted
+NOTE: initial MIP solve with only storage competitive to get feasible solution
+Solving...
+
+Welcome to IBM(R) ILOG(R) CPLEX(R) Interactive Optimizer 12.9.0.0
+  with Simplex, Mixed Integer & Barrier Optimizers
+5725-A06 5725-A29 5724-Y48 5724-Y49 5724-Y54 5724-Y55 5655-Y21
+Copyright IBM Corp. 1988, 2019.  All Rights Reserved.
+
+Type 'help' for a list of available commands.
+Type 'help' followed by a command name for more
+information on commands.
+
+CPLEX> Logfile 'cplex.log' closed.
+Logfile 'C:\Users\llavin\Desktop\test85\logs\tmpzc2g05qy.cplex.log' open.
+CPLEX> New value for parallel optimization mode: -1
+CPLEX> New value for mixed integer optimality gap tolerance: 0.05
+CPLEX> New value for deterministic time limit in ticks: 100000
+CPLEX> Problem 'C:\Users\llavin\Desktop\test85\logs\tmpblcs53zb.pyomo.lp' read.
+Read time = 0.23 sec. (14.72 ticks)
+CPLEX> Problem name         : C:\Users\llavin\Desktop\test85\logs\tmpblcs53zb.pyomo.lp
+Objective sense      : Maximize
+Variables            :   53803  [Nneg: 1,  Box: 21998,  Free: 4464,
+                                 Binary: 27340]
+Objective nonzeros   :    9095
+Linear constraints   :  123205  [Less: 41346,  Greater: 59096,  Equal: 22763]
+  Nonzeros           :  289300
+  RHS nonzeros       :   67484
+
+Variables            : Min LB: -5000.000        Max UB: 1000000.       
+Objective nonzeros   : Min   : 1.000000         Max   : 2500.000       
+Linear constraints   :
+  Nonzeros           : Min   : 0.8500000        Max   : 1000000.       
+  RHS nonzeros       : Min   : 1.000000         Max   : 1000000.       
+CPLEX> CPXPARAM_Parallel                                -1
+CPXPARAM_DetTimeLimit                            100000
+CPXPARAM_MIP_Tolerances_MIPGap                   0.050000000000000003
+Tried aggregator 3 times.
+MIP Presolve eliminated 88716 rows and 19038 columns.
+MIP Presolve added 3389 rows and 0 columns.
+MIP Presolve modified 24816 coefficients.
+Aggregator did 12967 substitutions.
+Reduced MIP has 24911 rows, 21242 columns, and 68532 nonzeros.
+Reduced MIP has 8391 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.30 sec. (170.79 ticks)
+Probing fixed 375 vars, tightened 3902 bounds.
+Probing time = 0.06 sec. (17.70 ticks)
+Tried aggregator 2 times.
+MIP Presolve eliminated 850 rows and 754 columns.
+MIP Presolve modified 3122 coefficients.
+Aggregator did 36 substitutions.
+Reduced MIP has 24025 rows, 20452 columns, and 65971 nonzeros.
+Reduced MIP has 8014 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.11 sec. (90.04 ticks)
+Probing fixed 0 vars, tightened 290 bounds.
+Probing time = 0.14 sec. (21.93 ticks)
+Clique table members: 44126.
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: opportunistic, using up to 32 threads.
+Root relaxation solution time = 0.42 sec. (631.50 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+      0     0     3200.0892    75                   3200.0892     5450         
+      0     0     3200.0647     5                    Cuts: 29     5467         
+      0     0     3192.9987     4                    Cuts: 35     5474         
+*     0+    0                          988.4599     3192.9987           223.03%
+      0     0     2311.1035     6      988.4599      Cuts: 27     5491  133.81%
+      0     0     2293.9149     5      988.4599       Cuts: 7     5497  115.87%
+      0     0     2281.4944     7      988.4599      Cuts: 19     5513  115.87%
+*     0+    0                         1031.2788     2133.7945           106.91%
+*     0+    0                         1031.2788     2133.7945           106.91%
+
+Cover cuts applied:  1
+Implied bound cuts applied:  1
+Flow cuts applied:  23
+Mixed integer rounding cuts applied:  8
+Lift and project cuts applied:  1
+Gomory fractional cuts applied:  7
+
+Root node processing (before b&c):
+  Real time             =    3.11 sec. (2431.21 ticks)
+Parallel b&c, 32 threads:
+  Real time             =    0.00 sec. (0.00 ticks)
+  Sync time (average)   =    0.00 sec.
+  Wait time (average)   =    0.00 sec.
+                          ------------
+Total (root+branch&cut) =    3.11 sec. (2431.21 ticks)
+
+Solution pool: 3 solutions saved.
+
+MIP - Integer optimal, tolerance (0.05/1e-06):  Objective =  1.0312788474e+03
+Current MIP best bound =  1.0745513402e+03 (gap = 43.2725, 4.20%)
+Solution time =    3.13 sec.  Iterations = 5513  Nodes = 0 (1)
+Deterministic time = 2431.36 ticks  (778.04 ticks/sec)
+
+CPLEX> Incumbent solution written to file 'C:\Users\llavin\Desktop\test85\logs\tmp2j1785ok.cplex.sol'.
+CPLEX> NOTE: no warmstart specified for MIP iteration, default behavior is true
+NOTE: resolving with all competitive generators using storage-only solution to warmstart
+Solving...
+
+Welcome to IBM(R) ILOG(R) CPLEX(R) Interactive Optimizer 12.9.0.0
+  with Simplex, Mixed Integer & Barrier Optimizers
+5725-A06 5725-A29 5724-Y48 5724-Y49 5724-Y54 5724-Y55 5655-Y21
+Copyright IBM Corp. 1988, 2019.  All Rights Reserved.
+
+Type 'help' for a list of available commands.
+Type 'help' followed by a command name for more
+information on commands.
+
+CPLEX> Logfile 'cplex.log' closed.
+Logfile 'C:\Users\llavin\Desktop\test85\logs\tmpkofewed9.cplex.log' open.
+CPLEX> New value for parallel optimization mode: -1
+CPLEX> New value for mixed integer optimality gap tolerance: 0.05
+CPLEX> New value for deterministic time limit in ticks: 100000
+CPLEX> Problem 'C:\Users\llavin\Desktop\test85\logs\tmpxfxs6tg2.pyomo.lp' read.
+Read time = 0.23 sec. (14.75 ticks)
+CPLEX> MIP start file 'C:\Users\llavin\Desktop\test85\logs\tmp9c_6ao5a.cplex.mst' read.
+CPLEX> Problem name         : C:\Users\llavin\Desktop\test85\logs\tmpxfxs6tg2.pyomo.lp
+Objective sense      : Maximize
+Variables            :   54523  [Nneg: 1,  Box: 22718,  Free: 4464,
+                                 Binary: 27340]
+Objective nonzeros   :    9795
+Linear constraints   :  123205  [Less: 41346,  Greater: 59096,  Equal: 22763]
+  Nonzeros           :  289300
+  RHS nonzeros       :   67484
+
+Variables            : Min LB: -5000.000        Max UB: 1000000.       
+Objective nonzeros   : Min   : 1.000000         Max   : 2500.000       
+Linear constraints   :
+  Nonzeros           : Min   : 0.8500000        Max   : 1000000.       
+  RHS nonzeros       : Min   : 1.000000         Max   : 1000000.       
+CPLEX> CPXPARAM_Parallel                                -1
+CPXPARAM_DetTimeLimit                            100000
+CPXPARAM_MIP_Tolerances_MIPGap                   0.050000000000000003
+Warning:  No solution found from 1 MIP starts.
+Retaining values of one MIP start for possible repair.
+Tried aggregator 3 times.
+MIP Presolve eliminated 88716 rows and 19758 columns.
+MIP Presolve added 3389 rows and 0 columns.
+MIP Presolve modified 24816 coefficients.
+Aggregator did 12967 substitutions.
+Reduced MIP has 24911 rows, 21242 columns, and 68532 nonzeros.
+Reduced MIP has 8391 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.28 sec. (171.16 ticks)
+Probing fixed 375 vars, tightened 3902 bounds.
+Probing time = 0.06 sec. (17.70 ticks)
+Tried aggregator 2 times.
+MIP Presolve eliminated 850 rows and 754 columns.
+MIP Presolve modified 3122 coefficients.
+Aggregator did 36 substitutions.
+Reduced MIP has 24025 rows, 20452 columns, and 65971 nonzeros.
+Reduced MIP has 8014 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.11 sec. (90.04 ticks)
+Probing fixed 0 vars, tightened 290 bounds.
+Probing time = 0.14 sec. (21.93 ticks)
+Clique table members: 44126.
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: opportunistic, using up to 32 threads.
+Root relaxation solution time = 0.48 sec. (692.93 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+      0     0   106461.0982   185                 106461.0982     6015         
+      0     0   104412.0845   241                   Cuts: 267     6258         
+      0     0   102623.1817   214                   Cuts: 133     6408         
+      0     0   102316.1695   234                    Cuts: 75     6460         
+      0     0   102011.8955   232                    Cuts: 24     6492         
+      0     0   100340.0049   242                    Cuts: 49     6521         
+      0     0   100087.5721   245                    Cuts: 21     6538         
+      0     0    99482.5395   234                    Cuts: 23     6569         
+      0     0    99478.8280   225                    Cuts: 12     6575         
+      0     0    99464.1003   224                     Cuts: 3     6585         
+      0     0    99464.1003   224                     Cuts: 4     6588         
+Repair heuristic found nothing.
+*     0+    0                         7206.3350    99464.1003              --- 
+      0    16    infeasible           7206.3350  Impl Bds: 21     6976  293.98%
+Elapsed time = 8.42 sec. (4555.50 ticks, tree = 0.02 MB, solutions = 1)
+    297    82    24481.7589    24     7206.3350    28271.3178     7811  292.31%
+    908   376    15677.5284    24     7206.3350    28271.3178     9719  292.31%
+   1475  1182    12906.0761    25     7448.1747    28271.3178    15858  279.57%
+   2230  1521    12096.3549    31     7587.6525    28271.3178    19293  272.60%
+   3022  1688        cutoff           7587.6525    28068.0305    21004  269.92%
+   3738  1883    26190.0575    59     7587.6525    28068.0305    22481  269.92%
+   4505  2364    10909.3842    12     7587.6525    28068.0305    26813  269.92%
+   5233  3277     9056.8380     7     7587.6525    28068.0305    32512  269.92%
+   5916  3634    12586.4706    18     7587.6525    26915.4789    34635  254.73%
+*  8254  5358      integral     0     7636.8211    26915.4789    46265  252.44%
+   8436  5489    12888.1045    23     7636.8211    26915.4789    47046  252.44%
+Elapsed time = 25.58 sec. (7659.61 ticks, tree = 40.96 MB, solutions = 4)
+   8545  6116    infeasible           7636.8211    15665.9566    59942  105.14%
+   9765   306    14345.2069    13     7636.8211    15354.2633    61575  101.06%
+  12106  1764     8934.7402    24     7636.8211    15354.2633    66511  101.06%
+  16375  1913     8832.6095    19     7636.8211    15326.1529    66940  100.69%
+  21062  6317     8578.7769    19     7636.8211    14671.8968    84067   92.12%
+  23705 10604     8363.9796    19     7636.8211    14345.2069   104744   87.84%
+  27015 10801    13865.8905    29     7636.8211    14345.2069   105587   87.84%
+  31390 14751     8363.9796    18     7636.8211    14345.2069   133265   87.84%
+  35199 14046     8740.3731     6     7636.8211    13612.6681   129586   78.25%
+  39090 15577     7973.1659    14     7636.8211    11520.4016   163688   50.85%
+Elapsed time = 81.88 sec. (19897.52 ticks, tree = 120.53 MB, solutions = 4)
+  43501 18301     8600.8953     5     7636.8211     9815.8067   197884   28.53%
+  47801 18894        cutoff           7636.8211     9815.8067   201508   28.53%
+  52329 22494     8015.9849    14     7636.8211     9370.9188   224375   22.71%
+  57120 23618     7914.3424    13     7636.8211     9370.9188   231338   22.71%
+  60400 28758     7914.3424    14     7636.8211     9182.5919   264294   20.24%
+  61503 26530     7973.1659    11     7636.8211     9168.7056   250611   20.06%
+  63434 28926     7914.3424    14     7636.8211     9168.7056   265578   20.06%
+  65398 29036     7914.3424    12     7636.8211     9168.7056   266053   20.06%
+  65616 31452        cutoff           7636.8211     9168.7056   289266   20.06%
+  66692   201     9168.7056    13     7636.8211     9168.7056   290572   20.06%
+Elapsed time = 126.53 sec. (33106.37 ticks, tree = 1.00 MB, solutions = 4)
+  68241  1206     7709.8806    15     7636.8211     9168.7056   293298   20.06%
+  70800  1651    14163.7885    13     7636.8211     9168.7056   294743   20.06%
+  73581  3280     8799.1966     7     7636.8211     9168.7056   300471   20.06%
+  76724  6705     8205.9443    18     7636.8211     9168.7056   318558   20.06%
+  79614  8299     7970.9961     9     7636.8211     9168.7056   328980   20.06%
+  82382  8350     8600.8953    12     7636.8211     9168.7056   329354   20.06%
+  85602  9578     8663.0861    15     7636.8211     9168.7056   338976   20.06%
+  89167 12717     8015.9849     8     7636.8211     9168.7056   364341   20.06%
+  92720 13460     7741.0900    16     7636.8211     9168.7056   369602   20.06%
+  96206 15796     7646.4760     1     7636.8211     9168.7056   385037   20.06%
+Elapsed time = 179.86 sec. (42644.43 ticks, tree = 119.77 MB, solutions = 4)
+  99830 17029     7973.1659    14     7636.8211     9168.7056   392067   20.06%
+ 103614 18922     8740.3731     9     7636.8211     9168.7056   404434   20.06%
+ 107249 21919        cutoff           7636.8211     9168.7056   424976   20.06%
+ 110670 23451     7973.1659    14     7636.8211     9168.7056   435921   20.06%
+ 114019 25633     7914.3424    13     7636.8211     9168.7056   454579   20.06%
+ 117591 31186     9067.0630    15     7636.8211     9168.7056   494409   20.06%
+ 121319 29814     7914.3424    17     7636.8211     9168.7056   485283   20.06%
+ 125127 36816     7914.3424    17     7636.8211     9125.8866   531153   19.50%
+ 128894 36640     7805.3944    21     7636.8211     9125.8866   529993   19.50%
+ 132572 37657     7914.3424    18     7636.8211     9123.0509   535471   19.46%
+Elapsed time = 227.52 sec. (52183.81 ticks, tree = 293.73 MB, solutions = 4)
+ 136247 42513     7782.0195     8     7636.8211     9082.2695   570261   18.93%
+ 139890 41275        cutoff           7636.8211     9082.2695   560473   18.93%
+ 143409 43688     7914.3424    18     7636.8211     9067.0630   579945   18.73%
+ 146791 45032     8633.3098    12     7636.8211     9067.0630   591729   18.73%
+ 149921 51139     7782.0195     8     7636.8211     9067.0630   644557   18.73%
+ 153090 49971     7719.8288    11     7636.8211     9067.0630   634382   18.73%
+ 156528 55707     7719.8288    11     7636.8211     9067.0630   682593   18.73%
+ 160049 55758     8638.7306    10     7636.8211     9067.0630   683322   18.73%
+ 163625 58586     7782.0195    16     7636.8211     9067.0630   708422   18.73%
+ 167154 59612     7719.8288    14     7636.8211     8934.7402   716818   17.00%
+Elapsed time = 274.55 sec. (61724.16 ticks, tree = 466.04 MB, solutions = 4)
+ 170620 61923     7782.0195    15     7636.8211     8934.7402   739649   17.00%
+ 174114 63804     8638.7306    11     7636.8211     8934.7402   758704   17.00%
+ 177526 63212     8780.4337    12     7636.8211     8934.7402   752687   17.00%
+ 180979 65747        cutoff           7636.8211     8934.7402   790571   17.00%
+ 184424 66553     7646.4760     1     7636.8211     8896.0685   825163   16.49%
+ 187750 66350        cutoff           7636.8211     8812.2473   803917   15.39%
+ 191059 66479     7910.9752    11     7636.8211     8812.2473   836627   15.39%
+ 194190 66530        cutoff           7636.8211     8799.1966   834720   15.22%
+ 197284 63855     8697.5541     7     7636.8211     8799.1966   901005   15.22%
+ 200486 62647        cutoff           7636.8211     8799.1966   922554   15.22%
+Elapsed time = 321.72 sec. (71265.30 ticks, tree = 484.90 MB, solutions = 4)
+ 203697 64536        cutoff           7636.8211     8799.1966   888887   15.22%
+ 206905 62742        cutoff           7636.8211     8740.3731   920381   14.45%
+ 210053 59259        cutoff           7636.8211     8740.3731   967541   14.45%
+ 213153 61164        cutoff           7636.8211     8638.7306   944999   13.12%
+ 215936 61932        cutoff           7636.8211     8638.7306   933589   13.12%
+ 218401 60179        cutoff           7636.8211     8588.6454   958253   12.46%
+ 220765 54063     7886.3730    12     7636.8211     8552.2069  1029336   11.99%
+ 223475 54221     7801.3348    12     7636.8211     8552.2069  1032043   11.99%
+ 226282 54749     7973.1659     6     7636.8211     8477.0601  1038760   11.00%
+ 229386 56539     8015.9849    17     7636.8211     8442.6125  1061797   10.55%
+Elapsed time = 370.50 sec. (80803.99 ticks, tree = 445.19 MB, solutions = 4)
+ 232572 58421     7777.6119    13     7636.8211     8382.1266  1084113    9.76%
+ 235829 60834     7914.3424    14     7636.8211     8339.3076  1114888    9.20%
+ 239096 64096     7777.6119    14     7636.8211     8275.0632  1165254    8.36%
+ 242394 65147        cutoff           7636.8211     8234.1632  1182986    7.82%
+ 245567 66020     8015.9849    12     7636.8211     8123.0250  1214029    6.37%
+ 248472 65933     7646.4760     1     7636.8211     8123.0250  1210270    6.37%
+ 250553 67049        cutoff           7636.8211     8118.6959  1243174    6.31%
+ 251628 66220     8015.9849     7     7636.8211     8118.6959  1222630    6.31%
+ 252069 67560     7782.0195    18     7636.8211     8118.6959  1261943    6.31%
+
+GUB cover cuts applied:  1
+Cover cuts applied:  2
+Implied bound cuts applied:  4
+Flow cuts applied:  118
+Mixed integer rounding cuts applied:  10
+Gomory fractional cuts applied:  16
+
+Root node processing (before b&c):
+  Real time             =    7.13 sec. (4546.87 ticks)
+Parallel b&c, 32 threads:
+  Real time             =  386.75 sec. (85599.54 ticks)
+  Sync time (average)   =    4.95 sec.
+  Wait time (average)   =    0.34 sec.
+                          ------------
+Total (root+branch&cut) =  393.88 sec. (90146.41 ticks)
+
+Solution pool: 4 solutions saved.
+
+MIP - Integer optimal, tolerance (0.05/1e-06):  Objective =  7.6368211421e+03
+Current MIP best bound =  8.0185087850e+03 (gap = 381.688, 5.00%)
+Solution time =  393.89 sec.  Iterations = 1278903  Nodes = 252174 (68303)
+Deterministic time = 90146.57 ticks  (228.86 ticks/sec)
+
+CPLEX> Incumbent solution written to file 'C:\Users\llavin\Desktop\test85\logs\tmphfsrfps4.cplex.sol'.
+CPLEX> Exporting results... 
