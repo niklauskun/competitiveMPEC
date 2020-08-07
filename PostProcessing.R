@@ -11,7 +11,7 @@ library(dplyr)
 library(table1)
 library(xtable)
 
-baseWD <- "C:/Users/llavin/Desktop/test85"
+baseWD <- "C:/Users/wenmi/Desktop/competitiveMPEC"
 setwd(paste(baseWD, "", sep="/"))
 
 ## Load model results ####
@@ -43,7 +43,7 @@ readFiles <- function(filename, dates, dateWD, subFolder="results_DA"){
   return(fullDF)
 }
 
-readFilesRT <- function(filename, dates, dateWD,isDispatch){
+readFilesRT <- function(filename, dates, dateWD){
   for(i in 1:length(dates)){
     for(j in 1:slicer){
       date <- dates[i]
@@ -54,11 +54,6 @@ readFilesRT <- function(filename, dates, dateWD,isDispatch){
       # load file
       dftmp <- read.csv(filename)
       dftmp$date <- date
-      if(isDispatch == TRUE){
-        colnames(dftmp) <- c("plant", (tmps * (j - 1) + 1) : (tmps * j), "date")
-        dftmp <- melt(dftmp, id.vars=c("plant","date"))
-        colnames(dftmp) <- c("plant", "date", "time", "MW")
-      }
       if(j == 1){
         df <- dftmp
       } else{
@@ -98,6 +93,7 @@ loadResults <- function(dates,folder){
   #clean and format
   modelLMP <- AddDatetime(modelLMP)
   storage <- AddDatetime(storage)
+  dispatch <- AddDatetime(dispatch)
   
   # return results
   results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, nucoffer, storageresources, generatorresources)
@@ -114,16 +110,17 @@ loadResultsRT <- function(dates,folder){
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
   storageresources <- readFiles("storage_resources.csv", dates, dateResultsWD, subFolder="inputs")
   generatorresources <- readFiles("generators.csv", dates, dateResultsWD, subFolder="inputs")
-  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD, FALSE)
-  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD, FALSE)
-  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD, FALSE)
-  nucofferRT <- readFilesRT("nuc_offer.csv", dates, dateResultsWD, FALSE)
-  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD, TRUE)
-  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD, FALSE)
+  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD)
+  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD)
+  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD)
+  nucofferRT <- readFilesRT("nuc_offer.csv", dates, dateResultsWD)
+  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD)
+  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD)
   
   #clean and format
   modelLMPRT <- AddDatetime(modelLMPRT)
   storageRT <- AddDatetime(storageRT)
+  dispatchRT <- AddDatetime(dispatchRT)
   
   # return resultsRT
   resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, nucofferRT, storageresources, generatorresources)
@@ -154,6 +151,9 @@ AddDatetime <- function(df,BaseResolution=60,TargetResolution=5){
     df$charge <- df$charge*Ratio
     df$discharge <- df$discharge*Ratio
     df$profit <- df$profit*TargetResolution/NativeResolution
+  }
+  if("GeneratorDispatch" %in% colnames(df)){
+    df$GeneratorDispatch <- df$GeneratorDispatch*Ratio
   }
   
   return(df)
@@ -253,33 +253,18 @@ plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
   colnames(fuelemissions) <- c("datetime","Emissions","zone")
   fuelemissions$zone <- as.factor(fuelemissions$zone)
   fuelemissions$Category <- "Coal"
-
-  # subset dispatch output to single day (include columns for date and case as well)
   
-  if(isRT == FALSE){
-    dispatch <- dispatch[, c(1:(hours+1), dim(dispatch)[2])]
-    colnames(dispatch) <- c("plant", 0:(hours-1), "date")
-    dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
-    dispatch <- melt(dispatch, id.vars=c("plant","date", "zone"))
-    colnames(dispatch) <- c("plant", "date", "zone", "time", "MW")
-  }else{
-    dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
-    dispatch$MW <- dispatch$MW*rt_da_resolution
-    fuelemissions$Emissions <- fuelemissions$Emissions*rt_da_resolution
-  }
+  dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
   
   # match with fuel type
-  dispatch <- merge(dispatch, gens[,c("Name", "Category")], by.x="plant", by.y="Name", all.x=T)
+  dispatch <- merge(dispatch, gens[,c("Name", "Category")], by.x="X", by.y="Name", all.x=T)
   
   #drop duplicated entries in output
   dispatch <- dispatch[!duplicated(dispatch), ]
   
   # summarize by fuel type
-  fuelDispatch <- ddply(dispatch, ~ date + time + zone + Category, summarise, MW = sum(MW))
+  fuelDispatch <- ddply(dispatch, ~ datetime + zone + Category, summarise, MW = sum(GeneratorDispatch))
   fuelDispatch$zone <- factor(fuelDispatch$zone)
-  fuelDispatch$time <- as.numeric(fuelDispatch$time)
-  fuelDispatch <- arrange(fuelDispatch,Category,zone,time)
-  fuelDispatch <- AddDatetime(fuelDispatch)
   
   fuelDispatch$Category <- factor(fuelDispatch$Category, levels = c("Solar RTPV","Solar PV","Wind",
                                                                     "Oil ST","Oil CT","Gas CT","Gas CC",
@@ -689,10 +674,10 @@ dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=
 results1 <- loadResults(dates1,folder='test')
 results1RT  <- loadResultsRT(dates1,folder='test')
 
-results2 <- loadResults(dates2,folder='test')
-results2RT <- loadResultsRT(dates2,folder='test')
+#results2 <- loadResults(dates2,folder='test')
+# <- loadResultsRT(dates2,folder='test')
 
-plotDispatch(results2,dates2,plotTitle='Feb',F)
+#plotDispatch(results2,dates2,plotTitle='Feb',F)
 
 d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019',FALSE)
 d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019',FALSE)
