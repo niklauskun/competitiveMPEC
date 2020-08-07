@@ -170,7 +170,7 @@ aggregateCaseData <- function(results, targetData){
   return(newDF)
 }
 
-plotPrices <- function(results,dates,plotTitle,isRT,hours=24){
+plotPrices <- function(results,dates,plotTitle,hours=24){
   prices <- results[['modelLMP']]
   prices$zone <- substr(prices[,1],start=1,stop=1)
   prices$zone <- paste0("Area ",prices$zone)
@@ -224,7 +224,7 @@ compareplotPrices <- function(prices_df1,prices_df2){
   ggsave(paste0("prices delta",".png"), width=20, height=8)
 }
 
-plotDispatch <- function(results, dates, plotTitle, isRT, hours=24){
+plotDispatch <- function(results, dates, plotTitle, hours=24){
   
   dispatch <- results[["dispatch"]]
   gens <- results[["gens"]]
@@ -410,7 +410,7 @@ compareTotalGeneratorCost <- function(generatordflist,plotTitle='hi',resolution=
 }
 
 #storage dispatch
-plotStorage <- function(results, dates, plotTitle, isRT, hours=24){
+plotStorage <- function(results, dates, plotTitle, hours=24){
   storage_dispatch <- results[["storage"]]
   storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
   storage_dispatch$X <- factor(storage_dispatch$X)
@@ -679,13 +679,13 @@ results1RT  <- loadResultsRT(dates1,folder='test')
 
 #plotDispatch(results2,dates2,plotTitle='Feb',F)
 
-d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019',FALSE)
-d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019',FALSE)
-d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019',FALSE)
+d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019')
+d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019')
+d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019')
 
-d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
-d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
-d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT',TRUE)
+d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT')
 
 compareplotDispatch(d1,d1RT)
 compareplotPrices(d2,d2RT)
