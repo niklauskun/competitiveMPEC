@@ -39,8 +39,8 @@ cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test85")
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
 
-start_date = "01-02-2019"  # use this string format
-end_date = "01-03-2019"  # end date is exclusive
+start_date = "02-01-2019"  # use this string format
+end_date = "03-01-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
