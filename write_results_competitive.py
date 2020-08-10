@@ -201,17 +201,28 @@ def export_generator_dispatch(
         generators_set {list} -- sorted list of model generators
         results_directory {filepath} -- string of directory in which to write csv
     """
+    timepoints_list = []
     results_dispatch, index_name = [], []
     # for z in zones_set:
     for g in generators_set:
-        index_name.append(str(g))
         for t in timepoints_set:
+            timepoints_list.append(t)
+            index_name.append(str(g))
             results_dispatch.append(format_6f(instance.gd[t, g]()))
-    results_dispatch_np = np.reshape(
-        results_dispatch,
-        (int(len(results_dispatch) / len(timepoints_set)), int(len(timepoints_set))),
+    col_names = [
+        "hour",
+        "GeneratorDispatch",
+    ]
+    df = pd.DataFrame(
+        data=np.column_stack(
+            (
+                np.asarray(timepoints_list),
+                np.asarray(results_dispatch),
+            )
+        ),
+        columns=col_names,
+        index=pd.Index(index_name),
     )
-    df = pd.DataFrame(results_dispatch_np, index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory, "generator_dispatch.csv"))
 
 
@@ -223,18 +234,28 @@ def export_generator_segment_dispatch(
     generatorsegment_set,
     results_directory,
 ):
-
+    timepoints_list = []
     results_dispatch, index_name = [], []
     for g in ucgenerators_set:
         for gs in generatorsegment_set:
-            index_name.append(str(g) + "-" + str(gs))
             for t in timepoints_set:
+                timepoints_list.append(t)
+                index_name.append(str(g) + "-" + str(gs))
                 results_dispatch.append(format_6f(instance.gsd[t, g, gs].value))
-    results_dispatch_np = np.reshape(
-        results_dispatch,
-        (int(len(results_dispatch) / len(timepoints_set)), int(len(timepoints_set))),
+    col_names = [
+        "hour",
+        "SegemntDispatch",
+    ]
+    df = pd.DataFrame(
+        data=np.column_stack(
+            (
+                np.asarray(timepoints_list),
+                np.asarray(results_dispatch),
+            )
+        ),
+        columns=col_names,
+        index=pd.Index(index_name),
     )
-    df = pd.DataFrame(results_dispatch_np, index=pd.Index(index_name))
     df.to_csv(os.path.join(results_directory, "generator_segment_dispatch.csv"))
 
 
