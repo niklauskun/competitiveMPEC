@@ -578,6 +578,13 @@ dispatch_model.discharge_dual = Var(
     bounds=(0, 1000000),
 )
 
+dispatch_model.finalsoc_dual = Var(
+    dispatch_model.STORAGE,
+    within=NonNegativeReals,
+    initialize=0,
+    bounds=(0, 1000000),
+)
+
 dispatch_model.onecycle_dual = Var(
     dispatch_model.STORAGE, within=NonNegativeReals, initialize=0, bounds=(0, 1000000),
 )
@@ -939,18 +946,6 @@ dispatch_model.BindDASOCChangeConstraint = Constraint(
 )  # implements SOCChangeConstraint
 
 
-def BindDAEndSOCRule(model, t, s):
-    return (
-        model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
-        == model.soc[model.ACTIVETIMEPOINTS[-1], s]
-    )
-
-
-dispatch_model.BindDAEndSOCConstraint = Constraint(
-    dispatch_model.ACTIVETIMEPOINTS, dispatch_model.STORAGE, rule=BindDAEndSOCRule
-)
-
-
 def SOCMaxRule(model, t, s):
     """Storage state of charge cannot exceed its max state of charge
 
@@ -981,6 +976,18 @@ def BindFinalSOCRule(model, s):
 dispatch_model.BindFinalSOCConstraint = Constraint(
     dispatch_model.STORAGE, rule=BindFinalSOCRule
 )  # implements BindFinalSOCConstraint
+
+
+def BindDAFinalSOCRule(model, s):
+    return (
+        model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
+        == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    )
+
+
+dispatch_model.BindDAEndSOCConstraint = Constraint(
+    dispatch_model.STORAGE, rule=BindDAFinalSOCRule
+)
 
 
 def OneCycleRule(model, s):
@@ -1375,8 +1382,11 @@ def BindStorageDischargeDual(model, t, s):
         model.sodischarge[t, s]
         + model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
-        - model.DischargeEff[s] * model.socmax_dual[t, s]
-        + model.DischargeEff[s] * model.socmin_dual[t, s]
+        - sum(
+                model.DischargeEff[s]*(model.socmax_dual[t, s] - model.socmin_dual[t, s])
+                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+        )
+        + model.DischargeEff[s]*model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1404,8 +1414,11 @@ def BindStorageChargeDual(model, t, s):
         -model.socharge[t, s]
         + model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
-        + model.ChargeEff[s] * model.socmax_dual[t, s]
-        - model.ChargeEff[s] * model.socmin_dual[t, s]
+        + sum(
+                model.ChargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
+                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+        )
+        - model.ChargeEff[s]*model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1420,18 +1433,14 @@ dispatch_model.StorageChargeDualConstraint = Constraint(
 
 
 def BindNSStorageDischargeDual(model, t, s):
-    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        s {str} -- storage index
-    """
     return (
-        +model.ChargeMax[s] * model.storagetight_dual[t, s]
+        + model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
-        - model.DischargeEff[s] * model.socmax_dual[t, s]
-        + model.DischargeEff[s] * model.socmin_dual[t, s]
+        - sum(
+                model.DischargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
+                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+        )
+        + model.DischargeEff[s]*model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1448,18 +1457,14 @@ dispatch_model.StorageNSDischargeDualConstraint = Constraint(
 
 
 def BindNSStorageChargeDual(model, t, s):
-    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
-
-    Arguments:
-        model -- Pyomo model
-        t {int} -- timepoint index
-        s {str} -- storage index
-    """
     return (
-        +model.DischargeMax[s] * model.storagetight_dual[t, s]
+        + model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
-        + model.ChargeEff[s] * model.socmax_dual[t, s]
-        - model.ChargeEff[s] * model.socmin_dual[t, s]
+        + sum(
+                model.ChargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
+                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+        )
+        - model.ChargeEff[s]*model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -2204,9 +2209,9 @@ def objective_profit_dual(model):
             )
             for z in model.ZONES
         )
-        - sum(
-            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
-        )  # charge penalty
+#        - sum(
+#            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+#        )  # charge penalty
     )
 
 
@@ -2324,9 +2329,9 @@ def objective_profit_dual_pre(model):
             )
             for z in model.ZONES
         )
-        - sum(
-            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
-        )  # charge penalty
+#        - sum(
+#            sum(model.sc[t, s] for t in model.ACTIVETIMEPOINTS) for s in model.STORAGE
+#        )  # charge penalty
     )
 
 
