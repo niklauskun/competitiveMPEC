@@ -2143,7 +2143,7 @@ def objective_profit_dual(model):
                 model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.STORAGE
+            for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.STORAGE)
         - sum(
@@ -2263,7 +2263,7 @@ def objective_profit_dual_pre(model):
                 model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.STORAGE
+            for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.STORAGE)
         - sum(

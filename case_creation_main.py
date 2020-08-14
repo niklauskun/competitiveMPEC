@@ -19,7 +19,7 @@ from case_creation_functions import write_RTS_case
 
 # create a file structure object, "f"
 folder_path = os.path.join(os.environ["HOMEPATH"], "Desktop")
-MPEC_folder_path = "test85"
+MPEC_folder_path = "competitiveMPEC"
 f = DirStructure(
     folder_path, RTS_folder="RTS-GMLC-master", MPEC_folder=MPEC_folder_path,
 )  # the first arg should be the local directory you put NREL-RTS in
@@ -37,9 +37,9 @@ data_class.add_unit(
 )  # [323, 301, 301], ["322_HYDRO_1", "303_WIND_1", "313_STORAGE_1"]
 
 # inputs for running
-start = datetime.datetime.strptime("01-03-2019", "%m-%d-%Y")  # day case starts on
+start = datetime.datetime.strptime("01-08-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
-    "04-01-2019", "%m-%d-%Y"
+    "02-01-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
 folder_out = "test"  # name of folder to write the case to
 
