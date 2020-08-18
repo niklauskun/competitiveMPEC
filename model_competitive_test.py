@@ -954,7 +954,7 @@ def SOCMaxRule(model, t, s):
         t {int} -- timepoint index
         s {str} -- storage resource index
     """
-    return model.SocMax[s] >= model.soc[t, s]
+    return model.SocMax[s] >= sum(model.sc[tp, s] * model.ChargeEff[s] - model.sd[tp, s] * model.DischargeEff[s] for tp in range(1,t+1))
 
 
 dispatch_model.SOCMaxConstraint = Constraint(
@@ -970,7 +970,7 @@ def BindFinalSOCRule(model, s):
         model -- Pyomo model
         s {str} -- storage resource index
     """
-    return model.SocMax[s] * 0 == model.soc[model.ACTIVETIMEPOINTS[-1], s]
+    return model.SocMax[s] * 0 == sum(model.sc[t, s] * model.ChargeEff[s] - model.sd[t, s] * model.DischargeEff[s] for t in model.ACTIVETIMEPOINTS)
 
 
 dispatch_model.BindFinalSOCConstraint = Constraint(
@@ -1383,8 +1383,8 @@ def BindStorageDischargeDual(model, t, s):
         + model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
         - sum(
-                model.DischargeEff[s]*(model.socmax_dual[t, s] - model.socmin_dual[t, s])
-                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+                model.DischargeEff[s]*(model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
+                for tp in range(t, model.ACTIVETIMEPOINTS[-1]+1)
         )
         + model.DischargeEff[s]*model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
@@ -1415,8 +1415,8 @@ def BindStorageChargeDual(model, t, s):
         + model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
         + sum(
-                model.ChargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
-                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+                model.ChargeEff[s]*(model.socmax_dual[tp,s] - model.socmin_dual[tp,s])
+                for tp in range(t, model.ACTIVETIMEPOINTS[-1]+1)
         )
         - model.ChargeEff[s]*model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
@@ -1437,8 +1437,8 @@ def BindNSStorageDischargeDual(model, t, s):
         + model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.discharge_dual[t, s]
         - sum(
-                model.DischargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
-                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+                model.DischargeEff[s]*(model.socmax_dual[tp,s] - model.socmin_dual[tp,s])
+                for tp in range(t, model.ACTIVETIMEPOINTS[-1]+1)
         )
         + model.DischargeEff[s]*model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
@@ -1461,8 +1461,8 @@ def BindNSStorageChargeDual(model, t, s):
         + model.DischargeMax[s] * model.storagetight_dual[t, s]
         - model.charge_dual[t, s]
         + sum(
-                model.ChargeEff[s]*(model.socmax_dual[t,s] - model.socmin_dual[t,s])
-                for t in range(t, model.ACTIVETIMEPOINTS[-1]+1)
+                model.ChargeEff[s]*(model.socmax_dual[tp,s] - model.socmin_dual[tp,s])
+                for tp in range(t, model.ACTIVETIMEPOINTS[-1]+1)
         )
         - model.ChargeEff[s]*model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
@@ -1623,7 +1623,7 @@ dispatch_model.StorageDischargeComplementarity = Complementarity(
 
 def BindMaxStorageComplementarity(model, t, s):
     return complements(
-        model.SocMax[s] - model.soc[t, s] >= 0, model.socmax_dual[t, s] >= 0,
+        model.SocMax[s] - sum(model.sc[tp, s] * model.ChargeEff[s] - model.sd[tp, s] * model.DischargeEff[s] for tp in range(1,t+1)) >= 0, model.socmax_dual[t, s] >= 0,
     )
 
 
@@ -1635,7 +1635,7 @@ dispatch_model.MaxStorageComplementarity = Complementarity(
 
 
 def BindMinStorageComplementarity(model, t, s):
-    return complements(model.soc[t, s] >= 0, model.socmin_dual[t, s] >= 0,)
+    return complements(sum(model.sc[tp, s] * model.ChargeEff[s] - model.sd[tp, s] * model.DischargeEff[s] for tp in range(1,t+1)) >= 0, model.socmin_dual[t, s] >= 0,)
 
 
 dispatch_model.MinStorageComplementarity = Complementarity(
