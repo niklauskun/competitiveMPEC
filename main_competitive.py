@@ -54,8 +54,9 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.05,
-    "dettimelimit": 100000,
+    "mip_tolerances_mipgap": 0.005,
+    "simplex_tolerances_feasibility": 0.000000001,
+    "dettimelimit": 2000000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
