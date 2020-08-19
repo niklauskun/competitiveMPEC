@@ -1,6 +1,7 @@
 # imports
 import os
 import pandas as pd
+import numpy as np
 import math
 import datetime
 import warnings
@@ -198,7 +199,7 @@ class LoadNRELData(object):
             input_dict {dict} -- dictionary of input data updated with constants to be used in the case
         """
         input_dict["hours"] = 24
-        input_dict["periods"] = 288
+        input_dict["periods"] = 288 #Need to config periods if change RT resolution
         input_dict["lb_to_tonne"] = 0.000453592
         input_dict["baseMVA"] = 100
         input_dict["km_per_mile"] = 1.60934
@@ -605,6 +606,23 @@ class CreateRTSCase(object):
             list(self.generators_dict["Fuel_Cost"]) * self.periods
         )
         self.dict_to_csv(filename, scheduled_dict, index="timepoint")
+
+    def scheduled_gens_rt_da_tmp(self, filename):
+        scheduled_dict = {}
+        scheduled_gens = pd.read_csv(
+            os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, "generators_scheduled_availability.csv")
+        )
+        scheduled_gens_rt = pd.read_csv(
+            os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, "generators_scheduled_availability_rt.csv")
+        )
+        for h in range(self.hour_begin+1, self.hour_end):
+            tmp = scheduled_gens_rt.loc[scheduled_gens_rt['timepoint'].isin(range((h-1)*12+1,h*12+1))]
+            mean = tmp.groupby('Gen_Index')['Capacity'].mean()
+            for gen in self.generators_dict["Gen_Index"]:
+                scheduled_gens.loc[(scheduled_gens['timepoint']==h) & (scheduled_gens['Gen_Index']==gen), 'Capacity'] = mean[gen]
+        scheduled_gens.to_csv(
+            os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, filename + ".csv"), index = False
+        )
 
     def timepoints(self, filename):
         self.timepoint_dict = {}
@@ -1384,6 +1402,7 @@ def write_RTS_case(kw_dict, start, end, dir_structure, case_folder, **kwargs):
         )  # size_scalar=0
         case.scheduled_gens("generators_scheduled_availability")
         case.scheduled_gens_rt("generators_scheduled_availability_rt")
+        case.scheduled_gens_rt_da_tmp("generators_scheduled_availability_rt_da_tmp")
         case.timepoints("timepoints_index")
         case.timepoints_rt("timepoints_index_rt")
         case.zones("zones")
