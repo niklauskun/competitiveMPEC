@@ -43,7 +43,7 @@ case_folder = "test"  # andWind309
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = False, 48, 288
+RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -67,10 +67,6 @@ deactivated_constraint_args = []  # list of constraint names to deactivate
 ### END INPUTS ###
 
 # an example that won't affect problem much is "OfferCapConstraint"
-deactivated_constraint_args.append(
-    "StorageTightConstraint"
-)  # temporary deactivate StorageTightConstraint, use individual constraints instead
-deactivated_constraint_args.append("StorageTightComplementarity")
 
 # "OneCycleConstraint
 if not bind_DA_offers_in_RT and not RT:
@@ -78,15 +74,14 @@ if not bind_DA_offers_in_RT and not RT:
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("BindDASOCChangeConstraint")
-    deactivated_constraint_args.append("BindDAEndSOCConstraint")
-    deactivated_constraint_args.append("RTSOCMaxConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCConstraint")
 elif RT and not bind_DA_offers_in_RT:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
-    deactivated_constraint_args.append("SOCMaxConstraint")
+    deactivated_constraint_args.append("OneCycleConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -95,7 +90,6 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
-    deactivated_constraint_args.append("SOCMaxConstraint")
 else:
     raise NameError("case not found")
 

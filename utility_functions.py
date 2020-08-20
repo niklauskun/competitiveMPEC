@@ -207,8 +207,8 @@ class CreateAndRunScenario(object):
         for a in self.args:
             constraint = getattr(self.instance, a)
             constraint.deactivate()  # deactivate *args constraints passed for deactivation
-
-        if case_type == "MIP" and mip_iter == 1:
+        
+        if case_type == "MIP" and mip_iter == 1 and self.is_RT == False:
             print(
                 "NOTE: initial MIP solve with only storage competitive to get feasible solution"
             )
@@ -217,13 +217,34 @@ class CreateAndRunScenario(object):
             self.instance.GeneratorProfit.deactivate()
             self.instance.GeneratorProfitDualPre.activate()
             self.instance.GeneratorProfitDual.deactivate()
+            self.instance.RTGeneratorProfitDualPre.deactivate()
+            self.instance.RTGeneratorProfitDual.deactivate()
 
-        elif case_type == "MIP" and mip_iter > 1:
+        elif case_type == "MIP" and mip_iter > 1 and self.is_RT == False:
             print(
                 "NOTE: resolving with all competitive generators using storage-only solution to warmstart"
             )
             self.instance.GeneratorProfitDualPre.deactivate()
             self.instance.GeneratorProfitDual.activate()
+        
+        elif case_type == "MIP" and mip_iter == 1 and self.is_RT == True:
+            print(
+                "NOTE: initial MIP solve with only storage competitive to get feasible solution"
+            )
+            self.instance.TotalCost.deactivate()  # deactivates the simple objective
+            self.instance.TotalCost2.deactivate()
+            self.instance.GeneratorProfit.deactivate()
+            self.instance.GeneratorProfitDualPre.deactivate()
+            self.instance.GeneratorProfitDual.deactivate()
+            self.instance.RTGeneratorProfitDualPre.activate()
+            self.instance.RTGeneratorProfitDual.deactivate()
+
+        elif case_type == "MIP" and mip_iter > 1 and self.is_RT == True:
+            print(
+                "NOTE: resolving with all competitive generators using storage-only solution to warmstart"
+            )
+            self.instance.RTGeneratorProfitDualPre.deactivate()
+            self.instance.RTGeneratorProfitDual.activate()
 
         elif case_type == "LP":
             self.instance.TotalCost2.activate()

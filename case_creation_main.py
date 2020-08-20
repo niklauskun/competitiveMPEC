@@ -39,7 +39,7 @@ data_class.add_unit(
 # inputs for running
 start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
-    "01-02-2019", "%m-%d-%Y"
+    "01-03-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
 folder_out = "test"  # name of folder to write the case to
 

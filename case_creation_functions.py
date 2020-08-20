@@ -615,7 +615,7 @@ class CreateRTSCase(object):
         scheduled_gens_rt = pd.read_csv(
             os.path.join(self.directory.RESULTS_INPUTS_DIRECTORY, "generators_scheduled_availability_rt.csv")
         )
-        for h in range(self.hour_begin+1, self.hour_end):
+        for h in range(1, 25):
             tmp = scheduled_gens_rt.loc[scheduled_gens_rt['timepoint'].isin(range((h-1)*12+1,h*12+1))]
             mean = tmp.groupby('Gen_Index')['Capacity'].mean()
             for gen in self.generators_dict["Gen_Index"]:
