@@ -16,7 +16,8 @@ import sys
 import datetime
 
 # import other scripts
-import input_competitive_test  # DataPortal for loading data from csvs into Pyomo model
+import input_competitive_DA  # DataPortal for loading data from csvs into Pyomo model
+import input_competitive_DA_RTVRE
 import input_competitive_RT
 import model_competitive_test  # the actual Pyomo model formulation
 import write_results_competitive  # writes model outputs to csvs
@@ -34,7 +35,7 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test818")
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
 
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
@@ -48,13 +49,14 @@ EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
+RTVRE = False #if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.001,
+    "mip_tolerances_mipgap": 0.0001,
     "simplex_tolerances_feasibility": 0.000000001,
     "dettimelimit": 200000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
@@ -65,6 +67,9 @@ deactivated_constraint_args = []  # list of constraint names to deactivate
 ### END INPUTS ###
 
 # an example that won't affect problem much is "OfferCapConstraint"
+deactivated_constraint_args.append("StorageTightConstraint") #temporary deactivate StorageTightConstraint, use individual constraints instead
+deactivated_constraint_args.append("StorageTightComplementarity")
+
 # "OneCycleConstraint
 if not bind_DA_offers_in_RT and not RT:
     print("run DA case, deactivating offer and SOC constraint binds")
@@ -72,12 +77,14 @@ if not bind_DA_offers_in_RT and not RT:
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("BindDASOCChangeConstraint")
     deactivated_constraint_args.append("BindDAEndSOCConstraint")
+    deactivated_constraint_args.append("RTSOCMaxConstraint")
 elif RT and not bind_DA_offers_in_RT:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
+    deactivated_constraint_args.append("SOCMaxConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -86,6 +93,7 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
+    deactivated_constraint_args.append("SOCMaxConstraint")
 else:
     raise NameError("case not found")
 
@@ -164,7 +172,7 @@ for counter, s in enumerate(scenario_list):
     # run the case, as usual
     code_directory = cwd
     dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-    case_suffix = create_case_suffix(dir_str, RT, rt_tmps, rt_iter)
+    case_suffix = create_case_suffix(dir_str, RT, RTVRE, rt_tmps, rt_iter)
     dir_str.make_directories(case_suffix)
     logger = Logger(dir_str)
     log_file = logger.log_file_path
@@ -191,7 +199,7 @@ for counter, s in enumerate(scenario_list):
     # writes the file storage_bids_DA.csv
     if RT:  # bind_DA_offers_in_RT and
         DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-        DA_case_suffix = create_case_suffix(DA_dir_str, False, rt_tmps, rt_iter)
+        DA_case_suffix = create_case_suffix(DA_dir_str, False, RTVRE, rt_tmps, rt_iter)
         DA_dir_str.make_directories(DA_case_suffix)
         write_DA_bids(DA_dir_str, RT, total_rt_tmps, default_write=False)
     else:
@@ -203,6 +211,7 @@ for counter, s in enumerate(scenario_list):
         load_init,
         MPEC,
         RT,
+        RTVRE,
         mitigate_storage_offers,
         genco_index,
         overwritten_offers,

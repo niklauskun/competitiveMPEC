@@ -26,7 +26,8 @@ from pyomo.core.base.sets import OrderedSimpleSet
 from pyomo.gdp import bigm
 from pyomo.opt import SolverFactory
 
-import input_competitive_test
+import input_competitive_DA
+import input_competitive_DA_RTVRE
 import input_competitive_RT
 import model_competitive_test
 import write_results_competitive
@@ -90,6 +91,7 @@ class CreateAndRunScenario(object):
         load_init,
         is_MPEC,
         is_RT,
+        is_RTVRE,
         mitigate_storage_offers,
         genco_index,
         overwritten_offers,
@@ -104,6 +106,7 @@ class CreateAndRunScenario(object):
         self.mitigate_storage_offers = mitigate_storage_offers
         self.is_MPEC = is_MPEC
         self.is_RT = is_RT
+        self.is_RTVRE = is_RTVRE
         self.genco_index = genco_index
         self.overwritten_offers = overwritten_offers
 
@@ -143,8 +146,13 @@ class CreateAndRunScenario(object):
                 self.scenario_inputs_directory
             )
             print(".. real-time data read.")
+        elif not self.is_RT and self.is_RTVRE:
+            self.data = input_competitive_DA_RTVRE.scenario_inputs(
+                self.scenario_inputs_directory
+            )
+            print(".. day-ahead data with real-time VRE data read.")
         else:
-            self.data = input_competitive_test.scenario_inputs(
+            self.data = input_competitive_DA.scenario_inputs(
                 self.scenario_inputs_directory
             )
             print(".. day-ahead data read.")
@@ -617,9 +625,11 @@ def write_timepoint_subset(directory, is_RT, tmps, slicer):
     df.to_csv(join(directory.INPUTS_DIRECTORY, "timepoints_index_subset_rt.csv"))
 
 
-def create_case_suffix(directory, RT, rt_tmps, n_iter):
-    if not RT:
+def create_case_suffix(directory, RT, RTVRE, rt_tmps, n_iter):
+    if not RT and not RTVRE:
         return "_DA"
+    elif not RT and RTVRE:
+        return "_DA_RTVRE"
     else:
         case_string = (
             "_" + str((n_iter - 1) * rt_tmps + 1) + "_" + str((n_iter) * rt_tmps)
