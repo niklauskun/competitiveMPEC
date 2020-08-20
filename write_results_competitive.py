@@ -680,8 +680,10 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_tight_dual = []
     storage_max_dual = []
     storage_min_dual = []
-    storage_charge_dual = []
-    storage_discharge_dual = []
+    storage_chargemax_dual = []
+    storage_dischargemax_dual = []
+    storage_chargemin_dual = []
+    storage_dischargemin_dual = []
     cycle_dual = []
     node = []
     lmp = []
@@ -701,9 +703,11 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
             storage_tight_dual.append(format_6f(instance.storagetight_dual[t, s].value))
             storage_max_dual.append(format_6f(instance.socmax_dual[t, s].value))
             storage_min_dual.append(format_6f(instance.socmin_dual[t, s].value))
-            storage_charge_dual.append(format_6f(instance.charge_dual[t, s].value))
-            storage_discharge_dual.append(
-                format_6f(instance.discharge_dual[t, s].value)
+            storage_chargemax_dual.append(format_6f(instance.chargemax_dual[t, s].value))
+            storage_dischargemax_dual.append(format_6f(instance.dischargemax_dual[t, s].value))
+            storage_chargemin_dual.append(format_6f(instance.chargemin_dual[t, s].value))
+            storage_dischargemin_dual.append(
+                format_6f(instance.dischargemin_dual[t, s].value)
             )
             cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
             node.append(instance.StorageZoneLabel[s])
@@ -739,8 +743,10 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         "tightdual",
         "maxdual",
         "mindual",
-        "chargedual",
-        "dischargedual",
+        "chargemaxdual",
+        "dischargemaxdual",
+        "chargemindual",
+        "dischargemindual",
         "cycledual",
         "node",
         "lmp",
@@ -761,8 +767,10 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_tight_dual),
                 np.asarray(storage_max_dual),
                 np.asarray(storage_min_dual),
-                np.asarray(storage_charge_dual),
-                np.asarray(storage_discharge_dual),
+                np.asarray(storage_chargemax_dual),
+                np.asarray(storage_dischargemin_dual),
+                np.asarray(storage_chargemin_dual),
+                np.asarray(storage_dischargemax_dual),
                 np.asarray(cycle_dual),
                 np.asarray(node),
                 np.asarray(lmp),

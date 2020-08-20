@@ -60,7 +60,7 @@ optional_args = {
         "CSP",
     ],
     "owned_gens": ["303_WIND_1"],
-    "owned_storage": ["313_STORAGE_1"],
+    "owned_storage": ["313_STORAGE_1","301_STORAGE_1"],
     "hybrid_gens": [],
     "hybrid_storage": [],
     "retained_buses": [
