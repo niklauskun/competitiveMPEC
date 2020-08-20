@@ -49,16 +49,16 @@ EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
-RTVRE = False #if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
+RTVRE = False  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.0001,
+    "mip_tolerances_mipgap": 0.01,
     "simplex_tolerances_feasibility": 0.000000001,
-    "dettimelimit": 200000,
+    "dettimelimit": 50000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
@@ -67,7 +67,9 @@ deactivated_constraint_args = []  # list of constraint names to deactivate
 ### END INPUTS ###
 
 # an example that won't affect problem much is "OfferCapConstraint"
-deactivated_constraint_args.append("StorageTightConstraint") #temporary deactivate StorageTightConstraint, use individual constraints instead
+deactivated_constraint_args.append(
+    "StorageTightConstraint"
+)  # temporary deactivate StorageTightConstraint, use individual constraints instead
 deactivated_constraint_args.append("StorageTightComplementarity")
 
 # "OneCycleConstraint
