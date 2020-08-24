@@ -81,7 +81,6 @@ elif RT and not bind_DA_offers_in_RT:
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
-    deactivated_constraint_args.append("OneCycleConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
