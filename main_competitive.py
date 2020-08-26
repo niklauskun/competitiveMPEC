@@ -43,7 +43,7 @@ case_folder = "test"  # andWind309
 start_date = "01-01-2019"  # use this string format
 end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = True, 48, 288
+RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
@@ -56,7 +56,7 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.01,
+    "mip_tolerances_mipgap": 0.05,
     "simplex_tolerances_feasibility": 0.000000001,
     "dettimelimit": 50000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
@@ -75,12 +75,16 @@ if not bind_DA_offers_in_RT and not RT:
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("BindDASOCChangeConstraint")
     deactivated_constraint_args.append("BindDAFinalSOCConstraint")
+    deactivated_constraint_args.append("RTMaxStorageComplementarity")
+    deactivated_constraint_args.append("RTMinStorageComplementarity")
 elif RT and not bind_DA_offers_in_RT:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
+    deactivated_constraint_args.append("MaxStorageComplementarity")
+    deactivated_constraint_args.append("MinStorageComplementarity")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -89,6 +93,8 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
     deactivated_constraint_args.append("BindFinalSOCConstraint")
+    deactivated_constraint_args.append("MaxStorageComplementarity")
+    deactivated_constraint_args.append("MinStorageComplementarity")
 else:
     raise NameError("case not found")
 
