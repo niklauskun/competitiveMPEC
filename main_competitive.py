@@ -40,8 +40,8 @@ cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
 
-start_date = "01-02-2019"  # use this string format
-end_date = "01-03-2019"  # end date is exclusive
+start_date = "01-03-2019"  # use this string format
+end_date = "01-04-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
@@ -90,6 +90,7 @@ elif RT and not bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MinStorageComplementarity")
     deactivated_constraint_args.append("StorageDischargeDualConstraint")
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("OneCycleConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -102,6 +103,7 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MinStorageComplementarity")
     deactivated_constraint_args.append("StorageDischargeDualConstraint")
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("OneCycleConstraint")
 else:
     raise NameError("case not found")
 

@@ -1019,6 +1019,9 @@ dispatch_model.OneCycleConstraint = Constraint(
 
 
 def BindDAOneCycleRule(model, s):
+    print(sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS))
+    print(sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS) / 12)
+
     return sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS) / 12 == sum(
         model.sd[t, s] for t in model.ACTIVETIMEPOINTS
     )
@@ -2591,7 +2594,7 @@ def rt_objective_profit_dual(model):
         )
         - sum(
             sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS)
-            / 12
+            / 12.0
             * model.bindonecycle_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
@@ -2754,7 +2757,7 @@ def rt_objective_profit_dual_pre(model):
         )
         - sum(
             sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS)
-            / 12
+            / 12.0
             * model.bindonecycle_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
