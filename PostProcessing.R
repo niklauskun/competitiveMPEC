@@ -11,7 +11,7 @@ library(dplyr)
 library(table1)
 library(xtable)
 
-baseWD <- "C:/Users/wenmi/Desktop/competitiveMPEC"
+baseWD <- "C:/Users/llavin/Desktop/test826"
 setwd(paste(baseWD, "", sep="/"))
 
 ## Load model results ####
@@ -70,17 +70,18 @@ readFilesRT <- function(filename, dates, dateWD){
 }
 
 
-loadResults <- function(dates,folder){
+loadResults <- function(dates,folder,subfolder="results_DA"){
   dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
   dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
   dateResultsWD<-paste(baseWD, folder, sep="/")
-  
-  modelLMP <- readFiles("zonal_prices.csv", dates, dateResultsWD)
-  txFlows <- readFiles("tx_flows.csv", dates, dateResultsWD)
-  offer <- readFiles("generator_segment_offer.csv", dates, dateResultsWD)
-  nucoffer <- readFiles("nuc_offer.csv", dates, dateResultsWD)
-  dispatch <- readFiles("generator_dispatch.csv", dates, dateResultsWD)
-  storage <- readFiles("storage_dispatch.csv", dates, dateResultsWD)
+
+  modelLMP <- readFiles("zonal_prices.csv", dates, dateResultsWD,subFolder=subfolder)
+  txFlows <- readFiles("tx_flows.csv", dates, dateResultsWD,subFolder=subfolder)
+  offer <- readFiles("generator_segment_offer.csv", dates, dateResultsWD,subFolder=subfolder)
+  nucoffer <- readFiles("nuc_offer.csv", dates, dateResultsWD,subFolder=subfolder)
+  dispatch <- readFiles("generator_dispatch.csv", dates, dateResultsWD,subFolder=subfolder)
+  storage <- readFiles("storage_dispatch.csv", dates, dateResultsWD,subFolder=subfolder)
+  objective <- readFiles("objective.csv",dates, dateResultsWD,subFolder=subfolder)
   #VRE <- readFiles("renewable_generation.csv", dates, dateResultsWD)
   
   #ordc <- readFiles("full_ordc.csv", dates, dateResultsWD, subFolder="inputs")
@@ -96,8 +97,8 @@ loadResults <- function(dates,folder){
   dispatch <- AddDatetime(dispatch)
   
   # return results
-  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, nucoffer, storageresources, generatorresources)
-  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources")
+  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, nucoffer, storageresources, generatorresources, objective)
+  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources", "objective")
   return(results)
 }
 
@@ -116,6 +117,7 @@ loadResultsRT <- function(dates,folder){
   nucofferRT <- readFilesRT("nuc_offer.csv", dates, dateResultsWD)
   dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD)
   storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD)
+  objectiveRT <- readFilesRT("objective.csv",dates,dateResultsWD)
   
   #clean and format
   modelLMPRT <- AddDatetime(modelLMPRT)
@@ -123,8 +125,8 @@ loadResultsRT <- function(dates,folder){
   dispatchRT <- AddDatetime(dispatchRT)
   
   # return resultsRT
-  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, nucofferRT, storageresources, generatorresources)
-  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources")
+  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, nucofferRT, storageresources, generatorresources, objectiveRT)
+  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources", "objective")
   return(resultsRT)
 }
 
@@ -667,12 +669,48 @@ cleanDispatchProfit <- function(results,dates,type='NA',filter='None',hour=24){
   return(DispatchProfit)
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
+compareObjectives <- function(resultslist){
+  objectivelist <- list()
+  for (i in 1:length(resultslist)){
+    resultslist[[i]]$objective$label <- names(resultslist[i])
+    #objectiveframe$label <- names(resultslist[i])
+    #objectivelist <- c(objectivelist, objectiveframe)
+  }
+  objectivedf <- rbind(resultslist[[2]]$objective,resultslist[[1]]$objective)
+  
+  valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(RTGeneratorProfitDual))
+  gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
+  valuedf$Gap <- gapdf$Gap
+  print(valuedf)
+  
+  ggplot(data=valuedf, aes(x=date, y=Objective, fill=label)) +
+    geom_bar(stat='identity',position='dodge') +
+    geom_errorbar(aes(x=date, ymin=Objective-Gap, ymax=Objective+Gap), colour="black", position='dodge')+
+    theme_classic() + ylab("Objective($)") + xlab("") +
+    guides(fill=guide_legend(title="")) +
+    theme(legend.text = element_text(size=32),
+          legend.position = 'bottom',
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          axis.title.y = element_text(size=32),
+          axis.text.x= element_text(size=24),
+          axis.text.y= element_text(size=20)) +
+    ggtitle(paste("Daily Objectives"))
+  
+  setwd(paste(baseWD, "post_processing", "figures", sep="/"))
+  ggsave(paste0("dailyobjectives",".png"), width=12, height=6)
+  
+}
+
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=5) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadResults(dates1,folder='test')
-results1RT  <- loadResultsRT(dates1,folder='test')
+results1 <- loadResults(dates1,folder='test3',subfolder="results_DA_RTVRE")
+results1RT  <- loadResultsRT(dates1,folder='test3')
+
+caselist <- list(results1,results1RT)
+names(caselist) <- c('day-ahead','real-time')
+compareObjectives(caselist)
 
 #results2 <- loadResults(dates2,folder='test')
 # <- loadResultsRT(dates2,folder='test')

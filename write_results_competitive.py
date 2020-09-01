@@ -12,9 +12,10 @@ import sys
 import pdb
 import pandas as pd
 import numpy as np
+from pyomo.environ import value
 
 
-def export_results(instance, results, results_directory, is_MPEC, debug_mode):
+def export_results(instance, results, results_directory, is_MPEC, gap, debug_mode):
     """Retrieves the relevant sets over which it will loop, then call functions to export different result categories.
     If an exception is encountered, log the error traceback. If not in debug mode, exit. If in debug mode,
     open an interactive Python session that will make it possible to try to correct the error without having to re-run
@@ -32,7 +33,6 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
     """
 
     print("Exporting results... ")
-
     # First, load solution
     load_solution(instance, results)
 
@@ -50,6 +50,15 @@ def export_results(instance, results, results_directory, is_MPEC, debug_mode):
     storage_set = sorted(instance.STORAGE)
 
     # Call various export functions, throw debug errors if there's an issue
+    # Export objective function value
+    try:
+        export_objective_value(instance, results_directory, gap)
+    except Exception as err:
+        msg = (
+            "ERROR exporting objective function value! Check export_objective_value()."
+        )
+        handle_exception(msg, debug_mode)
+
     # Export generator dispatch
     try:
         export_generator_dispatch(
@@ -190,6 +199,42 @@ def load_solution(instance, results):
 # You will have to change them though if you want to format outputs differently, or add new ones
 
 
+def export_objective_value(instance, results_directory, gap_value):
+    index_name, profitdual_list, totalcost_list, rtprofitdual_list, gap_list = (
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
+    profitdual_list.append(value(instance.GeneratorProfitDual))
+    totalcost_list.append(value(instance.TotalCost2))
+
+    rtprofitdual_list.append(value(instance.RTGeneratorProfitDual))
+    gap_list.append(gap_value)
+    index_name.append("ObjectiveValue")
+
+    col_names = [
+        "GeneratorProfitDual",
+        "TotalCostDispatch",
+        "RTGeneratorProfitDual",
+        "gap",
+    ]
+    df = pd.DataFrame(
+        data=np.column_stack(
+            (
+                np.asarray(profitdual_list),
+                np.asarray(totalcost_list),
+                np.asarray(rtprofitdual_list),
+                np.asarray(gap_list),
+            )
+        ),
+        columns=col_names,
+        index=pd.Index(index_name),
+    )
+    df.to_csv(os.path.join(results_directory, "objective.csv"))
+
+
 def export_generator_dispatch(
     instance, timepoints_set, generators_set, results_directory
 ):
@@ -215,10 +260,7 @@ def export_generator_dispatch(
     ]
     df = pd.DataFrame(
         data=np.column_stack(
-            (
-                np.asarray(timepoints_list),
-                np.asarray(results_dispatch),
-            )
+            (np.asarray(timepoints_list), np.asarray(results_dispatch),)
         ),
         columns=col_names,
         index=pd.Index(index_name),
@@ -248,10 +290,7 @@ def export_generator_segment_dispatch(
     ]
     df = pd.DataFrame(
         data=np.column_stack(
-            (
-                np.asarray(timepoints_list),
-                np.asarray(results_dispatch),
-            )
+            (np.asarray(timepoints_list), np.asarray(results_dispatch),)
         ),
         columns=col_names,
         index=pd.Index(index_name),
@@ -683,6 +722,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_chargemin_dual = []
     storage_dischargemin_dual = []
     cycle_dual = []
+    bindonecyle_dual = []
     node = []
     lmp = []
 
@@ -701,11 +741,14 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
             storage_tight_dual.append(format_6f(instance.storagetight_dual[t, s].value))
             storage_max_dual.append(format_6f(instance.socmax_dual[t, s].value))
             storage_min_dual.append(format_6f(instance.socmin_dual[t, s].value))
-            storage_chargemin_dual.append(format_6f(instance.chargemin_dual[t, s].value))
+            storage_chargemin_dual.append(
+                format_6f(instance.chargemin_dual[t, s].value)
+            )
             storage_dischargemin_dual.append(
                 format_6f(instance.dischargemin_dual[t, s].value)
             )
             cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
+            bindonecyle_dual.append(format_6f(instance.bindonecycle_dual[s].value))
             node.append(instance.StorageZoneLabel[s])
             if is_MPEC:
                 lmp.append(
@@ -742,6 +785,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         "chargemindual",
         "dischargemindual",
         "cycledual",
+        "bindonecycledual",
         "node",
         "lmp",
         "profit",
@@ -764,6 +808,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_dischargemin_dual),
                 np.asarray(storage_chargemin_dual),
                 np.asarray(cycle_dual),
+                np.asarray(bindonecyle_dual),
                 np.asarray(node),
                 np.asarray(lmp),
                 np.asarray(profit),

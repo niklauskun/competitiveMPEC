@@ -35,21 +35,21 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 
 ### GENERAL INPUTS ###
 case_folder = "test"  # andWind309
 
-start_date = "01-01-2019"  # use this string format
-end_date = "01-02-2019"  # end date is exclusive
+start_date = "01-02-2019"  # use this string format
+end_date = "01-03-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = False, 48, 288
+RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
-RTVRE = False  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
+RTVRE = True  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -58,7 +58,7 @@ solver_kwargs = {
     "parallel": -1,
     "mip_tolerances_mipgap": 0.05,
     "simplex_tolerances_feasibility": 0.000000001,
-    "dettimelimit": 50000,
+    "dettimelimit": 100000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
@@ -77,6 +77,9 @@ if not bind_DA_offers_in_RT and not RT:
     deactivated_constraint_args.append("BindDAFinalSOCConstraint")
     deactivated_constraint_args.append("RTMaxStorageComplementarity")
     deactivated_constraint_args.append("RTMinStorageComplementarity")
+    deactivated_constraint_args.append("BindDAOneCycleConstraint")
+    deactivated_constraint_args.append("RTStorageDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSDischargeDualConstraint")
 elif RT and not bind_DA_offers_in_RT:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
@@ -85,6 +88,8 @@ elif RT and not bind_DA_offers_in_RT:
     deactivated_constraint_args.append("BindFinalSOCConstraint")
     deactivated_constraint_args.append("MaxStorageComplementarity")
     deactivated_constraint_args.append("MinStorageComplementarity")
+    deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -95,6 +100,8 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("BindFinalSOCConstraint")
     deactivated_constraint_args.append("MaxStorageComplementarity")
     deactivated_constraint_args.append("MinStorageComplementarity")
+    deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
 else:
     raise NameError("case not found")
 

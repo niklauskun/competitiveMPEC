@@ -207,7 +207,7 @@ class CreateAndRunScenario(object):
         for a in self.args:
             constraint = getattr(self.instance, a)
             constraint.deactivate()  # deactivate *args constraints passed for deactivation
-        
+
         if case_type == "MIP" and mip_iter == 1 and self.is_RT == False:
             print(
                 "NOTE: initial MIP solve with only storage competitive to get feasible solution"
@@ -226,7 +226,7 @@ class CreateAndRunScenario(object):
             )
             self.instance.GeneratorProfitDualPre.deactivate()
             self.instance.GeneratorProfitDual.activate()
-        
+
         elif case_type == "MIP" and mip_iter == 1 and self.is_RT == True:
             print(
                 "NOTE: initial MIP solve with only storage competitive to get feasible solution"
@@ -252,6 +252,8 @@ class CreateAndRunScenario(object):
             self.instance.GeneratorProfit.deactivate()
             self.instance.GeneratorProfitDualPre.deactivate()
             self.instance.GeneratorProfitDual.deactivate()
+            self.instance.RTGeneratorProfitDual.deactivate()
+            self.instance.RTGeneratorProfitDualPre.deactivate()
             # instance.PminConstraint.deactivate()
 
         # ### Solve ### #
@@ -270,7 +272,7 @@ class CreateAndRunScenario(object):
 
         try:
             solution = solver.solve(
-                self.instance, tee=True, warmstart=warmstart_flag
+                self.instance, tee=True, warmstart=warmstart_flag, load_solutions=False
             )  # , keepfiles=False
 
         # solution = solver.solve(instance, tee=True, keepfiles=False, options={'optimalitytarget':1e-5})
@@ -285,6 +287,11 @@ class CreateAndRunScenario(object):
             return self.solve(
                 case_type, mip_iter=mip_iter, warmstart_flag=warmstart_flag
             )
+        try:
+            self.gap = solution.solution(0).gap
+        except IndexError:
+            print("gap is infinite, so writing 0")
+            self.gap = 0.0
 
         if case_type == "MIP" and mip_iter == 1:
             try:
@@ -344,6 +351,7 @@ class CreateAndRunScenario(object):
             self.solution,
             self.scenario_results_directory,
             self.is_MPEC,
+            self.gap,
             debug_mode=1,
         )
 
@@ -500,9 +508,7 @@ class StorageOfferMitigation(object):
         self.case_directory = case_directory
         self.mitigation_flag = mitigation_flag
         self.storage_df = pd.read_csv(
-            os.path.join(
-                case_directory.INPUTS_DIRECTORY, "storage_resources.csv"
-            )
+            os.path.join(case_directory.INPUTS_DIRECTORY, "storage_resources.csv")
         )
         try:
             self.prices_df = pd.read_csv(

@@ -586,6 +586,10 @@ dispatch_model.onecycle_dual = Var(
     dispatch_model.STORAGE, within=NonNegativeReals, initialize=0, bounds=(0, 1000000),
 )
 
+dispatch_model.bindonecycle_dual = Var(
+    dispatch_model.STORAGE, within=NonNegativeReals, initialize=0, bounds=(0, 1000000),
+)
+
 dispatch_model.gendispatchmax_dual = Var(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.GENERATORS,
@@ -896,7 +900,8 @@ def SOCChangeRule(model, t, s):
     if t == model.FirstTimepoint[t]:
         return (
             model.soc[t, s]
-            == model.SocMax[s] * 0.5 + model.sc[t, s] * model.ChargeEff[s]
+            == model.SocMax[s] * 0
+            + model.sc[t, s] * model.ChargeEff[s]
             - model.sd[t, s] * model.DischargeEff[s]
         )  # start half charged?
         # return model.soc[t,s] == -model.sd[t,s]
@@ -951,7 +956,7 @@ def SOCMaxRule(model, t, s):
         s {str} -- storage resource index
     """
 
-    return model.SocMax[s] >= model.soc[t,s]
+    return model.SocMax[s] >= model.soc[t, s]
     # return model.SocMax[s] >= model.soc[t, s]
 
 
@@ -975,7 +980,7 @@ def BindFinalSOCRule(model, s):
             model.sc[tp, s] * model.ChargeEff[s]
             - model.sd[tp, s] * model.DischargeEff[s]
         )
-    return model.SocMax[s] * -0.5 == tmp_soc
+    return model.SocMax[s] * -0 == tmp_soc
 
 
 dispatch_model.BindFinalSOCConstraint = Constraint(
@@ -1011,6 +1016,18 @@ def OneCycleRule(model, s):
 dispatch_model.OneCycleConstraint = Constraint(
     dispatch_model.STORAGE, rule=OneCycleRule
 )
+
+
+def BindDAOneCycleRule(model, s):
+    return sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS) / 12 == sum(
+        model.sd[t, s] for t in model.ACTIVETIMEPOINTS
+    )
+
+
+dispatch_model.BindDAOneCycleConstraint = Constraint(
+    dispatch_model.STORAGE, rule=BindDAOneCycleRule
+)
+
 
 ## TRANSMISSION LINES ##
 
@@ -1418,6 +1435,41 @@ dispatch_model.StorageDischargeDualConstraint = Constraint(
 )
 
 
+def RTBindStorageDischargeDual(model, t, s):
+    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        s {str} -- storage index
+    """
+    return (
+        model.sodischarge[t, s]
+        + model.ChargeMax[s] * model.storagetight_dual[t, s]
+        - model.dischargemin_dual[t, s]
+        - sum(
+            model.DischargeEff[s]
+            * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
+            for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
+        )
+        + model.onecycle_dual[s]
+        + model.bindonecycle_dual[s]
+        + model.DischargeEff[s] * model.finalsoc_dual[s]
+        - model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+# + model.onecycle_dual[s]
+
+dispatch_model.RTStorageDischargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.STRATEGIC_STORAGE,
+    rule=RTBindStorageDischargeDual,
+    name="StorageDischargeDual",
+)
+
+
 def BindStorageChargeDual(model, t, s):
     """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
 
@@ -1471,6 +1523,34 @@ dispatch_model.StorageNSDischargeDualConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.NON_STRATEGIC_STORAGE,
     rule=BindNSStorageDischargeDual,
+    name="StorageNSDischargeDual",
+)
+
+
+def RTBindNSStorageDischargeDual(model, t, s):
+
+    return (
+        model.ChargeMax[s] * model.storagetight_dual[t, s]
+        - model.dischargemin_dual[t, s]
+        - sum(
+            model.DischargeEff[s]
+            * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
+            for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
+        )
+        + model.onecycle_dual[s]
+        + model.bindonecycle_dual[s]
+        + model.DischargeEff[s] * model.finalsoc_dual[s]
+        - model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+# + model.onecycle_dual[s]
+
+dispatch_model.RTStorageNSDischargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=RTBindNSStorageDischargeDual,
     name="StorageNSDischargeDual",
 )
 
@@ -1654,7 +1734,7 @@ dispatch_model.MaxStorageComplementarity = Complementarity(
 
 
 def BindMinStorageComplementarity(model, t, s):
-    return complements(model.soc[t,s] >= 0, model.socmin_dual[t, s] >= 0,)
+    return complements(model.soc[t, s] >= 0, model.socmin_dual[t, s] >= 0,)
 
 
 dispatch_model.MinStorageComplementarity = Complementarity(
@@ -1671,11 +1751,13 @@ def RTBindMaxStorageComplementarity(model, t, s):
             model.sc[tp, s] * model.ChargeEff[s]
             - model.sd[tp, s] * model.DischargeEff[s]
         )
-    return complements(model.SocMax[s] 
+    return complements(
+        model.SocMax[s]
         - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-        + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s] 
-        - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] 
-        - tmp_soc >= 0, 
+        + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
+        - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+        - tmp_soc
+        >= 0,
         model.socmax_dual[t, s] >= 0,
     )
 
@@ -1694,11 +1776,14 @@ def RTBindMinStorageComplementarity(model, t, s):
             model.sc[tp, s] * model.ChargeEff[s]
             - model.sd[tp, s] * model.DischargeEff[s]
         )
-    return complements(model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-            - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-            + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] 
-            + tmp_soc >= 0, 
-            model.socmin_dual[t, s] >= 0,)
+    return complements(
+        model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+        - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
+        + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+        + tmp_soc
+        >= 0,
+        model.socmin_dual[t, s] >= 0,
+    )
 
 
 dispatch_model.RTMinStorageComplementarity = Complementarity(
@@ -2208,22 +2293,26 @@ def objective_profit_dual(model):
         )
         - sum(
             sum(
-                (model.SocMax[s] - model.SocMax[s] * 0.5) * model.socmax_dual[t, s]
+                (model.SocMax[s] - model.SocMax[s] * 0) * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
             sum(
-                 model.SocMax[s] * 0.5 * model.socmin_dual[t, s]
+                model.SocMax[s] * 0 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
-            model.SocMax[s] * -0.5
-            * model.finalsoc_dual[s] for s in model.NON_STRATEGIC_STORAGE)
-        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.NON_STRATEGIC_STORAGE)
+            model.SocMax[s] * -0 * model.finalsoc_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            model.SocMax[s] * model.onecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
         - sum(
             sum(
                 sum(
@@ -2338,22 +2427,26 @@ def objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                (model.SocMax[s] - model.SocMax[s] * 0.5) * model.socmax_dual[t, s]
+                (model.SocMax[s] - model.SocMax[s] * 0) * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
             sum(
-                model.SocMax[s] * 0.5 * model.socmin_dual[t, s]
+                model.SocMax[s] * 0 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
-            model.SocMax[s] * -0.5
-            * model.finalsoc_dual[s] for s in model.NON_STRATEGIC_STORAGE)
-        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.NON_STRATEGIC_STORAGE)
+            model.SocMax[s] * -0 * model.finalsoc_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            model.SocMax[s] * model.onecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
         - sum(
             sum(
                 sum(
@@ -2466,9 +2559,14 @@ def rt_objective_profit_dual(model):
         )
         - sum(
             sum(
-                (model.SocMax[s]- model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-                - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s]) 
+                (
+                    model.SocMax[s]
+                    - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.ChargeEff[s]
+                    - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.DischargeEff[s]
+                )
                 * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2476,21 +2574,39 @@ def rt_objective_profit_dual(model):
         )
         - sum(
             sum(
-                (model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-                + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s]) 
+                (
+                    model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.ChargeEff[s]
+                    + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.DischargeEff[s]
+                )
                 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
-        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.NON_STRATEGIC_STORAGE)
         - sum(
-            (model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
-            - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s])
-            * model.finalsoc_dual[s] for s in model.NON_STRATEGIC_STORAGE)
+            model.SocMax[s] * model.onecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS)
+            / 12
+            * model.bindonecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            (
+                model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
+                - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
+                - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                * model.DischargeEff[s]
+            )
+            * model.finalsoc_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
         - sum(
             sum(
                 sum(
@@ -2606,9 +2722,14 @@ def rt_objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                (model.SocMax[s]- model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-                - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s]) 
+                (
+                    model.SocMax[s]
+                    - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.ChargeEff[s]
+                    - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.DischargeEff[s]
+                )
                 * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2616,21 +2737,39 @@ def rt_objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                (model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-                + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s]) 
+                (
+                    model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.ChargeEff[s]
+                    + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                    * model.DischargeEff[s]
+                )
                 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
             for s in model.NON_STRATEGIC_STORAGE
         )
-        - sum(model.SocMax[s] * model.onecycle_dual[s] for s in model.NON_STRATEGIC_STORAGE)
         - sum(
-            (model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
-            - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-            + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
-            - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.DischargeEff[s])
-            * model.finalsoc_dual[s] for s in model.NON_STRATEGIC_STORAGE)
+            model.SocMax[s] * model.onecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            sum(model.DischargeInitDA[t, s] for t in model.ACTIVETIMEPOINTS)
+            / 12
+            * model.bindonecycle_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
+        - sum(
+            (
+                model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
+                - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s] * model.ChargeEff[s]
+                - model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                * model.DischargeEff[s]
+            )
+            * model.finalsoc_dual[s]
+            for s in model.NON_STRATEGIC_STORAGE
+        )
         - sum(
             sum(
                 sum(
