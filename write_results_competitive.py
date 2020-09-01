@@ -327,6 +327,7 @@ def export_generator_segment_offer(
     lmp = []
     marginal_cost = []
     previous_offer = []
+    available_segment_capacity = []
 
     for t in timepoints_set:
         for g in ucgenerators_set:
@@ -352,6 +353,12 @@ def export_generator_segment_offer(
                     format_6f(instance.GeneratorMarginalCost[t, g, gs])
                 )
                 previous_offer.append(format_6f(instance.previous_offer[t, g, gs]))
+                available_segment_capacity.append(
+                    format_6f(
+                        instance.CapacityTime[t, g]
+                        * instance.GeneratorSegmentLength[t, g, gs]
+                    )
+                )
                 zone_names.append(instance.ZoneLabel[g])
                 if is_MPEC:
                     lmp.append(
@@ -389,6 +396,7 @@ def export_generator_segment_offer(
         "MarginalCost",
         "Profit",
         "PreviousOffer",
+        "AvailableSegmentCapacity",
     ]
     df = pd.DataFrame(
         data=np.column_stack(
@@ -412,6 +420,7 @@ def export_generator_segment_offer(
                 np.asarray(marginal_cost),
                 np.asarray(profit),
                 np.asarray(previous_offer),
+                np.asarray(available_segment_capacity),
             )
         ),
         columns=col_names,
@@ -424,7 +433,7 @@ def export_nuc_generator_dispatch(
     instance, timepoints_set, nuc_set, is_MPEC, results_directory
 ):
     index_name = []
-    timepoints_list, dispatch, dual, offer, lmp = [], [], [], [], []
+    timepoints_list, dispatch, dual, offer, lmp, capacity = [], [], [], [], [], []
     for t in timepoints_set:
         for g in nuc_set:
             index_name.append(str(g) + "-" + str(t))
@@ -442,7 +451,8 @@ def export_nuc_generator_dispatch(
                         instance.dual[instance.LoadConstraint[t, instance.ZoneLabel[g]]]
                     )
                 )
-    col_names = ["hour", "dispatch", "dual", "offer", "lmp"]
+            capacity.append(format_6f(instance.CapacityTime[t, g]))
+    col_names = ["hour", "dispatch", "dual", "offer", "lmp", "capacity"]
     df = pd.DataFrame(
         data=np.column_stack(
             (
@@ -451,6 +461,7 @@ def export_nuc_generator_dispatch(
                 np.asarray(dual),
                 np.asarray(offer),
                 np.asarray(lmp),
+                np.asarray(capacity),
             )
         ),
         columns=col_names,
@@ -721,6 +732,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_min_dual = []
     storage_chargemin_dual = []
     storage_dischargemin_dual = []
+    storage_finalsoc_dual = []
     cycle_dual = []
     bindonecyle_dual = []
     node = []
@@ -747,6 +759,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
             storage_dischargemin_dual.append(
                 format_6f(instance.dischargemin_dual[t, s].value)
             )
+            storage_finalsoc_dual.append(format_6f(instance.finalsoc_dual[s].value))
             cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
             bindonecyle_dual.append(format_6f(instance.bindonecycle_dual[s].value))
             node.append(instance.StorageZoneLabel[s])
@@ -784,6 +797,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         "socmindual",
         "chargemindual",
         "dischargemindual",
+        "finalsocdual",
         "cycledual",
         "bindonecycledual",
         "node",
@@ -807,6 +821,7 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_min_dual),
                 np.asarray(storage_dischargemin_dual),
                 np.asarray(storage_chargemin_dual),
+                np.asarray(storage_finalsoc_dual),
                 np.asarray(cycle_dual),
                 np.asarray(bindonecyle_dual),
                 np.asarray(node),

@@ -1528,7 +1528,6 @@ dispatch_model.StorageNSDischargeDualConstraint = Constraint(
 
 
 def RTBindNSStorageDischargeDual(model, t, s):
-
     return (
         model.ChargeMax[s] * model.storagetight_dual[t, s]
         - model.dischargemin_dual[t, s]
