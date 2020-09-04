@@ -2615,9 +2615,9 @@ def rt_objective_profit_dual(model):
             * model.bindonecycle_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
-        - sum(
+        + sum(
             (
-                abs(
+                (
                     model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
                     - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
                     + model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
@@ -2788,8 +2788,8 @@ def rt_objective_profit_dual_pre(model):
             * model.bindonecycle_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
-        - sum(
-            abs(
+        + sum(
+            (
                 (
                     model.SOCInitDA[model.ACTIVETIMEPOINTS[-1], s]
                     - model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]

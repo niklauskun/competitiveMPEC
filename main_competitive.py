@@ -41,7 +41,7 @@ cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 case_folder = "test"  # andWind309
 
 start_date = "01-02-2019"  # use this string format
-end_date = "01-05-2019"  # end date is exclusive
+end_date = "01-03-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = True, 48, 288
 # the second value is how many tmps to subset RT cases into
@@ -56,10 +56,10 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.001,
+    "mip_tolerances_mipgap": 0.02,
     "emphasis_mip": 1,
     "mip_tolerances_integrality": 0.000000000001,
-    "dettimelimit": 150000,
+    "dettimelimit": 50000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
