@@ -2590,14 +2590,16 @@ def rt_objective_profit_dual(model):
         )
         - sum(
             sum(
-                (
-                    model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    * model.ChargeEff[s]
-                    + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    * model.DischargeEff[s]
+                abs(
+                    (
+                        model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        * model.ChargeEff[s]
+                        + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        * model.DischargeEff[s]
+                    )
                 )
-                * 0.0
+                * 1.0
                 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
@@ -2761,14 +2763,16 @@ def rt_objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                (
-                    model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    * model.ChargeEff[s]
-                    + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
-                    * model.DischargeEff[s]
+                abs(
+                    (
+                        model.SOCInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        - model.ChargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        * model.ChargeEff[s]
+                        + model.DischargeInitDA[model.ACTIVETIMEPOINTS[1], s]
+                        * model.DischargeEff[s]
+                    )
                 )
-                * 0.0
+                * 1.0
                 * model.socmin_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
