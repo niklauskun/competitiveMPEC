@@ -677,7 +677,7 @@ compareObjectives <- function(resultslist){
     #objectivelist <- c(objectivelist, objectiveframe)
   }
   objectivedf <- rbind(resultslist[[2]]$objective,resultslist[[1]]$objective)
-  
+  print(objectivedf)
   valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(RTGeneratorProfitDual))
   gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
   valuedf$Gap <- gapdf$Gap
@@ -701,12 +701,12 @@ compareObjectives <- function(resultslist){
   
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=5) # Configure cases period here
+dates1 <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadResults(dates1,folder='test3',subfolder="results_DA_RTVRE")
-results1RT  <- loadResultsRT(dates1,folder='test3')
+results1 <- loadResults(dates1,folder='test',subfolder="results_DA_RTVRE")
+results1RT  <- loadResultsRT(dates1,folder='test')
 
 caselist <- list(results1,results1RT)
 names(caselist) <- c('day-ahead','real-time')
