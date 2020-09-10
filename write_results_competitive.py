@@ -733,8 +733,11 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
     storage_chargemin_dual = []
     storage_dischargemin_dual = []
     storage_finalsoc_dual = []
+    finalsocmax_dual = []
+    finalsocmin_dual = []
     cycle_dual = []
-    bindonecyle_dual = []
+    bindonecyclemax_dual = []
+    bindonecyclemin_dual = []
     node = []
     lmp = []
 
@@ -760,8 +763,15 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 format_6f(instance.dischargemin_dual[t, s].value)
             )
             storage_finalsoc_dual.append(format_6f(instance.finalsoc_dual[s].value))
+            finalsocmax_dual.append(format_6f(instance.finalsocmax_dual[s].value))
+            finalsocmin_dual.append(format_6f(instance.finalsocmin_dual[s].value))
             cycle_dual.append(format_6f(instance.onecycle_dual[s].value))
-            bindonecyle_dual.append(format_6f(instance.bindonecycle_dual[s].value))
+            bindonecyclemax_dual.append(
+                format_6f(instance.bindonecyclemax_dual[s].value)
+            )
+            bindonecyclemin_dual.append(
+                format_6f(instance.bindonecyclemin_dual[s].value)
+            )
             node.append(instance.StorageZoneLabel[s])
             if is_MPEC:
                 lmp.append(
@@ -798,8 +808,11 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
         "chargemindual",
         "dischargemindual",
         "finalsocdual",
+        "finalsocMAXdual",
+        "finalsocMINdual",
         "cycledual",
-        "bindonecycledual",
+        "bindonecyclemaxdual",
+        "bindonecyclemindual",
         "node",
         "lmp",
         "profit",
@@ -822,8 +835,11 @@ def export_storage(instance, timepoints_set, storage_set, results_directory, is_
                 np.asarray(storage_chargemin_dual),
                 np.asarray(storage_dischargemin_dual),
                 np.asarray(storage_finalsoc_dual),
+                np.asarray(finalsocmax_dual),
+                np.asarray(finalsocmin_dual),
                 np.asarray(cycle_dual),
-                np.asarray(bindonecyle_dual),
+                np.asarray(bindonecyclemax_dual),
+                np.asarray(bindonecyclemin_dual),
                 np.asarray(node),
                 np.asarray(lmp),
                 np.asarray(profit),
