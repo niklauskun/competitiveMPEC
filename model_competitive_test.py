@@ -977,7 +977,7 @@ dispatch_model.SOCMaxConstraint = Constraint(
 )  # implements SOCMaxConstraint
 
 
-def BindFinalSOCMaxRule(model, s):
+def BindFinalSOCRule(model, s):
     """Storage state of charge in final timestep must be equal to user-defined final SOC value
     I've input this to be 0 for now. This will at least make each day symmetric (0 initial and final SOC)
 
@@ -992,34 +992,11 @@ def BindFinalSOCMaxRule(model, s):
             model.sc[tp, s] * model.ChargeEff[s]
             - model.sd[tp, s] * model.DischargeEff[s]
         )
-    return model.SocMax[s] * -0 / 150 + 0.001 >= tmp_soc
+    return 0 * model.SocMax[s] == tmp_soc
 
 
-dispatch_model.BindFinalSOCMaxConstraint = Constraint(
-    dispatch_model.STORAGE, rule=BindFinalSOCMaxRule
-)  # implements BindFinalSOCConstraint
-
-
-def BindFinalSOCMinRule(model, s):
-    """Storage state of charge in final timestep must be equal to user-defined final SOC value
-    I've input this to be 0 for now. This will at least make each day symmetric (0 initial and final SOC)
-
-    Arguments:
-        model -- Pyomo model
-        s {str} -- storage resource index
-    """
-
-    tmp_soc = 0
-    for tp in range(model.ACTIVETIMEPOINTS[1], model.ACTIVETIMEPOINTS[-1] + 1):
-        tmp_soc += (
-            model.sc[tp, s] * model.ChargeEff[s]
-            - model.sd[tp, s] * model.DischargeEff[s]
-        )
-    return tmp_soc >= model.SocMax[s] * -0 / 150 - 0.001
-
-
-dispatch_model.BindFinalSOCMinConstraint = Constraint(
-    dispatch_model.STORAGE, rule=BindFinalSOCMinRule
+dispatch_model.BindFinalSOCConstraint = Constraint(
+    dispatch_model.STORAGE, rule=BindFinalSOCRule
 )  # implements BindFinalSOCConstraint
 
 
@@ -1268,6 +1245,7 @@ dispatch_model.LoadConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS, dispatch_model.ZONES, rule=LoadRule
 )  # implements load constraint
 
+
 ## CONVENTIONAL GENERATORS CONSTRAINTS ##
 
 # gen capacity with scheduled outage factored in: INACTIVE
@@ -1489,8 +1467,7 @@ def BindStorageDischargeDual(model, t, s):
             for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
         )
         + model.onecycle_dual[s]
-        - model.DischargeEff[s] * model.finalsocmax_dual[s]
-        + model.DischargeEff[s] * model.finalsocmin_dual[s]
+        + model.DischargeEff[s] * model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1559,8 +1536,7 @@ def BindStorageChargeDual(model, t, s):
             model.ChargeEff[s] * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
             for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
         )
-        + model.ChargeEff[s] * model.finalsocmax_dual[s]
-        - model.ChargeEff[s] * model.finalsocmin_dual[s]
+        - model.ChargeEff[s] * model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1570,6 +1546,37 @@ dispatch_model.StorageChargeDualConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.STRATEGIC_STORAGE,
     rule=BindStorageChargeDual,
+    name="StorageChargeDual",
+)
+
+
+def RTBindStorageChargeDual(model, t, s):
+    """ Duals associated with storage dispatch max, min, and load balance constraints equal offer
+
+    Arguments:
+        model -- Pyomo model
+        t {int} -- timepoint index
+        s {str} -- storage index
+    """
+    return (
+        -model.socharge[t, s]
+        + model.DischargeMax[s] * model.storagetight_dual[t, s]
+        - model.chargemin_dual[t, s]
+        + sum(
+            model.ChargeEff[s] * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
+            for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
+        )
+        + model.ChargeEff[s] * model.finalsocmax_dual[s]
+        - model.ChargeEff[s] * model.finalsocmin_dual[s]
+        + model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+dispatch_model.RTStorageChargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.STRATEGIC_STORAGE,
+    rule=RTBindStorageChargeDual,
     name="StorageChargeDual",
 )
 
@@ -1585,8 +1592,7 @@ def BindNSStorageDischargeDual(model, t, s):
             for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
         )
         + model.onecycle_dual[s]
-        - model.DischargeEff[s] * model.finalsocmax_dual[s]
-        + model.DischargeEff[s] * model.finalsocmin_dual[s]
+        + model.DischargeEff[s] * model.finalsoc_dual[s]
         - model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1640,8 +1646,7 @@ def BindNSStorageChargeDual(model, t, s):
             model.ChargeEff[s] * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
             for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
         )
-        - model.ChargeEff[s] * model.finalsocmax_dual[s]
-        + model.ChargeEff[s] * model.finalsocmin_dual[s]
+        - model.ChargeEff[s] * model.finalsoc_dual[s]
         + model.zonalprice[t, model.StorageZoneLabel[s]]
         == 0
     )
@@ -1651,6 +1656,29 @@ dispatch_model.StorageNSChargeDualConstraint = Constraint(
     dispatch_model.ACTIVETIMEPOINTS,
     dispatch_model.NON_STRATEGIC_STORAGE,
     rule=BindNSStorageChargeDual,
+    name="StorageNSChargeDual",
+)
+
+
+def RTBindNSStorageChargeDual(model, t, s):
+    return (
+        model.DischargeMax[s] * model.storagetight_dual[t, s]
+        - model.chargemin_dual[t, s]
+        + sum(
+            model.ChargeEff[s] * (model.socmax_dual[tp, s] - model.socmin_dual[tp, s])
+            for tp in range(t, model.ACTIVETIMEPOINTS[-1] + 1)
+        )
+        + model.ChargeEff[s] * model.finalsocmax_dual[s]
+        - model.ChargeEff[s] * model.finalsocmin_dual[s]
+        + model.zonalprice[t, model.StorageZoneLabel[s]]
+        == 0
+    )
+
+
+dispatch_model.RTStorageNSChargeDualConstraint = Constraint(
+    dispatch_model.ACTIVETIMEPOINTS,
+    dispatch_model.NON_STRATEGIC_STORAGE,
+    rule=RTBindNSStorageChargeDual,
     name="StorageNSChargeDual",
 )
 
@@ -1894,42 +1922,6 @@ dispatch_model.OneCycleComplementarity = Complementarity(
 )
 
 
-def BindFinalSOCMaxComplementarity(model, s):
-    tmp_soc = 0
-    for tp in range(model.ACTIVETIMEPOINTS[1], model.ACTIVETIMEPOINTS[-1] + 1):
-        tmp_soc += (
-            model.sc[tp, s] * model.ChargeEff[s]
-            - model.sd[tp, s] * model.DischargeEff[s]
-        )
-    return complements(
-        model.SocMax[s] * -0 / 150 + 0.001 - tmp_soc >= 0,
-        model.finalsocmin_dual[s] >= 0,
-    )
-
-
-dispatch_model.FinalSOCMaxComplementarity = Complementarity(
-    dispatch_model.STORAGE, rule=BindFinalSOCMaxComplementarity
-)  # implements BindFinalSOCConstraint
-
-
-def BindFinalSOCMinComplementarity(model, s):
-    tmp_soc = 0
-    for tp in range(model.ACTIVETIMEPOINTS[1], model.ACTIVETIMEPOINTS[-1] + 1):
-        tmp_soc += (
-            model.sc[tp, s] * model.ChargeEff[s]
-            - model.sd[tp, s] * model.DischargeEff[s]
-        )
-    return complements(
-        tmp_soc - model.SocMax[s] * -0 / 150 + 0.001 >= 0,
-        model.finalsocmin_dual[s] >= 0,
-    )
-
-
-dispatch_model.FinalSOCMinComplementarity = Complementarity(
-    dispatch_model.STORAGE, rule=BindFinalSOCMinComplementarity
-)  # implements BindFinalSOCConstraint
-
-
 def RTBindFinalSOCMaxComplementarity(model, s):
     tmp_soc = 0
     for tp in range(model.ACTIVETIMEPOINTS[1], model.ACTIVETIMEPOINTS[-1] + 1):
@@ -1945,7 +1937,7 @@ def RTBindFinalSOCMaxComplementarity(model, s):
         + 0.001
         - tmp_soc
         >= 0,
-        model.finalsocmin_dual[s] >= 0,
+        model.finalsocmax_dual[s] >= 0,
     )
 
 
@@ -2496,24 +2488,9 @@ def objective_profit_dual(model):
         )
         - sum(
             sum(
-                (model.SocMax[s] - model.SocMax[s] * 0 / 150) * model.socmax_dual[t, s]
+                model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(
-                model.SocMax[s] * 0 / 150 * model.socmin_dual[t, s]
-                for t in model.ACTIVETIMEPOINTS
-            )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        + sum(
-            (model.SocMax[s] * -0 / 150 - 0.001) * model.finalsocmin_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            (model.SocMax[s] * -0 / 150 + 0.001) * model.finalsocmax_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
@@ -2634,24 +2611,9 @@ def objective_profit_dual_pre(model):
         )
         - sum(
             sum(
-                (model.SocMax[s] - model.SocMax[s] * 0 / 150) * model.socmax_dual[t, s]
+                model.SocMax[s] * model.socmax_dual[t, s]
                 for t in model.ACTIVETIMEPOINTS
             )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            sum(
-                model.SocMax[s] * 0 / 150 * model.socmin_dual[t, s]
-                for t in model.ACTIVETIMEPOINTS
-            )
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        + sum(
-            (model.SocMax[s] * -0 / 150 - 0.001) * model.finalsocmin_dual[s]
-            for s in model.NON_STRATEGIC_STORAGE
-        )
-        - sum(
-            (model.SocMax[s] * -0 / 150 + 0.001) * model.finalsocmax_dual[s]
             for s in model.NON_STRATEGIC_STORAGE
         )
         - sum(
@@ -3096,6 +3058,29 @@ def rt_objective_profit_dual_pre(model):
 dispatch_model.RTGeneratorProfitDualPre = Objective(
     rule=rt_objective_profit_dual_pre, sense=maximize
 )
+
+
+def ss_profit(model):
+    return (
+        sum(
+            sum(
+            model.gd[t, g] * model.zonalprice[t, model.ZoneLabel[g]] 
+            for g in model.STRATEGIC_GENERATORS
+        ) 
+            for t in model.ACTIVETIMEPOINTS
+        )
+        + sum(
+            sum(
+            (model.sd[t, s]- model.sc[t, s]) * model.zonalprice[t, model.StorageZoneLabel[s]] 
+            for s in model.STRATEGIC_STORAGE
+            ) 
+            for t in model.ACTIVETIMEPOINTS
+        )
+    )
+
+dispatch_model.SSProfit = Objective(
+    rule=ss_profit, sense=maximize
+) 
 
 '''
 def objective_profit_dual(model):

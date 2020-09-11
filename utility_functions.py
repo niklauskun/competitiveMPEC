@@ -171,6 +171,7 @@ class CreateAndRunScenario(object):
                 solution_pre,
                 self.scenario_results_directory,
                 False,
+                0,
                 debug_mode=1,
             )
         storageclass = StorageOfferMitigation(
@@ -219,6 +220,7 @@ class CreateAndRunScenario(object):
             self.instance.GeneratorProfitDual.deactivate()
             self.instance.RTGeneratorProfitDualPre.deactivate()
             self.instance.RTGeneratorProfitDual.deactivate()
+            self.instance.SSProfit.deactivate()
 
         elif case_type == "MIP" and mip_iter > 1 and self.is_RT == False:
             print(
@@ -226,6 +228,7 @@ class CreateAndRunScenario(object):
             )
             self.instance.GeneratorProfitDualPre.deactivate()
             self.instance.GeneratorProfitDual.activate()
+            self.instance.SSProfit.deactivate()
 
         elif case_type == "MIP" and mip_iter == 1 and self.is_RT == True:
             print(
@@ -238,6 +241,7 @@ class CreateAndRunScenario(object):
             self.instance.GeneratorProfitDual.deactivate()
             self.instance.RTGeneratorProfitDualPre.activate()
             self.instance.RTGeneratorProfitDual.deactivate()
+            self.instance.SSProfit.deactivate()
 
         elif case_type == "MIP" and mip_iter > 1 and self.is_RT == True:
             print(
@@ -245,6 +249,7 @@ class CreateAndRunScenario(object):
             )
             self.instance.RTGeneratorProfitDualPre.deactivate()
             self.instance.RTGeneratorProfitDual.activate()
+            self.instance.SSProfit.deactivate()
 
         elif case_type == "LP":
             self.instance.TotalCost2.activate()
@@ -254,6 +259,7 @@ class CreateAndRunScenario(object):
             self.instance.GeneratorProfitDual.deactivate()
             self.instance.RTGeneratorProfitDual.deactivate()
             self.instance.RTGeneratorProfitDualPre.deactivate()
+            self.instance.SSProfit.deactivate()
             # instance.PminConstraint.deactivate()
 
         # ### Solve ### #

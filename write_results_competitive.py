@@ -200,18 +200,20 @@ def load_solution(instance, results):
 
 
 def export_objective_value(instance, results_directory, gap_value):
-    index_name, profitdual_list, totalcost_list, rtprofitdual_list, gap_list = (
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
+    (
+        index_name,
+        profitdual_list,
+        totalcost_list,
+        rtprofitdual_list,
+        gap_list,
+        ss_list,
+    ) = ([], [], [], [], [], [])
     profitdual_list.append(value(instance.GeneratorProfitDual))
     totalcost_list.append(value(instance.TotalCost2))
 
     rtprofitdual_list.append(value(instance.RTGeneratorProfitDual))
     gap_list.append(gap_value)
+    ss_list.append(value(instance.SSProfit))
     index_name.append("ObjectiveValue")
 
     col_names = [
@@ -219,6 +221,7 @@ def export_objective_value(instance, results_directory, gap_value):
         "TotalCostDispatch",
         "RTGeneratorProfitDual",
         "gap",
+        "SSProfit",
     ]
     df = pd.DataFrame(
         data=np.column_stack(
@@ -227,6 +230,7 @@ def export_objective_value(instance, results_directory, gap_value):
                 np.asarray(totalcost_list),
                 np.asarray(rtprofitdual_list),
                 np.asarray(gap_list),
+                np.asarray(ss_list),
             )
         ),
         columns=col_names,

@@ -38,10 +38,10 @@ start_time = time.time()
 cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 
 ### GENERAL INPUTS ###
-case_folder = "test"  # andWind309
+case_folder = "BothNSS_NoWind"  # andWind309
 
-start_date = "01-10-2019"  # use this string format
-end_date = "01-11-2019"  # end date is exclusive
+start_date = "01-01-2019"  # use this string format
+end_date = "01-02-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
@@ -56,9 +56,10 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.00002,
+    "emphasis_mip": 1,
+    "mip_tolerances_mipgap": 0.01,
     "mip_tolerances_integrality": 0.000000000001,
-    "dettimelimit": 265000,
+    "dettimelimit": 75000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
@@ -95,18 +96,15 @@ elif RT and not bind_DA_offers_in_RT:
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
-    # deactivated_constraint_args.append("BindFinalSOCConstraint")
-    deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
-    deactivated_constraint_args.append("BindFinalSOCMinConstraint")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMinConstraint")
     deactivated_constraint_args.append("MaxStorageComplementarity")
     deactivated_constraint_args.append("MinStorageComplementarity")
     deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageChargeDualConstraint")
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
-    deactivated_constraint_args.append("FinalSOCMaxComplementarity")
-    deactivated_constraint_args.append("FinalSOCMinComplementarity")
-    # deactivated_constraint_args.append("OneCycleConstraint")
-    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
-    # deactivated_constraint_args.append("BindDAFinalSOCConstraint")
+    deactivated_constraint_args.append("StorageNSChargeDualConstraint")
 elif RT and bind_DA_offers_in_RT:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
@@ -114,18 +112,17 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
     deactivated_constraint_args.append("MitigateChargeOfferConstraint")
     deactivated_constraint_args.append("SOCChangeConstraint")
-    deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
-    deactivated_constraint_args.append("BindFinalSOCMinConstraint")
-    # deactivated_constraint_args.append("BindFinalSOCConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMinConstraint")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
     deactivated_constraint_args.append("MaxStorageComplementarity")
     deactivated_constraint_args.append("MinStorageComplementarity")
     deactivated_constraint_args.append("StorageDischargeDualConstraint")
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
-    deactivated_constraint_args.append("FinalSOCMaxComplementarity")
-    deactivated_constraint_args.append("FinalSOCMinComplementarity")
+    deactivated_constraint_args.append("StorageChargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSChargeDualConstraint")
     deactivated_constraint_args.append("BindDAOneCycleConstraint")
-    # deactivated_constraint_args.append("OneCycleConstraint")
-    # deactivated_constraint_args.append("BindDAFinalSOCConstraint")
+
 else:
     raise NameError("case not found")
 

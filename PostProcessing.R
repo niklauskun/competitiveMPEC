@@ -680,7 +680,9 @@ compareObjectives <- function(resultslist){
   print(objectivedf)
   valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(RTGeneratorProfitDual))
   gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
+  profitdf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(SSProfit))
   valuedf$Gap <- gapdf$Gap
+  valuedf$SSProfit <- profitdf$SSProfit
   print(valuedf)
   
   ggplot(data=valuedf, aes(x=date, y=Objective, fill=label)) +
@@ -701,7 +703,7 @@ compareObjectives <- function(resultslist){
   
 }
 
-dates1 <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
