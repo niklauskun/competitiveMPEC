@@ -41,7 +41,7 @@ start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts 
 end = datetime.datetime.strptime(
     "01-02-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
-folder_out = "BothNSS_NoWind"  # name of folder to write the case to
+folder_out = "BothSS_NoWind_offersmitigated"  # name of folder to write the case to
 
 # optional inputs for running
 # these define differences between cases
@@ -60,7 +60,7 @@ optional_args = {
         "CSP",
     ],
     "owned_gens": [],
-    "owned_storage": [],
+    "owned_storage": ["313_STORAGE_1", "301_STORAGE_1"],
     "hybrid_gens": [],
     "hybrid_storage": [],
     "retained_buses": [
