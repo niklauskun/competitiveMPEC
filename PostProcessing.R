@@ -682,7 +682,7 @@ compareObjectives <- function(resultslist){
   gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
   profitdf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(SSProfit))
   valuedf$Gap <- gapdf$Gap
-  valuedf$SSProfit <- profitdf$SSProfit
+  valuedf$SSProfit <- profitdf$Objective
   print(valuedf)
   
   ggplot(data=valuedf, aes(x=date, y=Objective, fill=label)) +
@@ -703,14 +703,14 @@ compareObjectives <- function(resultslist){
   
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=10) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadResults(dates1,folder='test',subfolder="results_DA_RTVRE")
+results1 <- loadResults(dates1,folder='303SS_NoWind',subfolder="results_DA_RTVRE")
 results1RT  <- loadResultsRT(dates1,folder='test')
 
-caselist <- list(results1,results1RT)
+caselist <- list(results1,results1)
 names(caselist) <- c('day-ahead','real-time')
 compareObjectives(caselist)
 

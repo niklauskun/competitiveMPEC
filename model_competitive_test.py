@@ -478,7 +478,7 @@ dispatch_model.gensegmentmax_dual = Var(
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 1000000),
+    bounds=(0, 1000),
 )
 
 dispatch_model.gensegmentmin_dual = Var(
@@ -487,7 +487,7 @@ dispatch_model.gensegmentmin_dual = Var(
     dispatch_model.GENERATORSEGMENTS,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 1000000),
+    bounds=(0, 1000),
 )
 
 dispatch_model.transmissionmax_dual = Var(
@@ -495,7 +495,7 @@ dispatch_model.transmissionmax_dual = Var(
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 1000000),
+    bounds=(0, 1000),
 )
 
 dispatch_model.transmissionmin_dual = Var(
@@ -503,7 +503,7 @@ dispatch_model.transmissionmin_dual = Var(
     dispatch_model.TRANSMISSION_LINE,
     within=NonNegativeReals,
     initialize=0,
-    bounds=(0, 1000000),
+    bounds=(0, 1000),
 )
 
 dispatch_model.socmax_dual = Var(
@@ -1769,6 +1769,7 @@ def BindFlowDual(model, t, z):
             )
             lmp_delta += model.Susceptance[line] * model.zonalprice[t, z]
             lmp_delta -= model.Susceptance[line] * model.zonalprice[t, sink_zone]
+
     # if t==8 and z==1:
     #    print(maxdual,mindual,lmp_delta)
     return maxdual - mindual == lmp_delta
@@ -3061,26 +3062,23 @@ dispatch_model.RTGeneratorProfitDualPre = Objective(
 
 
 def ss_profit(model):
-    return (
+    return sum(
         sum(
-            sum(
-            model.gd[t, g] * model.zonalprice[t, model.ZoneLabel[g]] 
+            model.gd[t, g] * model.zonalprice[t, model.ZoneLabel[g]]
             for g in model.STRATEGIC_GENERATORS
-        ) 
-            for t in model.ACTIVETIMEPOINTS
         )
-        + sum(
-            sum(
-            (model.sd[t, s]- model.sc[t, s]) * model.zonalprice[t, model.StorageZoneLabel[s]] 
+        for t in model.ACTIVETIMEPOINTS
+    ) + sum(
+        sum(
+            (model.sd[t, s] - model.sc[t, s])
+            * model.zonalprice[t, model.StorageZoneLabel[s]]
             for s in model.STRATEGIC_STORAGE
-            ) 
-            for t in model.ACTIVETIMEPOINTS
         )
+        for t in model.ACTIVETIMEPOINTS
     )
 
-dispatch_model.SSProfit = Objective(
-    rule=ss_profit, sense=maximize
-) 
+
+dispatch_model.SSProfit = Objective(rule=ss_profit, sense=maximize)
 
 '''
 def objective_profit_dual(model):

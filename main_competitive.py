@@ -38,16 +38,16 @@ start_time = time.time()
 cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 
 ### GENERAL INPUTS ###
-case_folder = "BothSS_NoWind_offersmitigated"  # andWind309
+case_folder = "303SS_NoWind"  # andWind309
 
-start_date = "01-01-2019"  # use this string format
-end_date = "01-02-2019"  # end date is exclusive
+start_date = "01-10-2019"  # use this string format
+end_date = "06-01-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
-RT, rt_tmps, total_rt_tmps = True, 48, 288
+RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
-mitigate_storage_offers = True
+mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
 RTVRE = True  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
@@ -56,9 +56,9 @@ executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "emphasis_mip": 1,
     "mip_tolerances_mipgap": 0.01,
-    "mip_tolerances_integrality": 0.000000000001,
+    "mip_tolerances_integrality": 0.000000001,
+    "simplex_tolerances_feasibility": 0.001,
     "dettimelimit": 75000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
@@ -83,10 +83,18 @@ if not bind_DA_offers_in_RT and not RT:
     deactivated_constraint_args.append("BindDAOneCycleMinConstraint")
     deactivated_constraint_args.append("RTStorageDischargeDualConstraint")
     deactivated_constraint_args.append("RTStorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageChargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
     deactivated_constraint_args.append("RTFinalSOCMaxComplementarity")
     deactivated_constraint_args.append("RTFinalSOCMinComplementarity")
     deactivated_constraint_args.append("RTDAOneCycleMaxComplementarity")
     deactivated_constraint_args.append("RTDAOneCycleMinComplementarity")
+
+    ##for tests ##
+    # deactivated_constraint_args.append("GeneratorStartupShutdownConstraint")
+    # deactivated_constraint_args.append("GeneratorRampDownConstraint")
+    # deactivated_constraint_args.append("GeneratorOfferDualConstraint")
+
     """
     # deactivated_constraint_args.append("BindDAOneCycleConstraint")
     # deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
