@@ -38,10 +38,10 @@ start_time = time.time()
 cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
 
 ### GENERAL INPUTS ###
-case_folder = "303SS_NoWind"  # andWind309
+case_folder = "BothSS_Wind303"  # andWind309
 
 # start from 7/1
-start_date = "07-01-2019"  # use this string format
+start_date = "01-01-2019"  # use this string format
 end_date = "01-01-2020"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = False, 48, 288
@@ -50,7 +50,7 @@ EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
 bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
-RTVRE = True  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
+RTVRE = False  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -59,7 +59,7 @@ solver_kwargs = {
     "parallel": -1,
     "mip_tolerances_mipgap": 0.01,
     "mip_tolerances_integrality": 0.000000001,
-    "simplex_tolerances_feasibility": 0.001,
+    "simplex_tolerances_feasibility": 0.01,
     "dettimelimit": 75000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
@@ -130,7 +130,7 @@ elif RT and bind_DA_offers_in_RT:
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
     deactivated_constraint_args.append("StorageChargeDualConstraint")
     deactivated_constraint_args.append("StorageNSChargeDualConstraint")
-    deactivated_constraint_args.append("BindDAOneCycleConstraint")
+    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
 
 else:
     raise NameError("case not found")

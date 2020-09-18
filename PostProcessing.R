@@ -11,7 +11,7 @@ library(dplyr)
 library(table1)
 library(xtable)
 
-baseWD <- "C:/Users/llavin/Desktop/test826"
+baseWD <- "C:/Users/llavin/Desktop/competitiveMPEC-DA"
 setwd(paste(baseWD, "", sep="/"))
 
 ## Load model results ####
@@ -678,7 +678,7 @@ compareObjectives <- function(resultslist){
   }
   objectivedf <- rbind(resultslist[[2]]$objective,resultslist[[1]]$objective)
   print(objectivedf)
-  valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(RTGeneratorProfitDual))
+  valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(GeneratorProfitDual))
   gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
   profitdf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(SSProfit))
   valuedf$Gap <- gapdf$Gap
@@ -700,20 +700,25 @@ compareObjectives <- function(resultslist){
   
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
   ggsave(paste0("dailyobjectives",".png"), width=12, height=6)
+  return(valuedf)
   
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=10) # Configure cases period here
+dates1 <- seq(as.POSIXct("1/18/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadResults(dates1,folder='303SS_NoWind',subfolder="results_DA_RTVRE")
-results1RT  <- loadResultsRT(dates1,folder='test')
+results1 <- loadResults(dates1,folder='BothNSS_Wind303',subfolder="results_DA_RTVRE")
+results2 <- loadResults(dates1,folder='BothSS_Wind303',subfolder="results_DA_RTVRE")
+results3 <- loadResults(dates1,folder="303SS_Wind303",subfolder="results_DA_RTVRE")
+results1RT  <- loadResultsRT(dates1,folder='BothNSS_Wind303')
 
-caselist <- list(results1,results1)
+caselist <- list(results2)
 names(caselist) <- c('day-ahead','real-time')
-compareObjectives(caselist)
-
+names(caselist) <- c('NSS',"SS",'mix')
+df2 <- compareObjectives(caselist)
+df2$delta <- df2$SSProfit-df2$Objective
+write.csv(df2,"df2.csv")
 #results2 <- loadResults(dates2,folder='test')
 # <- loadResultsRT(dates2,folder='test')
 
