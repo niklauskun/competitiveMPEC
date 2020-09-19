@@ -92,6 +92,7 @@ class CreateAndRunScenario(object):
         is_MPEC,
         is_RT,
         is_RTVRE,
+        is_bind_offer,
         mitigate_storage_offers,
         genco_index,
         overwritten_offers,
@@ -107,6 +108,7 @@ class CreateAndRunScenario(object):
         self.is_MPEC = is_MPEC
         self.is_RT = is_RT
         self.is_RTVRE = is_RTVRE
+        self.is_bind_offer = is_bind_offer
         self.genco_index = genco_index
         self.overwritten_offers = overwritten_offers
 
@@ -146,6 +148,11 @@ class CreateAndRunScenario(object):
                 self.scenario_inputs_directory
             )
             print(".. real-time data read.")
+        elif not self.is_RT and self.is_bind_offer:
+            self.data = input_competitive_DA_RTVRE.scenario_inputs(
+                self.scenario_inputs_directory
+            )
+            print(".. day-ahead data with real-time VRE data read.")
         elif not self.is_RT and self.is_RTVRE:
             self.data = input_competitive_DA_RTVRE.scenario_inputs(
                 self.scenario_inputs_directory
@@ -658,11 +665,13 @@ def write_timepoint_subset(directory, is_RT, tmps, slicer):
     df.to_csv(join(directory.INPUTS_DIRECTORY, "timepoints_index_subset_rt.csv"))
 
 
-def create_case_suffix(directory, RT, RTVRE, rt_tmps, n_iter):
-    if not RT and not RTVRE:
+def create_case_suffix(directory, RT, RTVRE, bind_DA_offers, rt_tmps, n_iter):
+    if not RT and not RTVRE and not bind_DA_offers:
         return "_DA"
-    elif not RT and RTVRE:
+    elif not RT and RTVRE and not bind_DA_offers:
         return "_DA_RTVRE"
+    elif bind_DA_offers and not RT:
+        return "_Bind_DA"
     else:
         case_string = (
             "_" + str((n_iter - 1) * rt_tmps + 1) + "_" + str((n_iter) * rt_tmps)
@@ -670,7 +679,7 @@ def create_case_suffix(directory, RT, RTVRE, rt_tmps, n_iter):
         return "_RT" + case_string
 
 
-def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
+def write_DA_bids(directory, RT, bind_DA_offers, rt_tmps, errormsg=False, default_write=True):
     """[summary]
 
     Args:
@@ -727,6 +736,53 @@ def write_DA_bids(directory, RT, rt_tmps, errormsg=False, default_write=True):
             )
         return None
     elif RT:
+        try:
+            bid_df = pd.read_csv(
+                os.path.join(directory.RESULTS_DIRECTORY, "storage_dispatch.csv")
+            )
+        except FileNotFoundError:
+            errormsg = True
+        if errormsg:
+            raise Exception(
+                "DA case must be run prior to RT case if you wish to bind storage offers"
+            )
+        da_tmps = len(bid_df.time.unique())
+        bid_df.rename(columns={"Unnamed: 0": "Storage_Index"}, inplace=True)
+        for esr in bid_df["Storage_Index"].unique():
+            subset_bid_df = bid_df[(bid_df.Storage_Index == esr)].copy().reset_index()
+            storage_tmp2 = pd.DataFrame()
+            storage_tmp2 = (
+                subset_bid_df[out_df_cols]
+                .loc[subset_bid_df[out_df_cols].index.repeat(int(rt_tmps / da_tmps))]
+                .reset_index()
+            )
+            storage_tmp2.time = [storage_tmp2.index[i] + 1 for i in storage_tmp2.index]
+            storage_list.append(storage_tmp2[out_df_cols])
+        storage_df = pd.concat(storage_list, axis=0)
+
+        # to be careful here, I create a sorter to ensure 313_Storage_1 always ends up first since it's the original
+        esr_list = []
+        for esr in bid_df["Storage_Index"].unique():
+            if esr != "313_STORAGE_1":
+                esr_list.append(esr)
+        sorter = ["313_STORAGE_1"] + esr_list
+
+        # Create the dictionary that defines the order for sorting
+        sorterIndex = dict(zip(sorter, range(len(sorter))))
+        # Generate a rank column that will be used to sort
+        storage_df["ESR_Rank"] = storage_df["Storage_Index"].map(sorterIndex)
+        # then sort
+        storage_df.sort_values(["time", "ESR_Rank"], inplace=True)
+        storage_df.drop("ESR_Rank", 1, inplace=True)  # drop the sorting col
+        write_cols = out_df_cols
+        write_cols[0] = "timepoint"
+        storage_df.columns = write_cols
+        storage_df.to_csv(
+            os.path.join(directory.INPUTS_DIRECTORY, "storage_offers_DA.csv"),
+            index=False,
+        )
+        return None
+    elif bind_DA_offers and not RT:
         try:
             bid_df = pd.read_csv(
                 os.path.join(directory.RESULTS_DIRECTORY, "storage_dispatch.csv")
