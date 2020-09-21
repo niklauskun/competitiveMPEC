@@ -679,7 +679,15 @@ def create_case_suffix(directory, RT, RTVRE, bind_DA_offers, rt_tmps, n_iter):
         return "_RT" + case_string
 
 
-def write_DA_bids(directory, RT, bind_DA_offers, rt_tmps, errormsg=False, default_write=True):
+def write_DA_bids(
+    directory,
+    RT,
+    bind_DA_offers,
+    rt_tmps,
+    scenario_name,
+    errormsg=False,
+    default_write=True,
+):
     """[summary]
 
     Args:
@@ -785,7 +793,12 @@ def write_DA_bids(directory, RT, bind_DA_offers, rt_tmps, errormsg=False, defaul
     elif bind_DA_offers and not RT:
         try:
             bid_df = pd.read_csv(
-                os.path.join(directory.RESULTS_DIRECTORY, "storage_dispatch.csv")
+                os.path.join(
+                    directory.CASE_DIRECTORY,
+                    scenario_name,
+                    "results_DA",
+                    "storage_dispatch.csv",
+                )
             )
         except FileNotFoundError:
             errormsg = True
