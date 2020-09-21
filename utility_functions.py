@@ -148,11 +148,6 @@ class CreateAndRunScenario(object):
                 self.scenario_inputs_directory
             )
             print(".. real-time data read.")
-        elif not self.is_RT and self.is_bind_offer:
-            self.data = input_competitive_DA_RTVRE.scenario_inputs(
-                self.scenario_inputs_directory
-            )
-            print(".. day-ahead data with real-time VRE data read.")
         elif not self.is_RT and self.is_RTVRE:
             self.data = input_competitive_DA_RTVRE.scenario_inputs(
                 self.scenario_inputs_directory
@@ -813,7 +808,6 @@ def write_DA_bids(
             storage_tmp2 = pd.DataFrame()
             storage_tmp2 = (
                 subset_bid_df[out_df_cols]
-                .loc[subset_bid_df[out_df_cols].index.repeat(int(rt_tmps / da_tmps))]
                 .reset_index()
             )
             storage_tmp2.time = [storage_tmp2.index[i] + 1 for i in storage_tmp2.index]
