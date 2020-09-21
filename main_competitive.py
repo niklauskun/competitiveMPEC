@@ -35,10 +35,10 @@ from utility_functions import (
 )
 
 start_time = time.time()
-cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "test826")
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
 
 ### GENERAL INPUTS ###
-case_folder = "303SS_301NSS_Wind303_MitigateOffer"  # andWind309
+case_folder = "303SS_301NSS_Wind303"  # andWind309
 
 # start from 7/1
 start_date = "01-01-2019"  # use this string format
@@ -48,9 +48,9 @@ RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
-mitigate_storage_offers = True
-bind_DA_offers_in_RT = False  # if True **AND** RT==True, RT offers are equivalent to DA even for strategic storage
-RTVRE = True  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
+mitigate_storage_offers = False
+bind_DA_offers = True
+RTVRE = False  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
@@ -71,7 +71,7 @@ deactivated_constraint_args = []  # list of constraint names to deactivate
 # an example that won't affect problem much is "OfferCapConstraint"
 
 # "OneCycleConstraint
-if not bind_DA_offers_in_RT and not RT:
+if not bind_DA_offers and not RT:
     print("run DA case, deactivating offer and SOC constraint binds")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
@@ -100,7 +100,36 @@ if not bind_DA_offers_in_RT and not RT:
     # deactivated_constraint_args.append("BindDAOneCycleConstraint")
     # deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
     """
-elif RT and not bind_DA_offers_in_RT:
+elif bind_DA_offers and not RT:
+    print("run DA case, deactivating offer and SOC constraint binds")
+    deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
+    deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    deactivated_constraint_args.append("BindDASOCChangeConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMaxConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMinConstraint")
+    deactivated_constraint_args.append("RTMaxStorageComplementarity")
+    deactivated_constraint_args.append("RTMinStorageComplementarity")
+    deactivated_constraint_args.append("BindDAOneCycleMaxConstraint")
+    deactivated_constraint_args.append("BindDAOneCycleMinConstraint")
+    deactivated_constraint_args.append("RTStorageDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageChargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    deactivated_constraint_args.append("RTFinalSOCMaxComplementarity")
+    deactivated_constraint_args.append("RTFinalSOCMinComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMaxComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMinComplementarity")
+
+    ##for tests ##
+    # deactivated_constraint_args.append("GeneratorStartupShutdownConstraint")
+    # deactivated_constraint_args.append("GeneratorRampDownConstraint")
+    # deactivated_constraint_args.append("GeneratorOfferDualConstraint")
+
+    """
+    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
+    # deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    """
+elif RT and not bind_DA_offers:
     print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
     deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
     deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
@@ -114,7 +143,7 @@ elif RT and not bind_DA_offers_in_RT:
     deactivated_constraint_args.append("StorageChargeDualConstraint")
     deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
     deactivated_constraint_args.append("StorageNSChargeDualConstraint")
-elif RT and bind_DA_offers_in_RT:
+elif RT and bind_DA_offers:
     print(
         "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
     )
@@ -210,7 +239,7 @@ for counter, s in enumerate(scenario_list):
     # run the case, as usual
     code_directory = cwd
     dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-    case_suffix = create_case_suffix(dir_str, RT, RTVRE, rt_tmps, rt_iter)
+    case_suffix = create_case_suffix(dir_str, RT, RTVRE, bind_DA_offers, rt_tmps, rt_iter)
     dir_str.make_directories(case_suffix)
     logger = Logger(dir_str)
     log_file = logger.log_file_path
@@ -235,13 +264,18 @@ for counter, s in enumerate(scenario_list):
     write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
 
     # writes the file storage_bids_DA.csv
-    if RT:  # bind_DA_offers_in_RT and
+    if RT:  # bind_DA_offers and
         DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-        DA_case_suffix = create_case_suffix(DA_dir_str, False, RTVRE, rt_tmps, rt_iter)
+        DA_case_suffix = create_case_suffix(DA_dir_str, False, RTVRE, bind_DA_offers, rt_tmps, rt_iter)
         DA_dir_str.make_directories(DA_case_suffix)
-        write_DA_bids(DA_dir_str, RT, total_rt_tmps, default_write=False)
+        write_DA_bids(DA_dir_str, RT, bind_DA_offers, total_rt_tmps, default_write=False)
+    elif bind_DA_offers:
+        DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+        DA_case_suffix = create_case_suffix(DA_dir_str, False, RTVRE, bind_DA_offers, rt_tmps, rt_iter)
+        DA_dir_str.make_directories(DA_case_suffix)
+        write_DA_bids(DA_dir_str, RT, bind_DA_offers, total_rt_tmps, default_write=False)
     else:
-        write_DA_bids(dir_str, RT, total_rt_tmps, default_write=True)
+        write_DA_bids(dir_str, RT, bind_DA_offers, total_rt_tmps, default_write=True)
 
     # create and run scenario (this is the big one)
     scenario = CreateAndRunScenario(
@@ -250,6 +284,7 @@ for counter, s in enumerate(scenario_list):
         MPEC,
         RT,
         RTVRE,
+        bind_DA_offers,
         mitigate_storage_offers,
         genco_index,
         overwritten_offers,
