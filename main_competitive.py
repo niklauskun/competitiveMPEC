@@ -41,15 +41,15 @@ cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC")
 case_folder = "303.301SS_Wind303"  # andWind309
 
 # start from 7/1
-start_date = "01-03-2019"  # use this string format
-end_date = "01-04-2019"  # end date is exclusive
+start_date = "01-01-2019"  # use this string format
+end_date = "02-01-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
 mitigate_storage_offers = False
-bind_DA_offers = True
+bind_DA_offers = False
 RTVRE = True  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###

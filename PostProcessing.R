@@ -11,7 +11,7 @@ library(dplyr)
 library(table1)
 library(xtable)
 
-baseWD <- "C:/Users/llavin/Desktop/competitiveMPEC-DA"
+baseWD <- "C:/Users/wenmi/Desktop/competitiveMPEC"
 setwd(paste(baseWD, "", sep="/"))
 
 ## Load model results ####
@@ -70,7 +70,7 @@ readFilesRT <- function(filename, dates, dateWD){
 }
 
 
-loadResults <- function(dates,folder,subfolder="results_DA"){
+loadResults <- function(dates,folder,subfolder){
   dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
   dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
   dateResultsWD<-paste(baseWD, folder, sep="/")
@@ -131,7 +131,7 @@ loadResultsRT <- function(dates,folder){
 }
 
 # helper function to load data from all cases
-loadAllCases <- function(dates,folder="test"){
+loadAllCases <- function(dates,folder="303.301SS_Wind303"){
   results <- loadResults(dates,folder)
   return(results,resultsRT)
 }
@@ -704,49 +704,53 @@ compareObjectives <- function(resultslist){
   
 }
 
-dates1 <- seq(as.POSIXct("1/18/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
 dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadResults(dates1,folder='BothNSS_Wind303',subfolder="results_DA_RTVRE")
-results2 <- loadResults(dates1,folder='BothSS_Wind303',subfolder="results_DA_RTVRE")
-results3 <- loadResults(dates1,folder="303SS_Wind303",subfolder="results_DA_RTVRE")
-results1RT  <- loadResultsRT(dates1,folder='BothNSS_Wind303')
+results1 <- loadResults(dates1,folder='303.301SS_Wind303',subfolder="results_DA_RTVRE")
+results2 <- loadResults(dates1,folder='303.301SS_Wind303',subfolder="results_Bind_DA")
+#results3 <- loadResults(dates1,folder="303.301SS_Wind303",subfolder="results_DA")
+#results1RT  <- loadResultsRT(dates1,folder='303.301SS_Wind303')
 
-caselist <- list(results2)
-names(caselist) <- c('day-ahead','real-time')
-names(caselist) <- c('NSS',"SS",'mix')
-df2 <- compareObjectives(caselist)
-df2$delta <- df2$SSProfit-df2$Objective
-write.csv(df2,"df2.csv")
+#caselist <- list(results2)
+#names(caselist) <- c('day-ahead-rtvre','bind-day-ahead')
+#names(caselist) <- c('NSS',"SS",'mix')
+#df2 <- compareObjectives(caselist)
+#df2$delta <- df2$SSProfit-df2$Objective
+#write.csv(df2,"df2.csv")
 #results2 <- loadResults(dates2,folder='test')
 # <- loadResultsRT(dates2,folder='test')
 
 #plotDispatch(results2,dates2,plotTitle='Feb',F)
 
-d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019')
-d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019')
-d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019')
+d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
+d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
+d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
 
-d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT')
-d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT')
-d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+d1bind <- plotDispatch(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
+d2bind <- plotPrices(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
+d3bind <- plotStorage(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
 
-compareplotDispatch(d1,d1RT)
-compareplotPrices(d2,d2RT)
-compareplotStorage(d3,d3RT)
+#d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+#d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+#d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT')
 
-caselist <- list(d3,d3RT)
+#compareplotDispatch(d1,d1RT)
+#compareplotPrices(d2,d2RT)
+#compareplotStorage(d3,d3RT)
+
+caselist <- list(d3,d3bind)
 names(caselist) <- c('day-ahead','real-time')
 compareStorageHeatplot(caselist)
 compareStorageHeatplot(caselist,type='lmp')
 compareStorageProfit(caselist,plotTitle='test',resolution='month')
 
-caselist <- list(cleanDispatchCost(results1,dates1),cleanDispatchCost(results1RT,dates1))
+caselist <- list(cleanDispatchCost(results1,dates1),cleanDispatchCost(results2,dates1))
 names(caselist) <- c('day-ahead','real-time')
 compareTotalGeneratorCost(caselist,plotTitle='test',resolution='month')
 
-caselist <- list(cleanDispatchProfit(results1,dates1),cleanDispatchProfit(results1RT,dates1))
+caselist <- list(cleanDispatchProfit(results1,dates1),cleanDispatchProfit(results2,dates1))
 names(caselist) <- c('day-ahead','real-time')
 compareGeneratorProfit(caselist,plotTitle='test')
 
