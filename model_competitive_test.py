@@ -791,7 +791,12 @@ dispatch_model.NonUCDispatchConstraint = Constraint(
 
 
 def REOfferCap(model, t, g):
-    if g in model.NUC_GENS:
+    if g in model.HYBRID_GENS:
+        for s in model.HYBRID_STORAGE:
+            if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
+                return model.go[t,g] == model.sodischarge[t, s]
+        return Constraint.Skip
+    elif g in model.NUC_GENS:
         return model.go[t, g] == 0.0
     else:
         return Constraint.Skip
@@ -869,8 +874,8 @@ def HybirdCapacityRule(model, t, s):
         hybrid_dispatch = 0
         hybrid_capacity = 0
         if model.ZoneLabel[g] == model.StorageZoneLabel[s]:
-            hybrid_dispatch += model.nucgd[t, s]
-            hybrid_capacity += model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
+            hybrid_dispatch += model.nucgd[t, g]
+            hybrid_capacity += model.capacity[g]#model.CapacityTime[t, g] * model.ScheduledAvailable[t, g]
     return hybrid_capacity * model.Hours[t] >= hybrid_dispatch + model.sd[t, s]
 
 
