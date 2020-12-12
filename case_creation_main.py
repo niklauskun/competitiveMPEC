@@ -37,11 +37,11 @@ data_class.add_unit(
 )  # [323, 301, 301], ["322_HYDRO_1", "303_WIND_1", "313_STORAGE_1"]
 
 # inputs for running
-start = datetime.datetime.strptime("06-01-2019", "%m-%d-%Y")  # day case starts on
+start = datetime.datetime.strptime("01-01-2019", "%m-%d-%Y")  # day case starts on
 end = datetime.datetime.strptime(
-    "08-01-2019", "%m-%d-%Y"
+    "02-01-2019", "%m-%d-%Y"
 )  # day case ends on. Generally this can be 01-01-2020.
-folder_out = "Wind303_2x303NSS"  # name of folder to write the case to
+folder_out = "Wind303_2x303SS"  # name of folder to write the case to
 
 # optional inputs for running
 # these define differences between cases
@@ -60,7 +60,7 @@ optional_args = {
         "CSP",
     ],
     "owned_gens": ["303_WIND_1"],
-    "owned_storage": [],
+    "owned_storage": ["313_STORAGE_1","303_STORAGE_1"],
     "hybrid_gens": [],
     "hybrid_storage": [],
     "retained_buses": [

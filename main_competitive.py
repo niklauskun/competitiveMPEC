@@ -38,11 +38,11 @@ start_time = time.time()
 cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC_12.6")
 
 ### GENERAL INPUTS ###
-case_folder = "Wind303_2x303NSS"#"Colocated303_303NSS"  #Wind303_2x303NSS
+case_folder = "Wind303_2x303SS"#"Colocated303_303NSS"  #Wind303_2x303NSS
 
 # start from 7/1
-start_date = "06-01-2019"  # use this string format
-end_date = "08-01-2019"  # end date is exclusive
+start_date = "01-01-2019"  # use this string format
+end_date = "02-01-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
 RT, rt_tmps, total_rt_tmps = False, 48, 288
 # the second value is how many tmps to subset RT cases into
