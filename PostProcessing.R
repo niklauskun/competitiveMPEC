@@ -1,12 +1,5 @@
 rm(list=ls())
 
-install.packages("mvtnorm")
-install.packages("emmeans")
-install.packages("sjstats")
-install.packages("sjPlot")
-install.packages('xtable')
-install.packages('lubridate')
-
 require(ggplot2)
 require(openxlsx)
 require(plyr)
@@ -18,13 +11,19 @@ library(dplyr)
 library(table1)
 library(xtable)
 
-baseWD <- "C:/Users/llavin/Desktop/luke_mpec/competitiveMPEC-master"
-setwd(paste(baseWD, "basedispatch", sep="/"))
+baseWD <- "C:/Users/wenmi/Desktop/competitiveMPEC"
+setwd(paste(baseWD, "", sep="/"))
 
 ## Load model results ####
 
+sec_in_min = 60 #60 seconds in a minute
+#configure RT case slice per hour
+rt_da_resolution = 12 #number of rt tmps in each da tmp
+tmps = 48
+slicer = 6
+
 # helper function to read all files in date range of a specific output
-readFiles <- function(filename, dates, dateWD, subFolder="results"){
+readFiles <- function(filename, dates, dateWD, subFolder="results_DA"){
   
   for(i in 1:length(dates)){
     date <- dates[i]
@@ -44,54 +43,122 @@ readFiles <- function(filename, dates, dateWD, subFolder="results"){
   return(fullDF)
 }
 
-loadResults <- function(dates,folder){
-  
+readFilesRT <- function(filename, dates, dateWD){
+  for(i in 1:length(dates)){
+    for(j in 1:slicer){
+      date <- dates[i]
+      subFolder <- paste("results_RT", tmps * (j - 1) + 1, tmps * j, sep="_")
+      dateString <- paste(as.character(format(date, "%m")), as.character(format(date, "%d")), as.numeric(format(date, "%Y")), sep=".")
+      setwd(paste(dateWD, dateString, subFolder, sep="/"))
+    
+      # load file
+      dftmp <- read.csv(filename)
+      dftmp$date <- date
+      if(j == 1){
+        df <- dftmp
+      } else{
+        df <- rbind(df, dftmp)
+        }
+      }
+    if(i == 1){
+      fullDF <- df
+    } else{
+      fullDF <- rbind(fullDF, df)
+    }
+  }
+  return(fullDF)
+}
+
+
+loadResults <- function(dates,folder,subfolder){
   dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
   dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
   dateResultsWD<-paste(baseWD, folder, sep="/")
-  #if (length(dateMonth) == 1){
-  #  dayStart <- as.numeric(format(dates[1], "%d"))
-  #  dayEnd <- max(as.numeric(format(dates[length(dates)], "%d")),dayStart+6)
-    #dayEnd <- dayEnd
-    # case options: NoReserves, SimpleORDC, ConstantReserves, withORDC
-    # there will be new case options but this should be ok
-    #directory <- paste(dateMonth, dayStart, dayEnd, dateYear, case, sep="_")
-  
-    
-  #} else{
-  #  print("Error. Multiple months in date range.")   # multiple months yields error for now, can update based on directory format
-  #  return(NULL)
-  #}
-  
-  modelLMP <- readFiles("zonal_prices.csv", dates, dateResultsWD)
-  txFlows <- readFiles("tx_flows.csv", dates, dateResultsWD)
-  offer <- readFiles("generator_segment_offer.csv", dates, dateResultsWD)
-  dispatch <- readFiles("generator_dispatch.csv", dates, dateResultsWD)
-  storage <- readFiles("storage_dispatch.csv", dates, dateResultsWD)
-  VRE <- readFiles("renewable_generation.csv", dates, dateResultsWD)
+
+  modelLMP <- readFiles("zonal_prices.csv", dates, dateResultsWD,subFolder=subfolder)
+  txFlows <- readFiles("tx_flows.csv", dates, dateResultsWD,subFolder=subfolder)
+  offer <- readFiles("generator_segment_offer.csv", dates, dateResultsWD,subFolder=subfolder)
+  nucoffer <- readFiles("nuc_offer.csv", dates, dateResultsWD,subFolder=subfolder)
+  dispatch <- readFiles("generator_dispatch.csv", dates, dateResultsWD,subFolder=subfolder)
+  storage <- readFiles("storage_dispatch.csv", dates, dateResultsWD,subFolder=subfolder)
+  objective <- readFiles("objective.csv",dates, dateResultsWD,subFolder=subfolder)
+  #VRE <- readFiles("renewable_generation.csv", dates, dateResultsWD)
   
   #ordc <- readFiles("full_ordc.csv", dates, dateResultsWD, subFolder="inputs")
-  gens <- readFiles("PJM_generators_full.csv", dates, dateResultsWD, subFolder="inputs")
+  gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
   zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
-  emissions <- readFiles("generator_segment_marginalcost.csv", dates, dateResultsWD, subFolder="inputs")
+  storageresources <- readFiles("storage_resources.csv", dates, dateResultsWD, subFolder="inputs")
+  generatorresources <- readFiles("generators.csv", dates, dateResultsWD, subFolder="inputs")
+  #emissions <- readFiles("generator_segment_marginalcost.csv", dates, dateResultsWD, subFolder="inputs")
   
-  # some formatting
-  gens <- gens[!duplicated(gens),] # remove duplicate generators
-  gens <- gens[,c("Name", "Zone", "Category")]  # subset generator columns
-  
-  #reformat zonal prices so it matches previous format
-  modelLMP <- modelLMP[,c("X","hour","LMP","date")]
+  #clean and format
+  modelLMP <- AddDatetime(modelLMP)
+  storage <- AddDatetime(storage)
+  dispatch <- AddDatetime(dispatch)
   
   # return results
-  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, emissions)
-  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer","emissions")
+  results <- list(modelLMP, zonalLoad, dispatch, gens, txFlows, storage, offer, nucoffer, storageresources, generatorresources, objective)
+  names(results) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources", "objective")
   return(results)
 }
 
-# helper function to load data from all four cases
-loadAllCases <- function(dates,folder="RTSDispatchCases"){
+loadResultsRT <- function(dates,folder){
+  dateMonth <- unique(format(dates, "%b"))  # extract month of dates for directory
+  dateYear <- unique(format(dates, "%Y"))  # extract year of dates for directory
+  dateResultsWD<-paste(baseWD, folder, sep="/")
+
+  gens <- readFiles("generators_descriptive.csv", dates, dateResultsWD, subFolder="inputs")
+  zonalLoad <- readFiles("timepoints_zonal.csv", dates, dateResultsWD, subFolder="inputs")
+  storageresources <- readFiles("storage_resources.csv", dates, dateResultsWD, subFolder="inputs")
+  generatorresources <- readFiles("generators.csv", dates, dateResultsWD, subFolder="inputs")
+  modelLMPRT <- readFilesRT("zonal_prices.csv", dates, dateResultsWD)
+  txFlowsRT <- readFilesRT("tx_flows.csv", dates, dateResultsWD)
+  offerRT <- readFilesRT("generator_segment_offer.csv", dates, dateResultsWD)
+  nucofferRT <- readFilesRT("nuc_offer.csv", dates, dateResultsWD)
+  dispatchRT <- readFilesRT("generator_dispatch.csv", dates, dateResultsWD)
+  storageRT <- readFilesRT("storage_dispatch.csv", dates, dateResultsWD)
+  objectiveRT <- readFilesRT("objective.csv",dates,dateResultsWD)
+  
+  #clean and format
+  modelLMPRT <- AddDatetime(modelLMPRT)
+  storageRT <- AddDatetime(storageRT)
+  dispatchRT <- AddDatetime(dispatchRT)
+  
+  # return resultsRT
+  resultsRT <- list(modelLMPRT, zonalLoad, dispatchRT, gens, txFlowsRT, storageRT, offerRT, nucofferRT, storageresources, generatorresources, objectiveRT)
+  names(resultsRT) <- c("modelLMP", "zonalLoad", "dispatch", "gens", "txFlows", "storage", "offer", "nucoffer", "storageresources", "generatorresources", "objective")
+  return(resultsRT)
+}
+
+# helper function to load data from all cases
+loadAllCases <- function(dates,folder="303.301SS_Wind303"){
   results <- loadResults(dates,folder)
-  return(results)
+  return(results,resultsRT)
+}
+
+# helper function to add datetime to dataframe and reformat to target resolution (5-min default)
+AddDatetime <- function(df,BaseResolution=60,TargetResolution=5){
+  colnames(df)[2] <- "hour" #kludgy for now
+  NativeResolution <- 60/(max(df$hour)/24)
+  Ratio <- BaseResolution/NativeResolution
+  tmp_offsets <- seq(-55*sec_in_min, 0, 5*sec_in_min)
+  
+  df$time <- paste(df$hour%/%Ratio,df$hour%%Ratio*NativeResolution,sep=":")
+  df$datetime <- as.POSIXct(with(df, paste(date, time)), format = "%Y-%m-%d %H:%M")
+  
+  df <- df[rep(seq_len(nrow(df)), each = NativeResolution/TargetResolution), ]#repeat to get to RT
+  df$datetime <- df$datetime + c(diff(df$datetime)==0,F)*rep(tmp_offsets,length(df$datetime)/length(tmp_offsets))
+  #special conditional for storage to rescale
+  if("charge" %in% colnames(df)){
+    df$charge <- df$charge*Ratio
+    df$discharge <- df$discharge*Ratio
+    df$profit <- df$profit*TargetResolution/NativeResolution
+  }
+  if("GeneratorDispatch" %in% colnames(df)){
+    df$GeneratorDispatch <- df$GeneratorDispatch*Ratio
+  }
+  
+  return(df)
 }
 
 aggregateCaseData <- function(results, targetData){
@@ -105,14 +172,11 @@ aggregateCaseData <- function(results, targetData){
   return(newDF)
 }
 
-#zonal prices
-
 plotPrices <- function(results,dates,plotTitle,hours=24){
   prices <- results[['modelLMP']]
   prices$zone <- substr(prices[,1],start=1,stop=1)
   prices$zone <- paste0("Area ",prices$zone)
   prices$busID <- substr(prices[,1],start=2,stop=3)
-  prices$datetime <- as.POSIXct(with(prices, paste(date, hour)), format = "%Y-%m-%d %H")
   prices$X <- as.character(prices$X)
   
   #Luke's plotting code (active)
@@ -138,8 +202,9 @@ plotPrices <- function(results,dates,plotTitle,hours=24){
 }
 
 compareplotPrices <- function(prices_df1,prices_df2){
-  pricesdelta_df <- prices_df1[,c("datetime","zone","busID")]
-  pricesdelta_df$LMP <- prices_df1$LMP - prices_df2$LMP
+
+  pricesdelta_df <- merge(prices_df1, prices_df2, by = c("datetime","zone","busID"))
+  pricesdelta_df$LMP <- pricesdelta_df$LMP.x - pricesdelta_df$LMP.y
   
   #Luke's plotting code (active)
   ggplot(data=pricesdelta_df, aes(x=datetime, y=LMP, color=busID)) + geom_line(lwd=1.5) + 
@@ -159,21 +224,17 @@ compareplotPrices <- function(prices_df1,prices_df2){
   
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
   ggsave(paste0("prices delta",".png"), width=20, height=8)
-  
 }
 
 plotDispatch <- function(results, dates, plotTitle, hours=24){
   
   dispatch <- results[["dispatch"]]
   gens <- results[["gens"]]
-  
   offer <- results[['offer']]
-  #print(offer)
-  #offer$SegmentEmissions
 
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
-  offer$genID <- gsub("-\\d","",offer[,1])
-  offer$area <- substr(offer$Zone,start=1,stop=1)
+  offer$genID <- gsub("-\\d+","",offer[,1])
+  offer$area <- substr(offer$Zone,start=1,stop=3)
 
   offer <- merge(offer, gens[,c("Name", "Category")], by.x="genID", by.y="Name", all.x=T)
 
@@ -182,9 +243,8 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
   # summarize by fuel type
   fuelemissions <- ddply(offer, ~ date + hour + area, summarise, Emissions = sum(SegmentEmissions))
   fuelemissions$area <- factor(fuelemissions$area)
-  fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, hour)), format = "%Y-%m-%d %H")
-
-  #then melt into same format as fueldf
+  fuelemissions <- arrange(fuelemissions,area,hour)
+  fuelemissions <- AddDatetime(fuelemissions)
   
   # calculate all zones
   all_emissions <- ddply(fuelemissions, ~ datetime, summarise, Emissions = sum(Emissions))
@@ -195,45 +255,28 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
   colnames(fuelemissions) <- c("datetime","Emissions","zone")
   fuelemissions$zone <- as.factor(fuelemissions$zone)
   fuelemissions$Category <- "Coal"
-  #print(fuelemissions)
-
-  # subset dispatch output to single day (include columns for date and case as well)
-  dispatch <- dispatch[, c(1:(hours+1), dim(dispatch)[2])]
-  colnames(dispatch) <- c("id", 0:(hours-1), "date")
-  dispatch$zone <- substr(dispatch[,1],start=1,stop=1)
-  dispatch$plant <- gsub("[[:print:]]*-", "", dispatch[,1])
   
-  dispatch[,"id"] <- NULL
+  dispatch$zone <- substr(dispatch[,1],start=1,stop=3)
   
-  dispatch <- melt(dispatch, id.vars=c("date", "zone", "plant"))
-
-  colnames(dispatch) <- c("date", "zone", "plant", "hour", "MW")
-  #print(dispatch)
-  
-  # drop rows with zero generation
-  #dispatch <- dispatch[dispatch$MW != 0,]
   # match with fuel type
-  dispatch <- merge(dispatch, gens[,c("Name", "Category")], by.x="plant", by.y="Name", all.x=T)
+  dispatch <- merge(dispatch, gens[,c("Name", "Category")], by.x="X", by.y="Name", all.x=T)
   
   #drop duplicated entries in output
   dispatch <- dispatch[!duplicated(dispatch), ]
   
   # summarize by fuel type
-  fuelDispatch <- ddply(dispatch, ~ date + hour + zone + Category, summarise, MW = sum(MW))
+  fuelDispatch <- ddply(dispatch, ~ datetime + zone + Category, summarise, MW = sum(GeneratorDispatch))
   fuelDispatch$zone <- factor(fuelDispatch$zone)
-  fuelDispatch$datetime <- as.POSIXct(with(fuelDispatch, paste(date, hour)), format = "%Y-%m-%d %H")
   
-  fuelDispatch$Category <- factor(fuelDispatch$Category, levels = c("Sync_Cond","Solar RTPV","Solar PV","CSP","Wind",
+  fuelDispatch$Category <- factor(fuelDispatch$Category, levels = c("Solar RTPV","Solar PV","Wind",
                                                                     "Oil ST","Oil CT","Gas CT","Gas CC",
-                                                                    "Coal","Hydro","Nuclear"))
+                                                                    "Coal","Hydro"))
   #create color panel for later use
-  dispatchcolors <- c("gray50","yellow","yellow","red","cyan",
-                      "green","green","brown","orange","grey","blue","purple")
+  dispatchcolors <- c("yellow","yellow","cyan",
+                      "green","green","brown","orange","grey","blue")
   
   #drop NA's
   fuelDispatch <- fuelDispatch[!is.na(fuelDispatch$Category),]
-  
-  #fuelDispatch$Category <- mapvalues()
   
   # calculate all zones
   all_dispatch <- ddply(fuelDispatch, ~ datetime + Category, summarise, MW = sum(MW))
@@ -242,13 +285,10 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
   fuelDispatch <- fuelDispatch[,c("datetime", "Category", "MW", "zone")]
   fuelDispatch <- rbind(fuelDispatch, all_dispatch)
   
-  #fuelDispatch 
-  #fuelDispatch$Category <- droplevels(fuelDispatch$Category)
-
   #Luke's plotting code (active)
   ggplot(data=fuelDispatch, aes(x=datetime, y=MW, fill=Category)) + geom_area() + 
     geom_line(data = fuelemissions, aes(x=datetime, y = Emissions,linetype=''),colour='black',size=2) +
-    facet_wrap(~zone, nrow=3, scales = "free") + 
+    facet_wrap(~zone, nrow=3, scales = "free") +
     theme_classic() + ylab("Gen (MW) or Emissions (tonne)") +
     guides(fill=guide_legend(title="Gen: ", nrow=2, byrow=TRUE),
            linetype=guide_legend(title="Emissions: ")) +
@@ -258,28 +298,27 @@ plotDispatch <- function(results, dates, plotTitle, hours=24){
           legend.position = "bottom",
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
           axis.title.y = element_text(size=32),
-          axis.text.x= element_text(size=16),
+          axis.text.x= element_text(size=8),
           axis.text.y= element_text(size=16),
           strip.text.x = element_text(size = 24)) +
     ggtitle(paste("Generation by fuel for", plotTitle))
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
-  ggsave(paste0("dispatch ", plotTitle, ".png"), width=20, height=12)
+  ggsave(paste0("dispatch ", plotTitle, ".png"), width=40, height=12)
   
-  return(list(fuelDispatch,fuelemissions))
+  return(fuelDispatch)
 }
-#plotDispatch(results1,dates1,plotTitle='test')
-#compare conventional dispatch
 
 compareplotDispatch <- function(dispatch_df1,dispatch_df2){
-  dispatchdelta_df <- dispatch_df1[,c("datetime","Category","zone")]
-  dispatchdelta_df$MW <- dispatch_df1$MW - dispatch_df2$MW
   
-  dispatchdelta_df$Category <- factor(dispatchdelta_df$Category, levels = c("Sync_Cond","Solar RTPV","Solar PV","CSP","Wind",
-                                                                    "Oil ST","Oil CT","Gas CT","Gas CC",
-                                                                    "Coal","Hydro","Nuclear"))
+  dispatchdelta_df <- merge(dispatch_df1, dispatch_df2, by = c("datetime","Category","zone"))
+  dispatchdelta_df$MW <- dispatchdelta_df$MW.x - dispatchdelta_df$MW.y
+  
+  dispatchdelta_df$Category <- factor(dispatchdelta_df$Category, levels = c("Solar RTPV","Solar PV","Wind",
+                                                                            "Oil ST","Oil CT","Gas CT","Gas CC",
+                                                                            "Coal","Hydro"))
   #create color panel for later use
-  dispatchcolors <- c("gray50","yellow","yellow","red","cyan",
-                      "green","green","brown","orange","black","blue","purple")
+  dispatchcolors <- c("yellow","yellow","cyan",
+                      "green","green","brown","orange","grey","blue")
   
   
   #Luke's plotting code (active)
@@ -337,7 +376,6 @@ compareTotalEmissions <- function(emissiondflist,plotTitle='hi',resolution=NA){
 
 compareTotalGeneratorCost <- function(generatordflist,plotTitle='hi',resolution='NA'){
   #eventually probably a list of dfs as input
-  print(names(generatordflist))
   for (i in 1:length(generatordflist)){
     generatordflist[[i]]$label <- names(generatordflist[i]) #may want better label
   }
@@ -346,49 +384,58 @@ compareTotalGeneratorCost <- function(generatordflist,plotTitle='hi',resolution=
   if (resolution=='month'){
     generatordf$date <- month(generatordf$date)
   }
-  #print(generatordf)
-
-  generatordf <- ddply(generatordf, ~ date + label, summarise, cost = sum(Cost))
+  if (names(generatordf)[2]=="Revenue"){
+    plotlabel <- names(generatordf)[2]
+    generatordf <- ddply(generatordf, ~ date + label, summarise, cost = sum(Revenue))
+  }
+  else{
+    plotlabel <- names(generatordf)[2]
+    generatordf <- ddply(generatordf, ~ date + label, summarise, cost = sum(Cost))
+  }
   
-  #print(storagedf)
-  #geom_bar(stat='identity',
-  #generatordf$cost <- as.numeric(generatordf$cost)
-  #    scale_y_continuous(limits = c(30000, 40000),oob = rescale_none) +
   ggplot(data=generatordf, aes(x=date, y=cost, fill=label)) +
     geom_bar(stat='identity',position='dodge') + 
-    theme_classic() + ylab("Generator Revenue ($)") + xlab("") +
+    theme_classic() + ylab(paste("Generator ",plotlabel," ($)")) + xlab("") +
     guides(fill=guide_legend(title="")) +
     theme(legend.text = element_text(size=32),
           legend.position = 'bottom',
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
           axis.title.y = element_text(size=28),
-          axis.text.x= element_text(size=20),
+          axis.title.x = element_blank(),
+          axis.text.x= element_blank(),
           axis.text.y= element_text(size=20)) +
-    ggtitle(paste("Wind Bus 309 Revenue Comparison"))
+    ggtitle(paste("Total Generator ",plotlabel," Comparison"))
   
   setwd(paste(baseWD, "post_processing", "figures", sep="/"))
   ggsave(paste0("total dispatch cost plot",plotTitle,".png"), width=12, height=6)
   return(generatordf)
 }
 
-
 #storage dispatch
 plotStorage <- function(results, dates, plotTitle, hours=24){
   storage_dispatch <- results[["storage"]]
-  storage_dispatch$datetime <- as.POSIXct(with(storage_dispatch, paste(date, time)), format = "%Y-%m-%d %H")
-  
+  storage_dispatch$dispatch <- storage_dispatch$discharge-storage_dispatch$charge
+  storage_dispatch$X <- factor(storage_dispatch$X)
+  storage_dispatch$node <- factor(storage_dispatch$node)
+
   #Luke's plotting code (active)
-  ggplot(data=storage_dispatch, aes(x=datetime, y=soc, fill="SOC")) + geom_area(alpha=0.5) + 
-    geom_line(aes(datetime, dispatch,color='Storage Dispatch'),lwd=3) +
-    geom_line(aes(datetime, lmp,color='LMP'),lwd=2,linetype='dashed') +
-    theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
+  plotcolors <- c("dispatch" = "black", "LMP" = "red")
+  plotfill <- c("SOC" = "gray")
+  
+  ggplot(data=storage_dispatch, aes(x=datetime, y=soc,fill="SOC")) + geom_area(alpha=.5) + 
+    facet_wrap(~X, nrow=1, scales = "free") +
+    geom_line(aes(datetime, dispatch,color="dispatch"),lwd=3) +
+    geom_line(aes(datetime, lmp,color="LMP"),lwd=2,linetype='dashed') +
+    theme_classic() + ylab("MW or LMP ($/MWh)") + xlab("") +
+    ylim(c(min(storage_dispatch$dispatch),max(storage_dispatch$soc))) +
     scale_x_datetime() +
-    scale_color_manual(name = "", values = c("Storage Dispatch" = "black", "LMP" = "red")) +
-    scale_fill_manual(name="",values=c("SOC"="gray50")) +
-    guides(color=guide_legend(nrow=1)) +
+    scale_color_manual(values = plotcolors) +
+    scale_fill_manual(values=plotfill)+
     theme(legend.text = element_text(size=32),
+          legend.title = element_blank(),
           legend.position = 'bottom',
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          strip.text.x = element_text(size=24),
           axis.title.y = element_text(size=32),
           axis.text.x= element_text(size=20),
           axis.text.y= element_text(size=20)) +
@@ -402,12 +449,15 @@ plotStorage <- function(results, dates, plotTitle, hours=24){
 
 #compare storage dispatch
 compareplotStorage <- function(storage_df1,storage_df2,plotTitle='NA'){
-  storagedelta_df <- storage_df1[,c("X","time","date","datetime")]
-  storagedelta_df$dispatch <- storage_df1$dispatch - storage_df2$dispatch
-  storagedelta_df$soc <- storage_df1$soc - storage_df2$soc
-  storagedelta_df$lmp <- storage_df1$lmp - storage_df2$lmp
+
+  storagedelta_df <- merge(storage_df1, storage_df2, by = c("X","datetime"))
+  
+  storagedelta_df$dispatch <- storagedelta_df$dispatch.x - storagedelta_df$dispatch.y
+  storagedelta_df$soc <- storagedelta_df$soc.x - storagedelta_df$soc.y
+  storagedelta_df$lmp <- storagedelta_df$lmp.x - storagedelta_df$lmp.y
   
   ggplot(data=storagedelta_df, aes(x=datetime, y=soc, fill="SOC")) + geom_area(alpha=0.5) + 
+    facet_wrap(~X, nrow=1, scales = "free") +
     geom_line(aes(datetime, dispatch,color='Storage Dispatch'),lwd=3) +
     geom_line(aes(datetime, lmp,color='LMP'),lwd=2,linetype='dashed') +
     theme_classic() + ylab("MWh or LMP ($/MWh)") + xlab("") +
@@ -429,16 +479,20 @@ compareplotStorage <- function(storage_df1,storage_df2,plotTitle='NA'){
   }
 
 compareStorageHeatplot <- function(storagedflist,plotTitle='NA',type='NA'){
-  #eventually probably a list of dfs as input
+  
   for (i in 1:length(storagedflist)){
     storagedflist[[i]]$label <- names(storagedflist[i]) #may want better label
   }
   storagedf <- do.call("rbind", storagedflist)
-  #print(storagedf)
-  #+ scale_y_continuous(trans='reverse',breaks=c(2,4,6,8,10,12))
-  #,limits = c(-50,50
+  
+  #this isn't perfect but we have to reformat the hours based on datetime
+  storagedf$hour <- format(as.POSIXct(ceiling_date(storagedf$datetime,unit = "hours"),format = "%Y-%m-%d %H:%M:%S"),"%H")
+  storagedf$hour <- as.numeric(storagedf$hour)
+  storagedf$hour[storagedf$hour==0] <- 24
+
   if (type=='lmp'){
-    ggplot(data = storagedf, aes(x = time, y = label, fill = lmp)) +
+    ggplot(data = storagedf, aes(x = hour, y = label, fill = lmp)) +
+      facet_wrap(~X, nrow=2)+
       geom_tile() + geom_text(aes(label=round(lmp,0)))+
       theme_classic() +
       scale_fill_gradient2(low = "darkgreen",mid='yellow',high = "darkred",
@@ -455,14 +509,15 @@ compareStorageHeatplot <- function(storagedflist,plotTitle='NA',type='NA'){
       ggtitle(paste("Storage LMP Heatplot ", plotTitle))
   }
   else{
-    ggplot(data = storagedf, aes(x = time, y = label, fill = dispatch)) +
+    ggplot(data = storagedf, aes(x = hour, y = label, fill = dispatch)) +
+      facet_wrap(~X, nrow=2)+
       geom_tile() + geom_text(aes(label=round(dispatch,-1)))+
       theme_classic() +
       scale_fill_gradient2(low = "darkred",mid="white",high = "darkgreen",
                            midpoint=0,na.value = "grey") +
-      labs(fill="Dispatch \n (MWh)",x="Hour") +
+      labs(fill="Avg Dispatch \n (MW)",x="Hour") +
       theme(legend.position="right",
-            text = element_text(size=28),
+            text = element_text(size=16),
             legend.text=element_text(size=28),
             legend.key.size = unit(3,"line"),
             axis.text.x = element_text(size=24),
@@ -476,10 +531,12 @@ compareStorageHeatplot <- function(storagedflist,plotTitle='NA',type='NA'){
   ggsave(paste0("storage heatplot ",plotTitle,".png"), width=16, height=6)
 }
 
+
 compareStorageProfit <- function(storagedflist,plotTitle='hi',resolution=NA){
+  ss <- results1$storageresources$Storage_Index[results1$storageresources$StorageIndex == 1]
   #eventually probably a list of dfs as input
-  print(names(storagedflist))
   for (i in 1:length(storagedflist)){
+    storagedflist[[i]] <- storagedflist[[i]][storagedflist[[i]]$X==ss,]
     storagedflist[[i]]$label <- names(storagedflist[i]) #may want better label
   }
   storagedf <- do.call("rbind", storagedflist)
@@ -496,10 +553,11 @@ compareStorageProfit <- function(storagedflist,plotTitle='hi',resolution=NA){
     geom_bar(stat='identity',position='dodge') + 
     theme_classic() + ylab("Profit($)") + xlab("") +
     theme(legend.text = element_text(size=26),
+          legend.title = element_blank(),
           legend.position = 'bottom',
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
           axis.title.y = element_text(size=32),
-          axis.text.x= element_text(size=20),
+          axis.text.x= element_blank(),
           axis.text.y= element_text(size=20)) +
     ggtitle(paste("Storage Profit ", plotTitle))
   
@@ -513,7 +571,7 @@ cleanOffer <- function(results,dates,hours=24){
   gens <- results[['gens']]
   
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
-  offer$genID <- gsub("-\\d","",offer[,1])
+  offer$genID <- gsub("-\\d+","",offer[,1])
   offer$area <- substr(offer$Zone,start=1,stop=1)
   
   offer <- merge(offer, gens[,c("Name", "Category")], by.x="genID", by.y="Name", all.x=T)
@@ -524,7 +582,7 @@ cleanOffer <- function(results,dates,hours=24){
   return(profits)
 }
 
-compareGeneratorProfit <- function(generatordflist,plotTitle='hi'){
+compareGeneratorProfit <- function(generatordflist,plotTitle='hi',resolution='NA'){
   #eventually probably a list of dfs as input
   #print(names(generatordflist))
   for (i in 1:length(generatordflist)){
@@ -532,14 +590,21 @@ compareGeneratorProfit <- function(generatordflist,plotTitle='hi'){
   }
   gendf <- do.call("rbind", generatordflist)
   
-  ggplot(data=gendf, aes(x=date, y=Profits, fill=label)) +
+  if (resolution=='month'){
+    gendf$date <- month(gendf$date)
+  }
+  
+  gendf <- ddply(gendf, ~ date + label, summarise, profit = sum(Profit))
+  
+  ggplot(data=gendf, aes(x=date, y=profit, fill=label)) +
     geom_bar(stat='identity',position='dodge') + 
     theme_classic() + ylab("Profit($)") + xlab("") +
+    guides(fill=guide_legend(title="")) +
     theme(legend.text = element_text(size=32),
           legend.position = 'bottom',
           plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
           axis.title.y = element_text(size=32),
-          axis.text.x= element_text(size=20),
+          axis.text.x= element_blank(),
           axis.text.y= element_text(size=20)) +
     ggtitle(paste("Generator Profit ", plotTitle))
   
@@ -547,14 +612,14 @@ compareGeneratorProfit <- function(generatordflist,plotTitle='hi'){
   ggsave(paste0("generator profit plot",plotTitle,".png"), width=12, height=6)
 }
 
-cleanOffer(results1,dates1) #takes awhile bc big file
+#cleanOffer(results1,dates1) #takes awhile bc big file
 
 cleanEmissions <- function(results,dates,hours=24){
   offer <- results[['offer']]
   #gens <- results[['gens']]
   
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
-  offer$genID <- gsub("-\\d","",offer[,1])
+  offer$genID <- gsub("-\\d+","",offer[,1])
   offer$area <- substr(offer$Zone,start=1,stop=1)
 
   emissions <- ddply(offer,~date,summarise,Emissions=sum(SegmentEmissions))
@@ -565,7 +630,7 @@ cleanDispatchCost <- function(results,dates,type='NA',filter='None',hour=24){
   offer <- results[['offer']]
   #print(offer)
   offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
-  offer$genID <- gsub("-\\d","",offer[,1])
+  offer$genID <- gsub("-\\d+","",offer[,1])
   offer$area <- substr(offer$Zone,start=1,stop=1)
   if (type=='lmp'){
     offer$dispatchcost <- offer$SegmentDispatch*offer$LMP
@@ -578,72 +643,120 @@ cleanDispatchCost <- function(results,dates,type='NA',filter='None',hour=24){
     offer <- offer[offer$genID==filter,]
   }
   DispatchCost <- ddply(offer,~date,summarise,Cost=sum(dispatchcost))
+  if (type=="lmp"){
+    names(DispatchCost) <- c("date","Revenue")
+  }
   return(DispatchCost)
 }
 
-dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=365)
-#dates2 <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=1)
+
+cleanDispatchProfit <- function(results,dates,type='NA',filter='None',hour=24){
+  gc <- results[['generatorresources']]$Gen_Index[results[['generatorresources']]$GencoIndex == 1]
+  offer <- results[['offer']]
+  offer <- offer[,c("X","SegmentDispatch","LMP","date")]
+  nucoffer <- results[['nucoffer']]
+  nucoffer <- nucoffer[,c("X","dispatch","lmp","date")]
+  colnames(nucoffer)=c("X","SegmentDispatch","LMP","date")
+  offer <- rbind(offer, nucoffer)
+  offer$segID <- gsub("[[:print:]]*-", "", offer[,1])
+  offer$genID <- gsub("-\\d+","",offer[,1])
+  offer <- offer[offer$genID==gc,]
+  offer$dispatchprofit <- offer$SegmentDispatch * offer$LMP
+  if (filter!='None'){
+    offer <- offer[offer$genID==filter,]
+  }
+  DispatchProfit <- ddply(offer,~date,summarise,Profit=sum(dispatchprofit))
+  return(DispatchProfit)
+}
+
+compareObjectives <- function(resultslist){
+  objectivelist <- list()
+  for (i in 1:length(resultslist)){
+    resultslist[[i]]$objective$label <- names(resultslist[i])
+    #objectiveframe$label <- names(resultslist[i])
+    #objectivelist <- c(objectivelist, objectiveframe)
+  }
+  objectivedf <- rbind(resultslist[[2]]$objective,resultslist[[1]]$objective)
+  print(objectivedf)
+  valuedf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(GeneratorProfitDual))
+  gapdf <- ddply(objectivedf, ~ date + label,summarise, Gap = sum(gap))
+  profitdf <- ddply(objectivedf, ~ date + label, summarise, Objective = sum(SSProfit))
+  valuedf$Gap <- gapdf$Gap
+  valuedf$SSProfit <- profitdf$Objective
+  print(valuedf)
+  
+  ggplot(data=valuedf, aes(x=date, y=Objective, fill=label)) +
+    geom_bar(stat='identity',position='dodge') +
+    geom_errorbar(aes(x=date, ymin=Objective-Gap, ymax=Objective+Gap), colour="black", position='dodge')+
+    theme_classic() + ylab("Objective($)") + xlab("") +
+    guides(fill=guide_legend(title="")) +
+    theme(legend.text = element_text(size=32),
+          legend.position = 'bottom',
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5),
+          axis.title.y = element_text(size=32),
+          axis.text.x= element_text(size=24),
+          axis.text.y= element_text(size=20)) +
+    ggtitle(paste("Daily Objectives"))
+  
+  setwd(paste(baseWD, "post_processing", "figures", sep="/"))
+  ggsave(paste0("dailyobjectives",".png"), width=12, height=6)
+  return(valuedf)
+  
+}
+
+dates1 <- seq(as.POSIXct("1/1/2019", format = "%m/%d/%Y"), by="day", length.out=1) # Configure cases period here
+dates2 <- seq(as.POSIXct("2/1/2019", format = "%m/%d/%Y"), by="day", length.out=4)
 
 
-results1 <- loadAllCases(dates1,folder='base')
-results1competitive <- loadAllCases(dates1,folder="competitive")
+results1 <- loadResults(dates1,folder='303.301SS_Wind303',subfolder="results_DA_RTVRE")
+results2 <- loadResults(dates1,folder='303.301SS_Wind303',subfolder="results_Bind_DA")
+#results3 <- loadResults(dates1,folder="303.301SS_Wind303",subfolder="results_DA")
+#results1RT  <- loadResultsRT(dates1,folder='303.301SS_Wind303')
 
-results1CO2 <- loadAllCases(dates1,folder='baseCO230')
-results1CO2competitive <- loadAllCases(dates1,folder='competitiveCO230')
+#caselist <- list(results2)
+#names(caselist) <- c('day-ahead-rtvre','bind-day-ahead')
+#names(caselist) <- c('NSS',"SS",'mix')
+#df2 <- compareObjectives(caselist)
+#df2$delta <- df2$SSProfit-df2$Objective
+#write.csv(df2,"df2.csv")
+#results2 <- loadResults(dates2,folder='test')
+# <- loadResultsRT(dates2,folder='test')
 
-d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1-30 2019')
-d2 <- plotPrices(results1,dates1,plotTitle='Jan 1-15 2019')
-d3 <- plotStorage(results1,dates1,plotTitle='Jan 1-15 2019')
+#plotDispatch(results2,dates2,plotTitle='Feb',F)
 
-c1 <- plotDispatch(results1competitive,dates1,plotTitle='Jan 1-30 2019 competitive')
-c2 <- plotPrices(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
-c3 <- plotStorage(results1competitive,dates1,plotTitle='Jan 1-15 2019 competitive')
+d1 <- plotDispatch(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
+d2 <- plotPrices(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
+d3 <- plotStorage(results1,dates1,plotTitle='Jan 1 2019 RTVRE')
 
-CO21 <- plotDispatch(results1CO2,dates1,plotTitle='Jan 1-30 2019 CO2')
-CO21competitive <- plotDispatch(results1CO2competitive,dates1,plotTitle='Jan 1-30 2019 CO2')
+d1bind <- plotDispatch(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
+d2bind <- plotPrices(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
+d3bind <- plotStorage(results2,dates1,plotTitle='Jan 1 2019 BIND DA')
 
-#fuelemissions$datetime <- as.POSIXct(with(fuelemissions, paste(date, hour)), format = "%Y-%m-%d %H")
-compareplotDispatch(d1,c1)
-compareplotPrices(d2,c2)
-compareplotStorage(d3,c3)
-compareStorageHeatplot(list(d3,c3))
+#d1RT <- plotDispatch(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+#d2RT <- plotPrices(results1RT,dates1,plotTitle='Jan 1 2019 RT')
+#d3RT <- plotStorage(results1RT,dates1,plotTitle='Jan 1 2019 RT')
 
+#compareplotDispatch(d1,d1RT)
+#compareplotPrices(d2,d2RT)
+#compareplotStorage(d3,d3RT)
 
-caselist <- list(d1[[2]],c1[[2]],CO21[[2]],CO21competitive[[2]])
-names(caselist) <- c('base','competitive','baseCO2','competitiveCO2')
-df <- compareTotalEmissions(caselist,plotTitle='test')
-write.csv(df,'check.csv')
-
-#all year
-dyear <- plotDispatch(results1,dates1,plotTitle='All Year 2019')
-
-dyearprice <- plotPrices(results1,dates1,plotTitle = 'All Year 2019')
-dyearpricecompetitive <- plotPrices(results1competitive,dates1,plotTitle='All Year Competitive 2019')
-dyearpriceCO2 <- plotPRices(results)
-
-dyearstorage <- plotStorage(results1,dates1,plotTitle='All Year Storage 2019')
-dyearstoragecompetitive <- plotStorage(results1competitive,dates1,plotTitle='All Year competitive Storage 2019')
-dyearstorageCO2 <- plotStorage(results1CO2, dates1, plotTitle='All Year Storage 2019')
-
-caselist <- list(dyearstorage,dyearstoragecompetitive)
-names(caselist) <- c('base','competitive')
+caselist <- list(d3,d3bind)
+names(caselist) <- c('day-ahead','real-time')
+compareStorageHeatplot(caselist)
+compareStorageHeatplot(caselist,type='lmp')
 compareStorageProfit(caselist,plotTitle='test',resolution='month')
-compareStorageHeatplot(caselist,plotTitle='test')
-compareStorageHeatplot(caselist,plotTitle='lmp',type='lmp')
 
-caselist <- list(cleanEmissions(results1,dates1),cleanEmissions(results1competitive,dates1),
-                 cleanEmissions(results1CO2,dates1))
-names(caselist) <- c('base','competitive','CO2')
-compareTotalEmissions(caselist,plotTitle='test',resolution='month')
-
-caselist <- list(cleanDispatchCost(results1,dates1),cleanDispatchCost(results1competitive,dates1))
-names(caselist) <- c('base','competitive')
+caselist <- list(cleanDispatchCost(results1,dates1),cleanDispatchCost(results2,dates1))
+names(caselist) <- c('day-ahead','real-time')
 compareTotalGeneratorCost(caselist,plotTitle='test',resolution='month')
 
-caselist <- list(cleanDispatchCost(results1,dates1,type='lmp'),
-                 cleanDispatchCost(results1competitive,dates1,type='lmp'))
-names(caselist) <- c('base','competitive')
-compareTotalGeneratorCost(caselist,plotTitle='Payment',resolution='month')
+caselist <- list(cleanDispatchProfit(results1,dates1),cleanDispatchProfit(results2,dates1))
+names(caselist) <- c('day-ahead','real-time')
+compareGeneratorProfit(caselist,plotTitle='test')
+
+### end
+
+### old code function examples
 
 ## January only ##
 datesJan <- seq(as.POSIXct("1/3/2019", format = "%m/%d/%Y"), by="day", length.out=2)#31
@@ -726,84 +839,3 @@ caselist <- list(cleanEmissions(nostorageJan,datesJan),
 names(caselist) <- c('NoStorage','Base313','Comp313','Base303','Base309',
                      'Comp303','Comp309','Comp303Wind309')
 compareTotalEmissions(caselist,plotTitle='Jan',resolution='m')
-
-## June only ##
-datesJune <- seq(as.POSIXct("6/1/2019", format = "%m/%d/%Y"), by="day", length.out=5)
-
-nostorageJune <- loadAllCases(datesJune,folder='NoStorage')
-baseJune <- loadAllCases(datesJune,folder='base')
-competitiveJune <- loadAllCases(datesJune,folder="competitive")
-baseCO2June <- loadAllCases(datesJune,folder='baseCO230')
-competitiveCO2June <- loadAllCases(datesJune,folder='competitiveCO230')
-#competitiveCCJune <- loadAllCases(datesJune,folder='competitive300CCs')
-competitiveSteamJune <- loadAllCases(datesJune,folder='competitive300STEAM')
-base303June <- loadAllCases(datesJune,folder='BaseStorageBus303')
-base309June <- loadAllCases(datesJune,folder='BaseStorageBus309')
-
-competitive303June <- loadAllCases(datesJune,folder='CompetitiveStorageBus303')
-competitive309June <- loadAllCases(datesJune,folder='CompetitiveStorageBus309')
-competitive303andWind309June <- loadAllCases(datesJune,folder='CompetitiveStorageBus303andWind309')
-competitive309andWind303June <- loadAllCases(datesJune,folder='CompetitiveStorageBus309andWind303')
-#storage-related
-
-caselist <- list(plotStorage(nostorageJune,datesJune,plotTitle='1'),
-                 plotStorage(baseJune,datesJune,plotTitle='2'),
-                 plotStorage(competitiveJune,datesJune,plotTitle='3'),
-                 plotStorage(competitiveSteamJune,datesJune,plotTitle='7'),
-                 plotStorage(base303June,datesJune,plotTitle='8'),
-                 plotStorage(base309June,datesJune,plotTitle='9'),
-                 plotStorage(competitive303June,datesJune,plotTitle='10'),
-                 plotStorage(competitive309June,datesJune,plotTitle='11'),
-                 plotStorage(competitive303andWind309June,datesJune,plotTitle='12'),
-                 plotStorage(competitive309andWind303June,datesJune,plotTitle='13'))
-names(caselist) <- c('NoStorage','Base313','Comp313',
-                     'CompSteam','Base303','Base309','Comp303','Comp309','Comp303Wind309')
-
-compareStorageProfit(caselist,plotTitle='June',resolution='m')
-
-compareStorageHeatplot(caselist,plotTitle='June')
-compareStorageHeatplot(caselist,plotTitle='June',type='lmp')
-
-#generator cost, revenue, and profit
-#cost
-myfilter='None'
-caselist <- list(cleanDispatchCost(nostorageJune,datesJune,filter=myfilter),
-                 cleanDispatchCost(baseJune,datesJune,filter=myfilter),
-                 cleanDispatchCost(competitiveJune,datesJune,filter=myfilter),
-                 cleanDispatchCost(baseCO2June,datesJune,filter=myfilter),
-                 cleanDispatchCost(competitiveCO2June,datesJune,filter=myfilter),
-                 cleanDispatchCost(competitiveSteamJune,datesJune,filter=myfilter))
-names(caselist) <- c('NoStorage','Base313','Comp313',
-                     'CompSteam','Base303','Base309',
-                     'Comp303','Comp309','Comp303Wind309')
-compareTotalGeneratorCost(caselist,plotTitle='JuneCost')#resoultion='month'
-
-#payments
-#cleanDispatchCost(baseCO2Jan,datesJan,type='lmp')#filter='316_STEAM_1'
-myfilter = '309_WIND_1'
-caselist <- list(cleanDispatchCost(nostorageJune,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(baseJune,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(competitiveJune,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(competitiveSteamJune,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(base303June,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(base309June,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(competitive303June,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(competitive309June,datesJune,type='lmp',filter=myfilter),
-                 cleanDispatchCost(competitive303andWind309June,datesJune,type='lmp',filter=myfilter))
-names(caselist) <- c('NoStorage','Base313','Comp313',
-                     'CompSteam','Base303','Base309',
-                     'Comp303','Comp309','Comp303Wind309')
-compareTotalGeneratorCost(caselist,plotTitle='JunePmt_309Wind',resolution='m')#resoultion='month'
-
-#emissions
-caselist <- list(cleanEmissions(nostorageJune,datesJune),
-                 cleanEmissions(baseJune,datesJune),
-                 cleanEmissions(competitiveJune,datesJune),
-                 cleanEmissions(baseCO2June,datesJune),
-                 cleanEmissions(competitiveCO2June,datesJune),
-                 cleanEmissions(competitiveSteamJune,datesJune))
-names(caselist) <- c('NoStorage','Base','Competitive','BaseCO2','CompetitiveCO2',
-                     'CompetitiveSteam')
-compareTotalEmissions(caselist,plotTitle='June',resolution='month')
-
-plotPrices(baseJan,datesJan,plotTitle='check')

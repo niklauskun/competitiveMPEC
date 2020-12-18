@@ -16,7 +16,9 @@ import sys
 import datetime
 
 # import other scripts
-import input_competitive_test  # DataPortal for loading data from csvs into Pyomo model
+import input_competitive_DA  # DataPortal for loading data from csvs into Pyomo model
+import input_competitive_DA_RTVRE
+import input_competitive_RT
 import model_competitive_test  # the actual Pyomo model formulation
 import write_results_competitive  # writes model outputs to csvs
 
@@ -26,36 +28,141 @@ from utility_functions import (
     update_offers,
     create_scenario_list,
     CreateAndRunScenario,
+    StorageOfferMitigation,
+    write_timepoint_subset,
+    create_case_suffix,
+    write_DA_bids,
 )
 
 start_time = time.time()
-cwd = os.getcwd()
+cwd = os.path.join(os.environ["HOMEPATH"], "Desktop", "competitiveMPEC_12.6")
 
 ### GENERAL INPUTS ###
-case_folder = "test"  # andWind309
+case_folder = "Wind303_2x303SS"#"Colocated303_303NSS"  #Wind303_2x303NSS
 
-start_date = "01-02-2019"  # use this string format
-end_date = "01-03-2019"  # end date is exclusive
+# start from 7/1
+start_date = "01-01-2019"  # use this string format
+end_date = "02-01-2019"  # end date is exclusive
 MPEC = True  # if you wish to run as MPEC, if false runs as min cost dispatch LP
+RT, rt_tmps, total_rt_tmps = False, 48, 288
+# the second value is how many tmps to subset RT cases into
 EPEC, iters = False, 9  # if EPEC and max iterations if True.
 show_plots = False  # if True show plot of gen by fuel and bus LMPs after each case
+mitigate_storage_offers = False
+bind_DA_offers = False
+RTVRE = False  # if True **AND** RT==False, run DA case with real-time VRE data; if True **AND** RT==True, run RT case with RTVRE SOC bind
 
 ### OPTIONAL SOLVER INPUTS ###
 executable_path = ""  # if you wish to specify cplex.exe path
 solver_name = "cplex"  # only change if you wish to use a solver other than cplex
 solver_kwargs = {
     "parallel": -1,
-    "mip_tolerances_mipgap": 0.3,
-    "dettimelimit": 300000,
+    "mip_tolerances_mipgap": 0.01,
+    "mip_tolerances_integrality": 0.000000001,
+    "simplex_tolerances_feasibility": 0.01,
+    "dettimelimit": 175000,
 }  # note if you use a non-cplex solver, you may have to change format of solver kwargs
 #    "warmstart_flag": True,
 ### OPTIONAL MODEL MODIFYING INPUTS ###
 # for now, I'll just include ability here to deactivate constraints if you don't want the model to use them
 deactivated_constraint_args = []  # list of constraint names to deactivate
-# an example that won't affect problem much is "OfferCapConstraint"
-# "OneCycleConstraint"
-
 ### END INPUTS ###
+
+# an example that won't affect problem much is "OfferCapConstraint"
+
+# "OneCycleConstraint
+if not bind_DA_offers and not RT:
+    print("run DA case, deactivating offer and SOC constraint binds")
+    deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
+    deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
+    deactivated_constraint_args.append("BindDASOCChangeConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMaxConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMinConstraint")
+    deactivated_constraint_args.append("RTMaxStorageComplementarity")
+    deactivated_constraint_args.append("RTMinStorageComplementarity")
+    deactivated_constraint_args.append("BindDAOneCycleMaxConstraint")
+    deactivated_constraint_args.append("BindDAOneCycleMinConstraint")
+    deactivated_constraint_args.append("RTStorageDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageChargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    deactivated_constraint_args.append("RTFinalSOCMaxComplementarity")
+    deactivated_constraint_args.append("RTFinalSOCMinComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMaxComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMinComplementarity")
+
+    ##for tests ##
+    # deactivated_constraint_args.append("GeneratorStartupShutdownConstraint")
+    # deactivated_constraint_args.append("GeneratorRampDownConstraint")
+    # deactivated_constraint_args.append("GeneratorOfferDualConstraint")
+
+    """
+    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
+    # deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    """
+elif bind_DA_offers and not RT:
+    print("run DA case, deactivating offer and SOC constraint binds")
+    deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
+    deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    deactivated_constraint_args.append("BindDASOCChangeConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMaxConstraint")
+    deactivated_constraint_args.append("BindDAFinalSOCMinConstraint")
+    deactivated_constraint_args.append("RTMaxStorageComplementarity")
+    deactivated_constraint_args.append("RTMinStorageComplementarity")
+    deactivated_constraint_args.append("BindDAOneCycleMaxConstraint")
+    deactivated_constraint_args.append("BindDAOneCycleMinConstraint")
+    deactivated_constraint_args.append("RTStorageDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageChargeDualConstraint")
+    deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    deactivated_constraint_args.append("RTFinalSOCMaxComplementarity")
+    deactivated_constraint_args.append("RTFinalSOCMinComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMaxComplementarity")
+    deactivated_constraint_args.append("RTDAOneCycleMinComplementarity")
+
+    ##for tests ##
+    # deactivated_constraint_args.append("GeneratorStartupShutdownConstraint")
+    # deactivated_constraint_args.append("GeneratorRampDownConstraint")
+    # deactivated_constraint_args.append("GeneratorOfferDualConstraint")
+
+    """
+    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
+    # deactivated_constraint_args.append("RTStorageNSChargeDualConstraint")
+    """
+elif RT and not bind_DA_offers:
+    print("run RT Bind DA SOC case, deactivating offer binds and DA SOC constraint")
+    deactivated_constraint_args.append("ForceBindDischargeOfferConstraint")
+    deactivated_constraint_args.append("ForceBindChargeOfferConstraint")
+    deactivated_constraint_args.append("SOCChangeConstraint")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMinConstraint")
+    deactivated_constraint_args.append("MaxStorageComplementarity")
+    deactivated_constraint_args.append("MinStorageComplementarity")
+    deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageChargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSChargeDualConstraint")
+elif RT and bind_DA_offers:
+    print(
+        "run RT Bind DA SOC and Bid case, deactivating offer mitigation and DA SOC constraint, because RT offers are bound against DA"
+    )
+    deactivated_constraint_args.append("MitigateDischargeOfferConstraint")
+    deactivated_constraint_args.append("MitigateChargeOfferConstraint")
+    deactivated_constraint_args.append("SOCChangeConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMaxConstraint")
+    # deactivated_constraint_args.append("BindFinalSOCMinConstraint")
+    deactivated_constraint_args.append("BindFinalSOCConstraint")
+    deactivated_constraint_args.append("MaxStorageComplementarity")
+    deactivated_constraint_args.append("MinStorageComplementarity")
+    deactivated_constraint_args.append("StorageDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSDischargeDualConstraint")
+    deactivated_constraint_args.append("StorageChargeDualConstraint")
+    deactivated_constraint_args.append("StorageNSChargeDualConstraint")
+    # deactivated_constraint_args.append("BindDAOneCycleConstraint")
+
+else:
+    raise NameError("case not found")
 
 # Directory structure, using existing files rather than creating case structure for now
 class DirStructure(object):
@@ -70,14 +177,14 @@ class DirStructure(object):
         self.INPUTS_DIRECTORY = os.path.join(
             self.CASE_DIRECTORY, scenario_name, "inputs"
         )
-        self.RESULTS_DIRECTORY = os.path.join(
-            self.CASE_DIRECTORY, scenario_name, "results"
-        )
         self.LOGS_DIRECTORY = os.path.join(self.DIRECTORY, "logs")
         if load_init:
             self.INIT_DIRECTORY = os.path.join(self.CASE_DIRECTORY, load_dir, "results")
 
-    def make_directories(self):
+    def make_directories(self, results_suffix):
+        self.RESULTS_DIRECTORY = os.path.join(
+            self.CASE_DIRECTORY, scenario_name, "results" + results_suffix
+        )
         if not os.path.exists(self.RESULTS_DIRECTORY):
             os.mkdir(self.RESULTS_DIRECTORY)
         if not os.path.exists(self.LOGS_DIRECTORY):
@@ -111,24 +218,31 @@ class Logger(object):
         self.log_file.flush()
 
 
-scenario_list = create_scenario_list(start_date, end_date)  # create scenario list
+scenario_list = create_scenario_list(
+    start_date, end_date, RT, rt_tmps, total_rt_tmps
+)  # create scenario list
+# creates rt subset list
 ### RUN MODEL ###
 for counter, s in enumerate(scenario_list):
     # initialize scenario data in the tuple
     if EPEC:
         print("EPEC not currently enabled, so exiting")
         break
-    scenario_name, load_init, load_dir, genco_index = (
+    scenario_name, load_init, load_dir, genco_index, rt_iter = (
         s[0],
         s[1],  # this and the next one are only needed for initializing a case based on
         s[2],  # a previous day. Don't worry about this for now
         s[3],  # this is only needed for EPEC
+        s[4],
     )
 
     # run the case, as usual
     code_directory = cwd
     dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
-    dir_str.make_directories()
+    case_suffix = create_case_suffix(
+        dir_str, RT, RTVRE, bind_DA_offers, rt_tmps, rt_iter
+    )
+    dir_str.make_directories(case_suffix)
     logger = Logger(dir_str)
     log_file = logger.log_file_path
     print(
@@ -138,6 +252,8 @@ for counter, s in enumerate(scenario_list):
         + str(len(scenario_list))
         + " ("
         + str(scenario_name)
+        + "_"
+        + str(rt_iter)
         + ")..."
     )
     stdout = sys.stdout
@@ -146,11 +262,57 @@ for counter, s in enumerate(scenario_list):
     # updates generator offers for iterable scenarios
     overwritten_offers = update_offers(dir_str)
 
+    # writes the file timepoints_index_subset_rt.csv
+    write_timepoint_subset(dir_str, RT, rt_tmps, rt_iter)
+
+    # writes the file storage_bids_DA.csv
+    if RT:  # bind_DA_offers and
+        DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+        DA_case_suffix = create_case_suffix(
+            DA_dir_str, False, RTVRE, bind_DA_offers, rt_tmps, rt_iter
+        )
+        DA_dir_str.make_directories(DA_case_suffix)
+        write_DA_bids(
+            DA_dir_str,
+            RT,
+            bind_DA_offers,
+            total_rt_tmps,
+            scenario_name,
+            default_write=False,
+        )
+    elif bind_DA_offers:
+        DA_dir_str = DirStructure(code_directory, case_folder, load_init, load_dir)
+        DA_case_suffix = create_case_suffix(
+            DA_dir_str, False, RTVRE, bind_DA_offers, rt_tmps, rt_iter
+        )
+        DA_dir_str.make_directories(DA_case_suffix)
+        write_DA_bids(
+            DA_dir_str,
+            RT,
+            bind_DA_offers,
+            total_rt_tmps,
+            scenario_name,
+            default_write=False,
+        )
+    else:
+        write_DA_bids(
+            dir_str,
+            RT,
+            bind_DA_offers,
+            total_rt_tmps,
+            scenario_name,
+            default_write=True,
+        )
+
     # create and run scenario (this is the big one)
     scenario = CreateAndRunScenario(
         dir_str,
         load_init,
         MPEC,
+        RT,
+        RTVRE,
+        bind_DA_offers,
+        mitigate_storage_offers,
         genco_index,
         overwritten_offers,
         *deactivated_constraint_args,
@@ -164,7 +326,7 @@ for counter, s in enumerate(scenario_list):
 
     # show diagnostic plots if you wanted to
     if show_plots:
-        scenario.diagnostic_plots()
+        scenario.diagnostic_plots(rt_tmps, rt_iter)
 
     end_time = time.time() - start_time
     print("time elapsed during run is " + str(round(end_time, 2)) + " seconds")
